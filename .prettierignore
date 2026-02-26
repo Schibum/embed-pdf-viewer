@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+coverage
+*.log
+*.lock
+*.pdf
+*.wasm
+public
+.svelte-kit/
+/static/

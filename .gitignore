@@ -1,0 +1,17 @@
+# Dependencies
+node_modules
+**/node_modules/
+**/dist
+**/.turbo
+config/tsup.config.bundled*
+config/tsup.frameworks.config.bundled*
+.next
+.cursor
+.DS_Store
+.gcs_entries
+.gclient*
+.cipd
+.idea
+publish-summary.json
+**/.svelte-kit
+**/*/*.tgz

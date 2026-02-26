@@ -1,0 +1,1 @@
+{"version":3,"file":"redaction-sidebar.d.ts","sourceRoot":"","sources":["../../src/components/redaction-sidebar.tsx"],"names":[],"mappings":"AAAA,OAAO,EAAE,CAAC,EAAE,MAAM,QAAQ,CAAC;AAW3B,MAAM,WAAW,qBAAqB;IACpC,UAAU,EAAE,MAAM,CAAC;CACpB;AA4DD,wBAAgB,gBAAgB,CAAC,EAAE,UAAU,EAAE,EAAE,qBAAqB,iBAkGrE"}

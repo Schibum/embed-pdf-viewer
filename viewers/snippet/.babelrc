@@ -1,0 +1,10 @@
+{
+  "presets": [
+    "@babel/env",
+    ["@babel/react", {
+      "pragma": "h",
+      "pragmaFrag": "Fragment"
+    }],
+    "@babel/preset-typescript"
+  ]
+}

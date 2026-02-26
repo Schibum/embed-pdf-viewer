@@ -1,0 +1,1 @@
+{"version":3,"file":"hint-layer.d.ts","sourceRoot":"","sources":["../../src/components/hint-layer.tsx"],"names":[],"mappings":"AAAA,OAAO,EAAE,CAAC,EAAE,MAAM,QAAQ,CAAC;AAW3B,MAAM,WAAW,cAAc;IAC7B,UAAU,EAAE,MAAM,CAAC;CACpB;AAED,eAAO,MAAM,SAAS,GAAI,gBAAgB,cAAc,yBAsPvD,CAAC"}
