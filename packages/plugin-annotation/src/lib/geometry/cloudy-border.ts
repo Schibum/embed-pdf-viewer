@@ -338,7 +338,7 @@ function computeParamsPolygon(
   }
 
   const idealAdvance = 2 * k * idealRadius;
-  const n = Math.max(1, Math.round(remaining / idealAdvance));
+  const n = Math.max(1, Math.ceil(remaining / idealAdvance));
   const adjustedRadius = remaining / (n * 2 * k);
 
   return { n, adjustedRadius };
@@ -380,6 +380,16 @@ function cloudyPolygonImpl(
 
   const k = Math.cos(ANGLE_34);
 
+  const edgeAlphas: number[] = [];
+  for (let j = 0; j + 1 < numPoints; j++) {
+    const len = distance(polygon[j], polygon[j + 1]);
+    if (len <= 0 || len >= 2 * k * idealRadius) {
+      edgeAlphas.push(ANGLE_34);
+    } else {
+      edgeAlphas.push(Math.acos(Math.min(1, len / (2 * idealRadius))));
+    }
+  }
+
   let anglePrev = 0;
   let outputStarted = false;
 
@@ -413,22 +423,26 @@ function cloudyPolygonImpl(
     let x = pt.x;
     let y = pt.y;
 
+    const alpha = edgeAlphas[j];
+    const prevEdgeIdx = j === 0 ? numPoints - 2 : j - 1;
+    const alphaPrevEdge = edgeAlphas[prevEdgeIdx] ?? ANGLE_34;
+
     addCornerCurl(
       anglePrev,
       angleCur,
       idealRadius,
       pt.x,
       pt.y,
-      ANGLE_34,
-      ANGLE_34,
+      alpha,
+      alphaPrevEdge,
       out,
       !outputStarted,
     );
     outputStarted = true;
 
     if (params.n === 0) {
-      x += 2 * k * idealRadius * cos;
-      y += 2 * k * idealRadius * sin;
+      x += len * cos;
+      y += len * sin;
     } else {
       x += firstAdvance * cos;
       y += firstAdvance * sin;
