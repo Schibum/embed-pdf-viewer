@@ -1,5 +1,19 @@
 # @embedpdf/pdfium
 
+## 2.9.0
+
+### Minor Changes
+
+- [#529](https://github.com/embedpdf/embed-pdf-viewer/pull/529) by [@bobsingor](https://github.com/bobsingor) – Add cloudy border AP generation in PDFium C++. New `cpdf_cloudy_border.cpp/.h` generates scalloped border paths for Square, Circle, and Polygon annotations via the `/BE` border effect dictionary. Exposes `EPDFAnnot_SetBorderEffect` and `EPDFAnnot_ClearBorderEffect` bindings.
+
+### Patch Changes
+
+- [#526](https://github.com/embedpdf/embed-pdf-viewer/pull/526) by [@bobsingor](https://github.com/bobsingor) – Fix `EPDF_GetPageSizeByIndexNormalized` returning incorrect dimensions for PDFs with inherited MediaBox/CropBox.
+
+  The function read `/MediaBox` and `/CropBox` directly from the page dictionary via `dict->GetRectFor()`, which does not resolve PDF page tree attribute inheritance. Pages that inherit these attributes from a parent `/Pages` node would silently fall back to the default 612x792 (US Letter) size.
+
+  Replaced the direct dictionary lookups with a `GetInheritedRect` helper that walks the `/Parent` chain, mirroring the inheritance logic used by `CPDF_Page::GetPageAttr`. The function remains lightweight (no `CPDF_Page` construction) while correctly resolving inherited attributes.
+
 ## 2.8.0
 
 ### Minor Changes
