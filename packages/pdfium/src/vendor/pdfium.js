@@ -92,6 +92,7 @@ var createPdfium = (() => {
       '_EPDFAnnot_SetDefaultAppearance',
       '_EPDFAnnot_SetExtendedRotation',
       '_EPDFAnnot_SetFormFieldName',
+      '_EPDFAnnot_SetFormFieldOptions',
       '_EPDFAnnot_SetFormFieldValue',
       '_EPDFAnnot_SetIcon',
       '_EPDFAnnot_SetIntent',
@@ -6357,6 +6358,8 @@ var createPdfium = (() => {
       'EPDFAnnot_SetFormFieldName',
       3,
     ));
+    var _EPDFAnnot_SetFormFieldOptions = (Module['_EPDFAnnot_SetFormFieldOptions'] =
+      createExportWrapper('EPDFAnnot_SetFormFieldOptions', 4));
     var _FPDFDoc_GetAttachmentCount = (Module['_FPDFDoc_GetAttachmentCount'] = createExportWrapper(
       'FPDFDoc_GetAttachmentCount',
       1,

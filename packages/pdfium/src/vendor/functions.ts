@@ -95,6 +95,10 @@ export const functions = {
   ] as const,
   EPDFAnnot_SetExtendedRotation: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetFormFieldName: [['number', 'number', 'number'] as const, 'boolean'] as const,
+  EPDFAnnot_SetFormFieldOptions: [
+    ['number', 'number', 'number', 'number'] as const,
+    'boolean',
+  ] as const,
   EPDFAnnot_SetFormFieldValue: [['number', 'number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetIcon: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetIntent: [['number', 'string'] as const, 'boolean'] as const,

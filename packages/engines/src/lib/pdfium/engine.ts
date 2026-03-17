@@ -1186,6 +1186,10 @@ export class PdfiumNative implements IPdfiumExecutor {
             case PDF_FORM_FIELD_TYPE.CHECKBOX:
               isSucceed = this.addCheckboxContent(widgetFormHandle, annotationPtr, widget);
               break;
+            case PDF_FORM_FIELD_TYPE.COMBOBOX:
+            case PDF_FORM_FIELD_TYPE.LISTBOX:
+              isSucceed = this.addChoiceFieldContent(widgetFormHandle, annotationPtr, widget);
+              break;
           }
         }
         break;
@@ -1460,6 +1464,10 @@ export class PdfiumNative implements IPdfiumExecutor {
               break;
             case PDF_FORM_FIELD_TYPE.CHECKBOX:
               ok = this.addCheckboxContent(formHandle, annotPtr, widget);
+              break;
+            case PDF_FORM_FIELD_TYPE.COMBOBOX:
+            case PDF_FORM_FIELD_TYPE.LISTBOX:
+              ok = this.addChoiceFieldContent(formHandle, annotPtr, widget);
               break;
           }
         });
@@ -2081,7 +2089,27 @@ export class PdfiumNative implements IPdfiumExecutor {
               break;
             }
 
-            case PDF_FORM_FIELD_TYPE.COMBOBOX:
+            case PDF_FORM_FIELD_TYPE.COMBOBOX: {
+              const selectedIndex = field.options.findIndex((opt) => opt.isSelected);
+              if (selectedIndex >= 0) {
+                if (
+                  !this.pdfiumModule.FORM_SetIndexSelected(
+                    formHandle,
+                    pageCtx.pagePtr,
+                    selectedIndex,
+                    true,
+                  )
+                ) {
+                  this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
+                  return PdfTaskHelper.reject({
+                    code: PdfErrorCode.CantSelectOption,
+                    message: 'failed to set index selected',
+                  });
+                }
+              }
+              break;
+            }
+
             case PDF_FORM_FIELD_TYPE.LISTBOX: {
               for (let i = 0; i < field.options.length; i++) {
                 if (
@@ -2931,6 +2959,100 @@ export class PdfiumNative implements IPdfiumExecutor {
         this.pdfiumModule.EPDFAnnot_SetFormFieldName(formHandle, annotationPtr, namePtr),
       );
     }
+
+    return true;
+  }
+
+  private addChoiceFieldContent(
+    formHandle: number,
+    annotationPtr: number,
+    annotation: PdfWidgetAnnoObject,
+  ): boolean {
+    // 1. DA (font, size, color)
+    if (
+      !this.setAnnotationDefaultAppearance(
+        annotationPtr,
+        annotation.fontFamily,
+        annotation.fontSize,
+        annotation.fontColor,
+      )
+    ) {
+      return false;
+    }
+
+    // 2. BS (border style / width)
+    if (
+      !this.setBorderStyle(
+        annotationPtr,
+        PdfAnnotationBorderStyle.SOLID,
+        annotation.strokeWidth ?? 1,
+      )
+    ) {
+      return false;
+    }
+
+    // 3. MK colors (border / background)
+    if (annotation.strokeColor) {
+      this.setMKColor(annotationPtr, 0, annotation.strokeColor);
+    } else {
+      this.clearMKColor(annotationPtr, 0);
+    }
+    if (annotation.color) {
+      this.setMKColor(annotationPtr, 1, annotation.color);
+    } else {
+      this.clearMKColor(annotationPtr, 1);
+    }
+
+    // 4. Form field flags -- preserve the base type bit for combobox (bit 17 = Combo)
+    let choiceFlags = annotation.field.flag ?? PDF_FORM_FIELD_FLAG.NONE;
+    if (annotation.field.type === PDF_FORM_FIELD_TYPE.COMBOBOX) {
+      choiceFlags |= 1 << 17;
+    }
+    this.pdfiumModule.FPDFAnnot_SetFormFieldFlags(formHandle, annotationPtr, choiceFlags);
+
+    // 5. Field name
+    if (annotation.field.name) {
+      this.withWString(annotation.field.name, (namePtr) =>
+        this.pdfiumModule.EPDFAnnot_SetFormFieldName(formHandle, annotationPtr, namePtr),
+      );
+    }
+
+    // 6. Options (/Opt array)
+    const field = annotation.field as { options?: { label: string; isSelected: boolean }[] };
+    const options = field.options ?? [];
+    if (options.length > 0) {
+      const ptrSize = 4;
+      const arrayPtr = this.memoryManager.malloc(options.length * ptrSize);
+      const labelPtrs: number[] = [];
+      try {
+        for (let i = 0; i < options.length; i++) {
+          const label = options[i].label;
+          const byteLen = (label.length + 1) * 2;
+          const labelPtr = this.memoryManager.malloc(byteLen);
+          this.pdfiumModule.pdfium.stringToUTF16(label, labelPtr, byteLen);
+          labelPtrs.push(labelPtr);
+          this.pdfiumModule.pdfium.setValue(arrayPtr + i * ptrSize, labelPtr, '*');
+        }
+        this.pdfiumModule.EPDFAnnot_SetFormFieldOptions(
+          formHandle,
+          annotationPtr,
+          arrayPtr,
+          options.length,
+        );
+      } finally {
+        for (const ptr of labelPtrs) {
+          this.memoryManager.free(WasmPointer(ptr));
+        }
+        this.memoryManager.free(arrayPtr);
+      }
+    }
+
+    // 7. Field value (/V) — set to the first selected option or empty
+    const selectedOption = options.find((opt) => opt.isSelected);
+    const value = selectedOption?.label ?? annotation.field.value ?? '';
+    this.withWString(value, (valuePtr) =>
+      this.pdfiumModule.EPDFAnnot_SetFormFieldValue(formHandle, annotationPtr, valuePtr),
+    );
 
     return true;
   }

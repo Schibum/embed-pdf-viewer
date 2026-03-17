@@ -943,7 +943,21 @@ export const commands: Record<string, Command<State>> = {
     labelKey: 'form.select',
     icon: 'formSelect',
     categories: ['form', 'form-select'],
-    action: () => {},
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'formCombobox') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('formCombobox');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'formCombobox';
+    },
   },
 
   'form:add-listbox': {
@@ -951,7 +965,21 @@ export const commands: Record<string, Command<State>> = {
     labelKey: 'form.listbox',
     icon: 'formListbox',
     categories: ['form', 'form-listbox'],
-    action: () => {},
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'formListbox') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('formListbox');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'formListbox';
+    },
   },
 
   'form:toggle-fill-mode': {
