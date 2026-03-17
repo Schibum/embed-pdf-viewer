@@ -1,5 +1,26 @@
 # @embedpdf/plugin-annotation
 
+## 2.9.0
+
+### Minor Changes
+
+- [#529](https://github.com/embedpdf/embed-pdf-viewer/pull/529) by [@bobsingor](https://github.com/bobsingor) – Add cloudy border support for Circle, Square, and Polygon annotations across React, Vue, and Svelte renderers. Includes a framework-agnostic SVG path generator (`cloudy-border.ts`), conditional rendering of scalloped `<path>` elements with `stroke-linejoin: round`, cloudy-aware hit areas, rectangle differences computation in handlers and patch functions, and polygon preview support.
+
+### Patch Changes
+
+- [#517](https://github.com/embedpdf/embed-pdf-viewer/pull/517) by [@sebabal](https://github.com/sebabal) – Fix link annotation click not working in the Vue build.
+
+  The template expression `@pointerdown="hasIRT ? undefined : onClick"` compiled to a function that returned the `onClick` reference instead of invoking it. Changed to `onClick?.($event)` so the handler is actually called on pointer down, restoring link selection and navigation. Thanks to @sebabal
+
+- [#530](https://github.com/embedpdf/embed-pdf-viewer/pull/530) by [@bobsingor](https://github.com/bobsingor) – Hide the group selection menu while group rotation is active. Previously the menu remained visible during rotation, which could overlap with rotation guide lines and the tooltip. This aligns the group selection box behavior with the single-annotation container, which already hides its menu during rotation.
+
+- [#512](https://github.com/embedpdf/embed-pdf-viewer/pull/512) by [@bobsingor](https://github.com/bobsingor) – Add smart line recognition to the ink handler with horizontal/vertical axis snapping.
+
+  When `smartLineRecognition` is enabled on an ink tool, straight strokes drawn close to a horizontal or vertical axis are automatically snapped to a clean two-point line after `pointerUp`. The snapped line is centred on the average position of all recorded points rather than being anchored to the start point. Diagonal straight strokes (outside the snap cone) are left untouched with their original points intact.
+
+  New `InkBehavior` fields on `AnnotationTool`:
+  - `snapAngleDeg` — degrees from horizontal/vertical within which snapping is applied (default `15`). Strokes whose angle falls outside both snap zones are not reduced to two points.
+
 ## 2.8.0
 
 ### Minor Changes

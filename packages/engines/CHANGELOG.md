@@ -1,5 +1,17 @@
 # @embedpdf/engines
 
+## 2.9.0
+
+### Minor Changes
+
+- [#529](https://github.com/embedpdf/embed-pdf-viewer/pull/529) by [@bobsingor](https://github.com/bobsingor) – Integrate cloudy border effect reading and writing in the PDFium engine. Annotations with `/BE /S /C` dictionaries now include `cloudyBorderIntensity` in their parsed objects, and creating/updating annotations writes the border effect dictionary via `setBorderEffect`.
+
+### Patch Changes
+
+- [#514](https://github.com/embedpdf/embed-pdf-viewer/pull/514) by [@bobsingor](https://github.com/bobsingor) – Expose PDF annotation blend mode in base PDFium annotation properties.
+
+  `PdfiumNative` now reads `EPDFAnnot_GetBlendMode` and includes `blendMode` in the shared base annotation payload, so all annotation types parsed through the PDFium engine consistently receive their blend mode metadata.
+
 ## 2.8.0
 
 ### Minor Changes
