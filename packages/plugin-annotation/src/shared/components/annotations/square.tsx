@@ -1,5 +1,6 @@
 import { useMemo, MouseEvent } from '@framework';
-import { PdfAnnotationBorderStyle, Rect } from '@embedpdf/models';
+import { PdfAnnotationBorderStyle, PdfRectDifferences, Rect } from '@embedpdf/models';
+import { generateCloudyRectanglePath } from '@embedpdf/plugin-annotation';
 
 const MIN_HIT_AREA_SCREEN_PX = 20;
 
@@ -26,6 +27,10 @@ interface SquareProps {
   onClick?: (e: MouseEvent<SVGElement>) => void;
   /** When true, AP canvas provides the visual; only render hit area */
   appearanceActive?: boolean;
+  /** Cloudy border intensity (0 = no cloud, typically 1 or 2) */
+  cloudyBorderIntensity?: number;
+  /** Rectangle differences – inset from Rect to drawn area */
+  rectangleDifferences?: PdfRectDifferences;
 }
 
 /**
@@ -43,7 +48,11 @@ export function Square({
   scale,
   onClick,
   appearanceActive = false,
+  cloudyBorderIntensity,
+  rectangleDifferences,
 }: SquareProps): JSX.Element {
+  const isCloudy = (cloudyBorderIntensity ?? 0) > 0;
+
   const { width, height, x, y } = useMemo(() => {
     const outerW = rect.size.width;
     const outerH = rect.size.height;
@@ -58,8 +67,18 @@ export function Square({
     };
   }, [rect, strokeWidth]);
 
-  const svgWidth = (width + strokeWidth) * scale;
-  const svgHeight = (height + strokeWidth) * scale;
+  const cloudyPath = useMemo(() => {
+    if (!isCloudy) return null;
+    return generateCloudyRectanglePath(
+      { x: 0, y: 0, width: rect.size.width, height: rect.size.height },
+      rectangleDifferences,
+      cloudyBorderIntensity!,
+      strokeWidth,
+    );
+  }, [isCloudy, rect, rectangleDifferences, cloudyBorderIntensity, strokeWidth]);
+
+  const svgWidth = rect.size.width * scale;
+  const svgHeight = rect.size.height * scale;
   const hitStrokeWidth = Math.max(strokeWidth, MIN_HIT_AREA_SCREEN_PX / scale);
 
   return (
@@ -73,7 +92,7 @@ export function Square({
       }}
       width={svgWidth}
       height={svgHeight}
-      viewBox={`0 0 ${width + strokeWidth} ${height + strokeWidth}`}
+      viewBox={`0 0 ${rect.size.width} ${rect.size.height}`}
       overflow="visible"
     >
       {/* Hit area -- always rendered, transparent, wider stroke for mobile */}
@@ -96,24 +115,37 @@ export function Square({
         }}
       />
       {/* Visual -- hidden when AP active, never interactive */}
-      {!appearanceActive && (
-        <rect
-          x={x}
-          y={y}
-          width={width}
-          height={height}
-          fill={color}
-          opacity={opacity}
-          style={{
-            pointerEvents: 'none',
-            stroke: strokeColor ?? color,
-            strokeWidth,
-            ...(strokeStyle === PdfAnnotationBorderStyle.DASHED && {
-              strokeDasharray: strokeDashArray?.join(','),
-            }),
-          }}
-        />
-      )}
+      {!appearanceActive &&
+        (isCloudy && cloudyPath ? (
+          <path
+            d={cloudyPath.path}
+            fill={color}
+            opacity={opacity}
+            style={{
+              pointerEvents: 'none',
+              stroke: strokeColor ?? color,
+              strokeWidth,
+              strokeLinejoin: 'bevel',
+            }}
+          />
+        ) : (
+          <rect
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            fill={color}
+            opacity={opacity}
+            style={{
+              pointerEvents: 'none',
+              stroke: strokeColor ?? color,
+              strokeWidth,
+              ...(strokeStyle === PdfAnnotationBorderStyle.DASHED && {
+                strokeDasharray: strokeDashArray?.join(','),
+              }),
+            }}
+          />
+        ))}
     </svg>
   );
 }

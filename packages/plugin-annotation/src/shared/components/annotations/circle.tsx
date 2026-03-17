@@ -1,5 +1,6 @@
 import { useMemo, MouseEvent } from '@framework';
-import { PdfAnnotationBorderStyle, Rect } from '@embedpdf/models';
+import { PdfAnnotationBorderStyle, PdfRectDifferences, Rect } from '@embedpdf/models';
+import { generateCloudyEllipsePath } from '@embedpdf/plugin-annotation';
 
 const MIN_HIT_AREA_SCREEN_PX = 20;
 
@@ -26,6 +27,10 @@ interface CircleProps {
   onClick?: (e: MouseEvent<SVGElement>) => void;
   /** When true, AP canvas provides the visual; only render hit area */
   appearanceActive?: boolean;
+  /** Cloudy border intensity (0 = no cloud, typically 1 or 2) */
+  cloudyBorderIntensity?: number;
+  /** Rectangle differences – inset from Rect to drawn area */
+  rectangleDifferences?: PdfRectDifferences;
 }
 
 /**
@@ -43,7 +48,11 @@ export function Circle({
   onClick,
   isSelected,
   appearanceActive = false,
+  cloudyBorderIntensity,
+  rectangleDifferences,
 }: CircleProps): JSX.Element {
+  const isCloudy = (cloudyBorderIntensity ?? 0) > 0;
+
   const { width, height, cx, cy, rx, ry } = useMemo(() => {
     const outerW = rect.size.width;
     const outerH = rect.size.height;
@@ -59,6 +68,16 @@ export function Circle({
       ry: innerH / 2,
     };
   }, [rect, strokeWidth]);
+
+  const cloudyPath = useMemo(() => {
+    if (!isCloudy) return null;
+    return generateCloudyEllipsePath(
+      { x: 0, y: 0, width: rect.size.width, height: rect.size.height },
+      rectangleDifferences,
+      cloudyBorderIntensity!,
+      strokeWidth,
+    );
+  }, [isCloudy, rect, rectangleDifferences, cloudyBorderIntensity, strokeWidth]);
 
   const svgWidth = width * scale;
   const svgHeight = height * scale;
@@ -98,24 +117,37 @@ export function Circle({
         }}
       />
       {/* Visual -- hidden when AP active, never interactive */}
-      {!appearanceActive && (
-        <ellipse
-          cx={cx}
-          cy={cy}
-          rx={rx}
-          ry={ry}
-          fill={color}
-          opacity={opacity}
-          style={{
-            pointerEvents: 'none',
-            stroke: strokeColor ?? color,
-            strokeWidth,
-            ...(strokeStyle === PdfAnnotationBorderStyle.DASHED && {
-              strokeDasharray: strokeDashArray?.join(','),
-            }),
-          }}
-        />
-      )}
+      {!appearanceActive &&
+        (isCloudy && cloudyPath ? (
+          <path
+            d={cloudyPath.path}
+            fill={color}
+            opacity={opacity}
+            style={{
+              pointerEvents: 'none',
+              stroke: strokeColor ?? color,
+              strokeWidth,
+              strokeLinejoin: 'bevel',
+            }}
+          />
+        ) : (
+          <ellipse
+            cx={cx}
+            cy={cy}
+            rx={rx}
+            ry={ry}
+            fill={color}
+            opacity={opacity}
+            style={{
+              pointerEvents: 'none',
+              stroke: strokeColor ?? color,
+              strokeWidth,
+              ...(strokeStyle === PdfAnnotationBorderStyle.DASHED && {
+                strokeDasharray: strokeDashArray?.join(','),
+              }),
+            }}
+          />
+        ))}
     </svg>
   );
 }

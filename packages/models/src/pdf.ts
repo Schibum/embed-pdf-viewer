@@ -1604,6 +1604,10 @@ export interface PdfPolygonAnnoObject extends PdfAnnotationObjectBase {
    */
   strokeDashArray?: number[];
   /**
+   * cloudy border intensity of polygon annotation
+   */
+  cloudyBorderIntensity?: number;
+  /**
    * Rectangle Differences (/RD) - inset padding from Rect to the drawn area.
    */
   rectangleDifferences?: PdfRectDifferences;

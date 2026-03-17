@@ -1,5 +1,6 @@
 import { useMemo, MouseEvent } from '@framework';
 import { Rect, Position, PdfAnnotationBorderStyle } from '@embedpdf/models';
+import { generateCloudyPolygonPath } from '@embedpdf/plugin-annotation';
 
 const MIN_HIT_AREA_SCREEN_PX = 20;
 
@@ -19,6 +20,8 @@ interface PolygonProps {
   handleSize?: number;
   /** When true, AP canvas provides the visual; only render hit area */
   appearanceActive?: boolean;
+  /** Cloudy border intensity (0 = no cloud, typically 1 or 2) */
+  cloudyBorderIntensity?: number;
 }
 
 export function Polygon({
@@ -36,7 +39,9 @@ export function Polygon({
   currentVertex,
   handleSize = 14,
   appearanceActive = false,
+  cloudyBorderIntensity,
 }: PolygonProps): JSX.Element {
+  const isCloudy = (cloudyBorderIntensity ?? 0) > 0 && !currentVertex;
   const allPoints = currentVertex ? [...vertices, currentVertex] : vertices;
 
   const localPts = useMemo(
@@ -54,6 +59,11 @@ export function Polygon({
       (isPreview ? '' : ' Z')
     ).trim();
   }, [localPts, currentVertex]);
+
+  const cloudyPath = useMemo(() => {
+    if (!isCloudy || vertices.length < 3) return null;
+    return generateCloudyPolygonPath(vertices, rect.origin, cloudyBorderIntensity!, strokeWidth);
+  }, [isCloudy, vertices, rect.origin, cloudyBorderIntensity, strokeWidth]);
 
   const isPreviewing = currentVertex && vertices.length > 0;
 
@@ -97,46 +107,62 @@ export function Polygon({
       {/* Visual -- hidden when AP active, never interactive */}
       {!appearanceActive && (
         <>
-          <path
-            d={pathData}
-            opacity={opacity}
-            style={{
-              fill: currentVertex ? 'none' : color,
-              stroke: strokeColor ?? color,
-              strokeWidth,
-              pointerEvents: 'none',
-              strokeLinecap: 'butt',
-              strokeLinejoin: 'miter',
-              ...(strokeStyle === PdfAnnotationBorderStyle.DASHED && {
-                strokeDasharray: strokeDashArray?.join(','),
-              }),
-            }}
-          />
-          {isPreviewing && vertices.length > 1 && (
+          {isCloudy && cloudyPath ? (
             <path
-              d={`M ${localPts[localPts.length - 1].x} ${localPts[localPts.length - 1].y} L ${localPts[0].x} ${localPts[0].y}`}
-              fill="none"
+              d={cloudyPath.path}
+              opacity={opacity}
               style={{
-                stroke: strokeColor,
+                fill: color,
+                stroke: strokeColor ?? color,
                 strokeWidth,
-                strokeDasharray: '4,4',
-                opacity: 0.7,
                 pointerEvents: 'none',
+                strokeLinejoin: 'bevel',
               }}
             />
-          )}
-          {isPreviewing && vertices.length >= 2 && (
-            <rect
-              x={localPts[0].x - handleSize / scale / 2}
-              y={localPts[0].y - handleSize / scale / 2}
-              width={handleSize / scale}
-              height={handleSize / scale}
-              fill={strokeColor}
-              opacity={0.4}
-              stroke={strokeColor}
-              strokeWidth={strokeWidth / 2}
-              style={{ pointerEvents: 'none' }}
-            />
+          ) : (
+            <>
+              <path
+                d={pathData}
+                opacity={opacity}
+                style={{
+                  fill: currentVertex ? 'none' : color,
+                  stroke: strokeColor ?? color,
+                  strokeWidth,
+                  pointerEvents: 'none',
+                  strokeLinecap: 'butt',
+                  strokeLinejoin: 'miter',
+                  ...(strokeStyle === PdfAnnotationBorderStyle.DASHED && {
+                    strokeDasharray: strokeDashArray?.join(','),
+                  }),
+                }}
+              />
+              {isPreviewing && vertices.length > 1 && (
+                <path
+                  d={`M ${localPts[localPts.length - 1].x} ${localPts[localPts.length - 1].y} L ${localPts[0].x} ${localPts[0].y}`}
+                  fill="none"
+                  style={{
+                    stroke: strokeColor,
+                    strokeWidth,
+                    strokeDasharray: '4,4',
+                    opacity: 0.7,
+                    pointerEvents: 'none',
+                  }}
+                />
+              )}
+              {isPreviewing && vertices.length >= 2 && (
+                <rect
+                  x={localPts[0].x - handleSize / scale / 2}
+                  y={localPts[0].y - handleSize / scale / 2}
+                  width={handleSize / scale}
+                  height={handleSize / scale}
+                  fill={strokeColor}
+                  opacity={0.4}
+                  stroke={strokeColor}
+                  strokeWidth={strokeWidth / 2}
+                  style={{ pointerEvents: 'none' }}
+                />
+              )}
+            </>
           )}
         </>
       )}

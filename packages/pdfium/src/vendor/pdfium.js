@@ -51,6 +51,7 @@ var createPdfium = (() => {
       '_EPDFAction_CreateRemoteGoToDest',
       '_EPDFAction_CreateURI',
       '_EPDFAnnot_ApplyRedaction',
+      '_EPDFAnnot_ClearBorderEffect',
       '_EPDFAnnot_ClearColor',
       '_EPDFAnnot_ClearRectangleDifferences',
       '_EPDFAnnot_Flatten',
@@ -84,6 +85,7 @@ var createPdfium = (() => {
       '_EPDFAnnot_SetAction',
       '_EPDFAnnot_SetAPMatrix',
       '_EPDFAnnot_SetBorderDashPattern',
+      '_EPDFAnnot_SetBorderEffect',
       '_EPDFAnnot_SetBorderStyle',
       '_EPDFAnnot_SetColor',
       '_EPDFAnnot_SetDefaultAppearance',
@@ -6148,6 +6150,12 @@ var createPdfium = (() => {
       'EPDFAnnot_GetBorderEffect',
       2,
     ));
+    var _EPDFAnnot_SetBorderEffect = (Module['_EPDFAnnot_SetBorderEffect'] = createExportWrapper(
+      'EPDFAnnot_SetBorderEffect',
+      2,
+    ));
+    var _EPDFAnnot_ClearBorderEffect = (Module['_EPDFAnnot_ClearBorderEffect'] =
+      createExportWrapper('EPDFAnnot_ClearBorderEffect', 1));
     var _EPDFAnnot_GetRectangleDifferences = (Module['_EPDFAnnot_GetRectangleDifferences'] =
       createExportWrapper('EPDFAnnot_GetRectangleDifferences', 5));
     var _EPDFAnnot_SetRectangleDifferences = (Module['_EPDFAnnot_SetRectangleDifferences'] =
