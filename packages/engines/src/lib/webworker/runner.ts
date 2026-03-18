@@ -313,7 +313,7 @@ export class EngineRunner {
         task = engine.getPageAnnotations!(...args);
         break;
       case 'getPageAnnoWidgets':
-        task = this.engine[name]!(...args);
+        task = engine.getPageAnnoWidgets!(...args);
         break;
       case 'createPageAnnotation':
         task = engine.createPageAnnotation!(...args);
