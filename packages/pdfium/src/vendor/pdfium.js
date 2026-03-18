@@ -5781,8 +5781,6 @@ var createPdfium = (() => {
       /** @export */
       invoke_iiiii,
       /** @export */
-      invoke_v,
-      /** @export */
       invoke_vii,
       /** @export */
       invoke_viii,
@@ -7823,17 +7821,6 @@ var createPdfium = (() => {
       var sp = stackSave();
       try {
         return getWasmTableEntry(index)(a1, a2, a3, a4);
-      } catch (e) {
-        stackRestore(sp);
-        if (e !== e + 0) throw e;
-        _setThrew(1, 0);
-      }
-    }
-
-    function invoke_v(index) {
-      var sp = stackSave();
-      try {
-        getWasmTableEntry(index)();
       } catch (e) {
         stackRestore(sp);
         if (e !== e + 0) throw e;
