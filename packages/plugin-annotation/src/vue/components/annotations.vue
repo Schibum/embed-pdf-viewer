@@ -194,6 +194,13 @@ watch(
     syncState(provides.getState());
     const off = provides.onStateChange(syncState);
     onCleanup(off);
+
+    const offEvent = provides.onAnnotationEvent((event) => {
+      if (event.type === 'create' && event.editAfterCreate) {
+        editingId.value = event.annotation.id;
+      }
+    });
+    onCleanup(offEvent);
   },
   { immediate: true },
 );
@@ -308,6 +315,9 @@ const getOnSelect = (annotation: TrackedAnnotation, renderer: BoxedAnnotationRen
 
 const handlePointerDown = (_pos: Position, pe: EmbedPdfPointerEvent<PointerEvent>) => {
   if (pe.target === pe.currentTarget && annotationProvides.value) {
+    if (editingId.value && annotations.value.some((a) => a.object.id === editingId.value)) {
+      pe.stopImmediatePropagation();
+    }
     annotationProvides.value.deselectAnnotation();
     editingId.value = null;
   }

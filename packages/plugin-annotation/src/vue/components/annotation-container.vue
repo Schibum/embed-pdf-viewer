@@ -701,7 +701,7 @@ const visualInnerStyle = computed<CSSProperties>(() => ({
   height: `${innerHeight.value}px`,
   transform: annotationRotation.value !== 0 ? `rotate(${annotationRotation.value}deg)` : undefined,
   transformOrigin: innerTransformOrigin.value,
-  pointerEvents: 'none',
+  pointerEvents: props.isEditing ? 'auto' : 'none',
 }));
 
 const innerRotatedStyle = computed<CSSProperties>(() => ({
@@ -716,7 +716,7 @@ const innerRotatedStyle = computed<CSSProperties>(() => ({
     ? `${outlineWidth.value}px ${outlineStyle.value} ${outlineColor.value}`
     : 'none',
   outlineOffset: showOutline.value ? `${outlineOff.value}px` : '0px',
-  pointerEvents: props.isSelected && !props.isMultiSelected ? 'auto' : 'none',
+  pointerEvents: props.isSelected && !props.isMultiSelected && !props.isEditing ? 'auto' : 'none',
   touchAction: 'none',
   cursor: props.isSelected && effectiveIsDraggable.value ? 'move' : 'default',
 }));

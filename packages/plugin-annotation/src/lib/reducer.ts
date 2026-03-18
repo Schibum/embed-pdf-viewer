@@ -148,6 +148,7 @@ export const initialState = (cfg: AnnotationPluginConfig): AnnotationState => {
       deactivateToolAfterCreate:
         t.behavior?.deactivateToolAfterCreate ?? cfg.deactivateToolAfterCreate ?? false,
       selectAfterCreate: t.behavior?.selectAfterCreate ?? cfg.selectAfterCreate ?? true,
+      editAfterCreate: t.behavior?.editAfterCreate ?? cfg.editAfterCreate ?? false,
     },
   }));
 

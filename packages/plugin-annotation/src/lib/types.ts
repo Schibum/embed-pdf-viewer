@@ -32,6 +32,7 @@ export type AnnotationEvent =
       pageIndex: number;
       ctx?: AnnotationCreateContext<any>;
       committed: boolean;
+      editAfterCreate?: boolean;
     }
   | {
       type: 'update';
@@ -148,6 +149,8 @@ export interface AnnotationPluginConfig extends BasePluginConfig {
   deactivateToolAfterCreate?: boolean;
   /** When true (default false), select the annotation immediately after creation. */
   selectAfterCreate?: boolean;
+  /** When true (default false), automatically enter edit mode after creating an annotation. */
+  editAfterCreate?: boolean;
 }
 
 /**

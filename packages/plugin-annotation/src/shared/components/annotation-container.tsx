@@ -491,7 +491,7 @@ export function AnnotationContainer<T extends PdfAnnotationObject>({
         }}
       >
         {/* Inner div: rotated content — visual only, no drag/interaction */}
-        <div style={{ ...innerDivBaseStyle, pointerEvents: 'none' }}>
+        <div style={{ ...innerDivBaseStyle, pointerEvents: isEditing ? 'auto' : 'none' }}>
           {/* Dict content -- always in DOM so hit area handles clicks */}
           {(() => {
             const childrenRender =
@@ -671,7 +671,7 @@ export function AnnotationContainer<T extends PdfAnnotationObject>({
             ...innerDivBaseStyle,
             outline: showOutline ? `${outlineWidth}px ${outlineStyle} ${outlineColor}` : 'none',
             outlineOffset: showOutline ? `${outlineOff}px` : '0px',
-            pointerEvents: isSelected && !isMultiSelected ? 'auto' : 'none',
+            pointerEvents: isSelected && !isMultiSelected && !isEditing ? 'auto' : 'none',
             touchAction: 'none',
             cursor: isSelected && effectiveIsDraggable ? 'move' : 'default',
           }}

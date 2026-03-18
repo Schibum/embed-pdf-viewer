@@ -27,7 +27,7 @@ export default { inheritAttrs: false };
 </script>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue';
+import { ref, watch, computed, onMounted, nextTick } from 'vue';
 import {
   PdfFreeTextAnnoObject,
   PdfVerticalAlignment,
@@ -74,21 +74,31 @@ onMounted(() => {
 
 watch(
   () => props.isEditing,
-  (editing) => {
-    if (editing && editorRef.value) {
-      editingRef.value = true;
-      const editor = editorRef.value;
-      editor.focus();
-      const selection = window.getSelection();
-      if (selection) {
-        const range = document.createRange();
-        range.selectNodeContents(editor);
+  async (editing) => {
+    if (!editing) return;
+    await nextTick();
+    if (!editorRef.value) return;
+    editingRef.value = true;
+    const editor = editorRef.value;
+    editor.focus();
+
+    const tool = annotationProvides.value?.findToolForAnnotation(props.annotation.object);
+    const isDefaultContent =
+      tool?.defaults?.contents != null &&
+      props.annotation.object.contents === tool.defaults.contents;
+
+    const selection = window.getSelection();
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      if (!isDefaultContent) {
         range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
       }
+      selection.removeAllRanges();
+      selection.addRange(range);
     }
   },
+  { immediate: true },
 );
 
 const handleBlur = () => {
@@ -96,7 +106,7 @@ const handleBlur = () => {
   editingRef.value = false;
   if (!annotationProvides.value || !editorRef.value) return;
   annotationProvides.value.updateAnnotation(props.pageIndex, props.annotation.object.id, {
-    contents: editorRef.value.innerText,
+    contents: editorRef.value.innerText.replace(/\u00A0/g, ' '),
   });
 };
 

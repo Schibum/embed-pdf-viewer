@@ -611,11 +611,12 @@ export class AnnotationPlugin extends BasePlugin<
         services: callbacks.services, // Pass through services
         onPreview: (state) => callbacks.onPreview(tool.id, state),
         onCommit: (annotation, ctx) => {
-          this.createAnnotation(pageIndex, annotation, ctx, documentId);
+          const editAfterCreate = tool.behavior?.editAfterCreate ?? false;
+          this.createAnnotation(pageIndex, annotation, ctx, documentId, { editAfterCreate });
           if (tool.behavior?.deactivateToolAfterCreate) {
             this.setActiveTool(null, documentId);
           }
-          if (tool.behavior?.selectAfterCreate) {
+          if (tool.behavior?.selectAfterCreate || editAfterCreate) {
             this.selectAnnotation(pageIndex, annotation.id, documentId);
           }
         },
@@ -854,6 +855,7 @@ export class AnnotationPlugin extends BasePlugin<
     annotation: A,
     ctx?: AnnotationCreateContext<A>,
     documentId?: string,
+    options?: { editAfterCreate?: boolean },
   ) {
     const docId = documentId ?? this.getActiveDocumentId();
 
@@ -875,6 +877,7 @@ export class AnnotationPlugin extends BasePlugin<
       ...annotation,
       author: annotation.author ?? this.config.annotationAuthor,
     };
+    const editAfterCreate = options?.editAfterCreate;
     const execute = () => {
       this.dispatch(createAnnotation(docId, pageIndex, newAnnotation));
       if (ctx) contexts.set(id, ctx);
@@ -885,6 +888,7 @@ export class AnnotationPlugin extends BasePlugin<
         pageIndex,
         ctx,
         committed: false,
+        editAfterCreate,
       });
     };
 

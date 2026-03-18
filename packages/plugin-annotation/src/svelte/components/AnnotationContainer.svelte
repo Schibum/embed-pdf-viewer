@@ -464,7 +464,7 @@
       style:height="{innerHeight}px"
       style:transform={annotationRotation !== 0 ? `rotate(${annotationRotation}deg)` : undefined}
       style:transform-origin={innerTransformOrigin}
-      style:pointer-events="none"
+      style:pointer-events={isEditing ? 'auto' : 'none'}
     >
       <!-- Annotation content - renders in unrotated coordinate space -->
       {#if customAnnotationRenderer}
@@ -639,7 +639,7 @@
       style:transform-origin={innerTransformOrigin}
       style:outline={showOutline ? `${outlineWidth}px ${outlineStyleVal} ${outlineColor}` : 'none'}
       style:outline-offset={showOutline ? `${outlineOff}px` : '0px'}
-      style:pointer-events={isSelected && !isMultiSelected ? 'auto' : 'none'}
+      style:pointer-events={isSelected && !isMultiSelected && !isEditing ? 'auto' : 'none'}
       style:touch-action="none"
       style:cursor={isSelected && effectiveIsDraggable ? 'move' : 'default'}
     >

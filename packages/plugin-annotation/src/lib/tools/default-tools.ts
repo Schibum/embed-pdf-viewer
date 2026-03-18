@@ -439,6 +439,8 @@ export const defaultTools = [
     },
     behavior: {
       insertUpright: true,
+      editAfterCreate: true,
+      selectAfterCreate: true,
     },
   },
   {

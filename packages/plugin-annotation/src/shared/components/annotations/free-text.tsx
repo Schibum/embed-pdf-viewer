@@ -50,11 +50,17 @@ export function FreeText({
       const editor = editorRef.current;
       editor.focus();
 
+      const tool = annotationProvides?.findToolForAnnotation(annotation.object);
+      const isDefaultContent =
+        tool?.defaults?.contents != null && annotation.object.contents === tool.defaults.contents;
+
       const selection = window.getSelection();
       if (selection) {
         const range = document.createRange();
         range.selectNodeContents(editor);
-        range.collapse(false);
+        if (!isDefaultContent) {
+          range.collapse(false);
+        }
         selection.removeAllRanges();
         selection.addRange(range);
       }
@@ -79,7 +85,7 @@ export function FreeText({
     if (!annotationProvides) return;
     if (!editorRef.current) return;
     annotationProvides.updateAnnotation(pageIndex, annotation.object.id, {
-      contents: editorRef.current.innerText,
+      contents: editorRef.current.innerText.replace(/\u00A0/g, ' '),
     });
   };
 

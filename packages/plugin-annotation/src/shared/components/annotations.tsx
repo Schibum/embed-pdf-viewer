@@ -85,6 +85,15 @@ export function Annotations(annotationsProps: AnnotationsProps) {
 
   useEffect(() => {
     if (!annotationProvides) return;
+    return annotationProvides.onAnnotationEvent((event) => {
+      if (event.type === 'create' && event.editAfterCreate) {
+        setEditingId(event.annotation.id);
+      }
+    });
+  }, [annotationProvides]);
+
+  useEffect(() => {
+    if (!annotationProvides) return;
 
     if (prevScaleRef.current !== scale) {
       annotationProvides.invalidatePageAppearances(pageIndex);
@@ -105,12 +114,15 @@ export function Annotations(annotationsProps: AnnotationsProps) {
     (): PointerEventHandlers<EmbedPdfPointerEvent<MouseEvent>> => ({
       onPointerDown: (_, pe) => {
         if (pe.target === pe.currentTarget && annotationProvides) {
+          if (editingId && annotations.some((a) => a.object.id === editingId)) {
+            pe.stopImmediatePropagation();
+          }
           annotationProvides.deselectAnnotation();
           setEditingId(null);
         }
       },
     }),
-    [annotationProvides],
+    [annotationProvides, editingId, annotations],
   );
 
   const handleClick = useCallback(

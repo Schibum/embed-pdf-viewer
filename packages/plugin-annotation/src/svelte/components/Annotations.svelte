@@ -125,6 +125,15 @@
     return () => off?.();
   });
 
+  $effect(() => {
+    if (!annotationProvides) return;
+    return annotationProvides.onAnnotationEvent((event) => {
+      if (event.type === 'create' && event.editAfterCreate) {
+        editingId = event.annotation.id;
+      }
+    });
+  });
+
   // Fetch appearance map, invalidate on scale change
   $effect(() => {
     if (!annotationProvides) return;
@@ -148,6 +157,9 @@
   const handlers: PointerEventHandlersWithLifecycle<EmbedPdfPointerEvent<PointerEvent>> = {
     onPointerDown: (_, pe) => {
       if (pe.target === pe.currentTarget && annotationProvides) {
+        if (editingId && annotations.some((a) => a.object.id === editingId)) {
+          pe.stopImmediatePropagation();
+        }
         annotationProvides.deselectAnnotation();
         editingId = null;
       }
