@@ -20,6 +20,8 @@ import {
   PdfAddAttachmentParams,
   PdfWidgetAnnoObject,
   PdfWidgetAnnoField,
+  PdfDocumentJavaScriptActionObject,
+  PdfWidgetJavaScriptActionObject,
   FormFieldValue,
   PdfFlattenPageOptions,
   PdfPageFlattenResult,
@@ -97,7 +99,9 @@ type MessageType =
   | 'addAttachment'
   | 'removeAttachment'
   | 'readAttachmentContent'
+  | 'getDocumentJavaScriptActions'
   | 'getPageAnnoWidgets'
+  | 'getPageWidgetJavaScriptActions'
   | 'setFormFieldValue'
   | 'setFormFieldState'
   | 'regenerateWidgetAppearances'
@@ -458,8 +462,24 @@ export class RemoteExecutor implements IPdfiumExecutor {
     return this.send<ArrayBuffer>('readAttachmentContent', [doc, attachment]);
   }
 
+  getDocumentJavaScriptActions(
+    doc: PdfDocumentObject,
+  ): PdfTask<PdfDocumentJavaScriptActionObject[]> {
+    return this.send<PdfDocumentJavaScriptActionObject[]>('getDocumentJavaScriptActions', [doc]);
+  }
+
   getPageAnnoWidgets(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfWidgetAnnoObject[]> {
     return this.send<PdfWidgetAnnoObject[]>('getPageAnnoWidgets', [doc, page]);
+  }
+
+  getPageWidgetJavaScriptActions(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ): PdfTask<PdfWidgetJavaScriptActionObject[]> {
+    return this.send<PdfWidgetJavaScriptActionObject[]>('getPageWidgetJavaScriptActions', [
+      doc,
+      page,
+    ]);
   }
 
   setFormFieldValue(

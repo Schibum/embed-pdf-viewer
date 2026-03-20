@@ -25,8 +25,10 @@ import {
   PdfAnnotationsProgress,
   PdfAttachmentObject,
   PdfAddAttachmentParams,
+  PdfDocumentJavaScriptActionObject,
   PdfWidgetAnnoObject,
   PdfWidgetAnnoField,
+  PdfWidgetJavaScriptActionObject,
   FormFieldValue,
   PdfFlattenPageOptions,
   PdfPageFlattenResult,
@@ -776,11 +778,36 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
 
   // ========== Forms ==========
 
+  getDocumentJavaScriptActions(
+    doc: PdfDocumentObject,
+  ): PdfTask<PdfDocumentJavaScriptActionObject[]> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.getDocumentJavaScriptActions(doc),
+        meta: { docId: doc.id, operation: 'getDocumentJavaScriptActions' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
   getPageAnnoWidgets(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfWidgetAnnoObject[]> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getPageAnnoWidgets(doc, page),
         meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageAnnoWidgets' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  getPageWidgetJavaScriptActions(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ): PdfTask<PdfWidgetJavaScriptActionObject[]> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.getPageWidgetJavaScriptActions(doc, page),
+        meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageWidgetJavaScriptActions' },
       },
       { priority: Priority.MEDIUM },
     );

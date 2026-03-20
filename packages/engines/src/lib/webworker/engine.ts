@@ -2,6 +2,7 @@ import {
   FormFieldValue,
   PdfWidgetAnnoField,
   PdfAttachmentObject,
+  PdfDocumentJavaScriptActionObject,
   PdfFile,
   PdfMetadataObject,
   PdfSignatureObject,
@@ -40,6 +41,7 @@ import {
   PdfAnnotationsProgress,
   PdfPrintOptions,
   PdfBookmarkObject,
+  PdfWidgetJavaScriptActionObject,
   PdfAddAttachmentParams,
   AnnotationAppearanceMap,
   ImageDataLike,
@@ -583,6 +585,31 @@ export class WebWorkerEngine implements PdfEngine {
     const task = new WorkerTask<PdfWidgetAnnoObject[]>(this.worker, requestId);
 
     const request: ExecuteRequest = createRequest(requestId, 'getPageAnnoWidgets', [doc, page]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  getDocumentJavaScriptActions(doc: PdfDocumentObject) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getDocumentJavaScriptActions', doc);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<PdfDocumentJavaScriptActionObject[]>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'getDocumentJavaScriptActions', [doc]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  getPageWidgetJavaScriptActions(doc: PdfDocumentObject, page: PdfPageObject) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageWidgetJavaScriptActions', doc, page);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<PdfWidgetJavaScriptActionObject[]>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'getPageWidgetJavaScriptActions', [
+      doc,
+      page,
+    ]);
     this.proxy(task, request);
 
     return task;

@@ -1607,6 +1607,99 @@ export interface PdfWidgetAnnoObject extends PdfAnnotationObjectBase {
 }
 
 /**
+ * Widget additional-action event types exposed by PDFium.
+ *
+ * @public
+ */
+export enum PDF_ANNOT_AACTION_EVENT {
+  KEY_STROKE = 12,
+  FORMAT = 13,
+  VALIDATE = 14,
+  CALCULATE = 15,
+}
+
+/**
+ * Normalized widget JavaScript trigger names.
+ *
+ * @public
+ */
+export enum PdfJavaScriptWidgetEventType {
+  Keystroke = 'keystroke',
+  Format = 'format',
+  Validate = 'validate',
+  Calculate = 'calculate',
+}
+
+/**
+ * Normalized JavaScript action trigger names.
+ *
+ * @public
+ */
+export enum PdfJavaScriptActionTrigger {
+  DocumentNamed = 'document_named',
+  WidgetKeystroke = 'widget_keystroke',
+  WidgetFormat = 'widget_format',
+  WidgetValidate = 'widget_validate',
+  WidgetCalculate = 'widget_calculate',
+}
+
+/**
+ * Base shape shared by extracted PDF JavaScript actions.
+ *
+ * @public
+ */
+export interface PdfJavaScriptActionObjectBase {
+  /**
+   * Stable identifier for the extracted action within the current document snapshot.
+   */
+  id: string;
+  /**
+   * Normalized trigger classification used by higher layers.
+   */
+  trigger: PdfJavaScriptActionTrigger;
+  /**
+   * Raw JavaScript source extracted from the PDF.
+   */
+  script: string;
+}
+
+/**
+ * A named document-level JavaScript action from the document JavaScript name tree.
+ *
+ * @public
+ */
+export interface PdfDocumentJavaScriptActionObject extends PdfJavaScriptActionObjectBase {
+  trigger: PdfJavaScriptActionTrigger.DocumentNamed;
+  name: string;
+}
+
+/**
+ * A widget-level JavaScript additional action.
+ *
+ * @public
+ */
+export interface PdfWidgetJavaScriptActionObject extends PdfJavaScriptActionObjectBase {
+  trigger:
+    | PdfJavaScriptActionTrigger.WidgetKeystroke
+    | PdfJavaScriptActionTrigger.WidgetFormat
+    | PdfJavaScriptActionTrigger.WidgetValidate
+    | PdfJavaScriptActionTrigger.WidgetCalculate;
+  eventType: PdfJavaScriptWidgetEventType;
+  pageIndex: number;
+  annotationId: string;
+  fieldName: string;
+}
+
+/**
+ * Discriminated union of supported extracted PDF JavaScript actions.
+ *
+ * @public
+ */
+export type PdfJavaScriptActionObject =
+  | PdfDocumentJavaScriptActionObject
+  | PdfWidgetJavaScriptActionObject;
+
+/**
  * Pdf file attachments annotation
  *
  * @public
@@ -3407,6 +3500,14 @@ export interface PdfEngine<T = Blob> {
     page: PdfPageObject,
   ) => PdfTask<PdfAnnotationObject[]>;
   /**
+   * Extract named document JavaScript actions without executing them.
+   * @param doc - pdf document
+   * @returns task that contains all named document JavaScript actions
+   */
+  getDocumentJavaScriptActions: (
+    doc: PdfDocumentObject,
+  ) => PdfTask<PdfDocumentJavaScriptActionObject[]>;
+  /**
    * Get form fields of pdf page
    * @param doc - pdf document
    * @param page - pdf page
@@ -3416,6 +3517,16 @@ export interface PdfEngine<T = Blob> {
     doc: PdfDocumentObject,
     page: PdfPageObject,
   ) => PdfTask<PdfWidgetAnnoObject[]>;
+  /**
+   * Extract widget additional JavaScript actions for a page without executing them.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @returns task containing page widget JavaScript actions
+   */
+  getPageWidgetJavaScriptActions: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ) => PdfTask<PdfWidgetJavaScriptActionObject[]>;
   /**
    * Regenerate appearance streams for specific widget annotations on a page.
    * @param doc - pdf document
@@ -3863,7 +3974,14 @@ export interface IPdfiumExecutor {
     doc: PdfDocumentObject,
     attachment: PdfAttachmentObject,
   ): PdfTask<ArrayBuffer>;
+  getDocumentJavaScriptActions(
+    doc: PdfDocumentObject,
+  ): PdfTask<PdfDocumentJavaScriptActionObject[]>;
   getPageAnnoWidgets(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfWidgetAnnoObject[]>;
+  getPageWidgetJavaScriptActions(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ): PdfTask<PdfWidgetJavaScriptActionObject[]>;
   regenerateWidgetAppearances(
     doc: PdfDocumentObject,
     page: PdfPageObject,

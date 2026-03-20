@@ -72,6 +72,11 @@ import {
   PdfPageGeometry,
   PdfRun,
   toIntRect,
+  PdfDocumentJavaScriptActionObject,
+  PdfWidgetJavaScriptActionObject,
+  PdfJavaScriptActionTrigger,
+  PdfJavaScriptWidgetEventType,
+  PDF_ANNOT_AACTION_EVENT,
   Quad,
   PdfAnnotationState,
   PdfAnnotationStateModel,
@@ -826,6 +831,64 @@ export class PdfiumNative implements IPdfiumExecutor {
     return task;
   }
 
+  getDocumentJavaScriptActions(
+    doc: PdfDocumentObject,
+  ): PdfTask<PdfDocumentJavaScriptActionObject[], PdfErrorReason> {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getDocumentJavaScriptActions', doc);
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    const count = this.pdfiumModule.FPDFDoc_GetJavaScriptActionCount(ctx.docPtr);
+    if (count < 0) {
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.Unknown,
+        message: 'failed to read document javascript actions',
+      });
+    }
+
+    const actions: PdfDocumentJavaScriptActionObject[] = [];
+    for (let index = 0; index < count; index++) {
+      const actionPtr = this.pdfiumModule.FPDFDoc_GetJavaScriptAction(ctx.docPtr, index);
+      if (!actionPtr) continue;
+
+      try {
+        const name =
+          readString(
+            this.pdfiumModule.pdfium,
+            (buffer: number, bufferLength) =>
+              this.pdfiumModule.FPDFJavaScriptAction_GetName(actionPtr, buffer, bufferLength),
+            this.pdfiumModule.pdfium.UTF16ToString,
+          ) ?? '';
+        const script =
+          readString(
+            this.pdfiumModule.pdfium,
+            (buffer: number, bufferLength) =>
+              this.pdfiumModule.FPDFJavaScriptAction_GetScript(actionPtr, buffer, bufferLength),
+            this.pdfiumModule.pdfium.UTF16ToString,
+          ) ?? '';
+
+        if (!script) continue;
+
+        actions.push({
+          id: `document:${index}:${name}`,
+          trigger: PdfJavaScriptActionTrigger.DocumentNamed,
+          name,
+          script,
+        });
+      } finally {
+        this.pdfiumModule.FPDFDoc_CloseJavaScriptAction(actionPtr);
+      }
+    }
+
+    return PdfTaskHelper.resolve(actions);
+  }
+
   getPageAnnoWidgets(
     doc: PdfDocumentObject,
     page: PdfPageObject,
@@ -874,6 +937,108 @@ export class PdfiumNative implements IPdfiumExecutor {
     );
 
     return PdfTaskHelper.resolve(annotationWidgets);
+  }
+
+  getPageWidgetJavaScriptActions(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+  ): PdfTask<PdfWidgetJavaScriptActionObject[], PdfErrorReason> {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageWidgetJavaScriptActions', doc, page);
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    const actions: PdfWidgetJavaScriptActionObject[] = [];
+    ctx.borrowPage(page.index, (pageCtx) => {
+      pageCtx.withFormHandle((formHandle) => {
+        const annotCount = this.pdfiumModule.FPDFPage_GetAnnotCount(pageCtx.pagePtr);
+        for (let i = 0; i < annotCount; i++) {
+          pageCtx.withAnnotation(i, (annotPtr) => {
+            const subtype = this.pdfiumModule.FPDFAnnot_GetSubtype(
+              annotPtr,
+            ) as PdfAnnotationObject['type'];
+            if (subtype !== PdfAnnotationSubtype.WIDGET) return;
+
+            let annotationId = this.getAnnotString(annotPtr, 'NM');
+            if (!annotationId || !isUuidV4(annotationId)) {
+              annotationId = uuidV4();
+              this.setAnnotString(annotPtr, 'NM', annotationId);
+            }
+
+            const fieldName =
+              readString(
+                this.pdfiumModule.pdfium,
+                (buffer: number, bufferLength) =>
+                  this.pdfiumModule.FPDFAnnot_GetFormFieldName(
+                    formHandle,
+                    annotPtr,
+                    buffer,
+                    bufferLength,
+                  ),
+                this.pdfiumModule.pdfium.UTF16ToString,
+              ) ?? '';
+
+            const eventConfigs = [
+              {
+                event: PDF_ANNOT_AACTION_EVENT.KEY_STROKE,
+                eventType: PdfJavaScriptWidgetEventType.Keystroke,
+                trigger: PdfJavaScriptActionTrigger.WidgetKeystroke,
+              },
+              {
+                event: PDF_ANNOT_AACTION_EVENT.FORMAT,
+                eventType: PdfJavaScriptWidgetEventType.Format,
+                trigger: PdfJavaScriptActionTrigger.WidgetFormat,
+              },
+              {
+                event: PDF_ANNOT_AACTION_EVENT.VALIDATE,
+                eventType: PdfJavaScriptWidgetEventType.Validate,
+                trigger: PdfJavaScriptActionTrigger.WidgetValidate,
+              },
+              {
+                event: PDF_ANNOT_AACTION_EVENT.CALCULATE,
+                eventType: PdfJavaScriptWidgetEventType.Calculate,
+                trigger: PdfJavaScriptActionTrigger.WidgetCalculate,
+              },
+            ] as const;
+
+            for (const config of eventConfigs) {
+              const script =
+                readString(
+                  this.pdfiumModule.pdfium,
+                  (buffer: number, bufferLength) =>
+                    this.pdfiumModule.FPDFAnnot_GetFormAdditionalActionJavaScript(
+                      formHandle,
+                      annotPtr,
+                      config.event,
+                      buffer,
+                      bufferLength,
+                    ),
+                  this.pdfiumModule.pdfium.UTF16ToString,
+                ) ?? '';
+
+              if (!script) continue;
+
+              actions.push({
+                id: `widget:${page.index}:${annotationId}:${config.eventType}`,
+                trigger: config.trigger,
+                eventType: config.eventType,
+                pageIndex: page.index,
+                annotationId,
+                fieldName,
+                script,
+              });
+            }
+          });
+        }
+      });
+    });
+
+    return PdfTaskHelper.resolve(actions);
   }
 
   regenerateWidgetAppearances(
@@ -2135,7 +2300,13 @@ export class PdfiumNative implements IPdfiumExecutor {
           }
 
           this.pdfiumModule.FORM_ForceToKillFocus(formHandle);
-          this.pdfiumModule.EPDFAnnot_GenerateFormFieldAP(annotationPtr);
+
+          if (
+            field.type !== PDF_FORM_FIELD_TYPE.CHECKBOX &&
+            field.type !== PDF_FORM_FIELD_TYPE.RADIOBUTTON
+          ) {
+            this.pdfiumModule.EPDFAnnot_GenerateFormFieldAP(annotationPtr);
+          }
 
           this.logger.perf(
             LOG_SOURCE,
