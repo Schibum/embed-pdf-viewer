@@ -1,6 +1,6 @@
 /** @jsxImportSource preact */
 import { h } from 'preact';
-import { useCallback } from 'preact/hooks';
+import { useCallback, useState } from 'preact/hooks';
 import {
   PdfAnnotationSubtype,
   PdfWidgetAnnoObject,
@@ -12,6 +12,7 @@ import {
 import { useAnnotation } from '@embedpdf/plugin-annotation/preact';
 import { getSelectedAnnotations } from '@embedpdf/plugin-annotation';
 import { useTranslations } from '@embedpdf/plugin-i18n/preact';
+import { useFormCapability } from '@embedpdf/plugin-form/preact';
 
 import { Checkbox } from './ui/checkbox';
 
@@ -38,10 +39,19 @@ const FIELD_TYPE_FALLBACKS: Partial<Record<PDF_FORM_FIELD_TYPE, string>> = {
 const INPUT_CLASS =
   'border-border-default bg-bg-input text-fg-primary w-full rounded border px-2 py-1.5 text-sm';
 
+const normalizeFieldName = (name: string) => name.trim();
+
+const getLogicalFieldKey = (field: PdfWidgetAnnoField) =>
+  typeof field.fieldObjectId === 'number' && field.fieldObjectId > 0
+    ? `field:${field.fieldObjectId}`
+    : `legacy:${field.type}:${normalizeFieldName(field.name)}`;
+
 export const WidgetEditSidebar = ({ documentId }: WidgetEditSidebarProps) => {
   const { provides: annotation, state } = useAnnotation(documentId);
+  const { provides: formProvides } = useFormCapability();
   const { translate } = useTranslations(documentId);
-  if (!annotation) return null;
+  const [fieldNameError, setFieldNameError] = useState<string | null>(null);
+  if (!annotation || !formProvides) return null;
 
   const selected = getSelectedAnnotations(state);
   if (selected.length !== 1) return null;
@@ -69,23 +79,125 @@ export const WidgetEditSidebar = ({ documentId }: WidgetEditSidebarProps) => {
     [applyPatch, widget.field],
   );
 
+  const renameField = useCallback(
+    (nextName: string, input: HTMLInputElement) => {
+      const normalizedName = normalizeFieldName(nextName);
+      if (!normalizedName) {
+        setFieldNameError('Field name must not be empty.');
+        input.value = widget.field.name;
+        return;
+      }
+
+      if (normalizedName === normalizeFieldName(widget.field.name)) {
+        setFieldNameError(null);
+        input.value = widget.field.name;
+        return;
+      }
+
+      const currentFieldKey = getLogicalFieldKey(widget.field);
+      const candidateGroups = new Map<string, PdfWidgetAnnoObject>();
+
+      for (const tracked of Object.values(state.byUid)) {
+        const candidate = tracked.object;
+        if (candidate.type !== PdfAnnotationSubtype.WIDGET) continue;
+        if (candidate.id === widget.id) continue;
+        if (normalizeFieldName(candidate.field.name) !== normalizedName) continue;
+
+        if (candidate.field.type !== widget.field.type) {
+          setFieldNameError('That field name is already used by a different widget type.');
+          input.value = widget.field.name;
+          return;
+        }
+
+        const candidateFieldKey = getLogicalFieldKey(candidate.field);
+        if (candidateFieldKey !== currentFieldKey) {
+          candidateGroups.set(candidateFieldKey, candidate);
+        }
+      }
+
+      const handleFailure = (message: string) => {
+        setFieldNameError(message);
+        input.value = widget.field.name;
+      };
+
+      if (candidateGroups.size === 0) {
+        setFieldNameError(null);
+        formProvides.renameField(widget.id, normalizedName, documentId).wait(
+          () => {
+            setFieldNameError(null);
+          },
+          (error) => handleFailure(error.reason.message),
+        );
+        return;
+      }
+
+      if (candidateGroups.size > 1) {
+        handleFailure('That field name is already used by multiple fields. Choose a unique name.');
+        return;
+      }
+
+      const targetWidget = [...candidateGroups.values()][0];
+      const confirmed =
+        globalThis.confirm?.(
+          `Share this ${fieldLabel} with the existing field "${normalizedName}"?`,
+        ) ?? false;
+
+      if (!confirmed) {
+        input.value = widget.field.name;
+        return;
+      }
+
+      setFieldNameError(null);
+      formProvides.shareField(widget.id, targetWidget.id, documentId).wait(
+        () => {
+          setFieldNameError(null);
+        },
+        (error) => handleFailure(error.reason.message),
+      );
+    },
+    [documentId, fieldLabel, formProvides, state.byUid, widget.field, widget.id],
+  );
+
   return (
     <div class="h-full overflow-y-auto p-4">
       <h2 class="text-fg-secondary text-md mb-4 font-medium">{title}</h2>
 
       {widget.field.type === PDF_FORM_FIELD_TYPE.TEXTFIELD && (
-        <TextFieldSection field={widget.field} updateField={updateField} translate={translate} />
+        <TextFieldSection
+          field={widget.field}
+          updateField={updateField}
+          renameField={renameField}
+          fieldNameError={fieldNameError}
+          translate={translate}
+        />
+      )}
+      {widget.field.type === PDF_FORM_FIELD_TYPE.RADIOBUTTON && (
+        <RadioButtonFieldSection
+          field={widget.field}
+          updateField={updateField}
+          renameField={renameField}
+          fieldNameError={fieldNameError}
+          translate={translate}
+        />
       )}
       {widget.field.type === PDF_FORM_FIELD_TYPE.CHECKBOX && (
         <CheckboxFieldSection
           field={widget.field}
           updateField={updateField}
+          renameField={renameField}
+          fieldNameError={fieldNameError}
           translate={translate}
         />
       )}
       {(widget.field.type === PDF_FORM_FIELD_TYPE.COMBOBOX ||
         widget.field.type === PDF_FORM_FIELD_TYPE.LISTBOX) && (
-        <ChoiceFieldSection field={widget.field} updateField={updateField} translate={translate} />
+        <ChoiceFieldSection
+          field={widget.field}
+          updateField={updateField}
+          renameField={renameField}
+          fieldNameError={fieldNameError}
+          translate={translate}
+        />
       )}
     </div>
   );
@@ -94,6 +206,8 @@ export const WidgetEditSidebar = ({ documentId }: WidgetEditSidebarProps) => {
 interface FieldSectionProps {
   field: PdfWidgetAnnoField;
   updateField: (patch: Partial<PdfWidgetAnnoField>) => void;
+  renameField: (name: string, input: HTMLInputElement) => void;
+  fieldNameError?: string | null;
   translate: (key: string, opts?: { fallback?: string; params?: Record<string, string> }) => string;
 }
 
@@ -110,7 +224,13 @@ function useToggleFlag(
   );
 }
 
-function TextFieldSection({ field, updateField, translate }: FieldSectionProps) {
+function TextFieldSection({
+  field,
+  updateField,
+  renameField,
+  fieldNameError,
+  translate,
+}: FieldSectionProps) {
   const toggleFlag = useToggleFlag(field, updateField);
 
   return (
@@ -123,11 +243,14 @@ function TextFieldSection({ field, updateField, translate }: FieldSectionProps) 
           type="text"
           class={INPUT_CLASS}
           value={field.name}
-          onBlur={(e) => updateField({ name: (e.target as HTMLInputElement).value })}
+          onBlur={(e) =>
+            renameField((e.target as HTMLInputElement).value, e.target as HTMLInputElement)
+          }
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
         />
+        {fieldNameError && <p class="mt-1 text-xs text-red-600">{fieldNameError}</p>}
       </div>
 
       <div>
@@ -173,7 +296,13 @@ function TextFieldSection({ field, updateField, translate }: FieldSectionProps) 
   );
 }
 
-function CheckboxFieldSection({ field, updateField, translate }: FieldSectionProps) {
+function CheckboxFieldSection({
+  field,
+  updateField,
+  renameField,
+  fieldNameError,
+  translate,
+}: FieldSectionProps) {
   const toggleFlag = useToggleFlag(field, updateField);
 
   return (
@@ -186,11 +315,14 @@ function CheckboxFieldSection({ field, updateField, translate }: FieldSectionPro
           type="text"
           class={INPUT_CLASS}
           value={field.name}
-          onBlur={(e) => updateField({ name: (e.target as HTMLInputElement).value })}
+          onBlur={(e) =>
+            renameField((e.target as HTMLInputElement).value, e.target as HTMLInputElement)
+          }
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
         />
+        {fieldNameError && <p class="mt-1 text-xs text-red-600">{fieldNameError}</p>}
       </div>
 
       <hr class="border-border-default" />
@@ -216,7 +348,65 @@ function CheckboxFieldSection({ field, updateField, translate }: FieldSectionPro
   );
 }
 
-function ChoiceFieldSection({ field, updateField, translate }: FieldSectionProps) {
+function RadioButtonFieldSection({
+  field,
+  updateField,
+  renameField,
+  fieldNameError,
+  translate,
+}: FieldSectionProps) {
+  const toggleFlag = useToggleFlag(field, updateField);
+
+  return (
+    <div class="space-y-4">
+      <div>
+        <label class="text-fg-secondary mb-1 block text-xs font-medium">
+          {translate('form.fieldName', { fallback: 'Field Name' })}*:
+        </label>
+        <input
+          type="text"
+          class={INPUT_CLASS}
+          value={field.name}
+          onBlur={(e) =>
+            renameField((e.target as HTMLInputElement).value, e.target as HTMLInputElement)
+          }
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+          }}
+        />
+        {fieldNameError && <p class="mt-1 text-xs text-red-600">{fieldNameError}</p>}
+      </div>
+
+      <hr class="border-border-default" />
+
+      <div>
+        <h3 class="text-fg-primary mb-3 text-sm font-medium">
+          {translate('form.properties', { fallback: 'Properties' })}
+        </h3>
+        <div class="flex flex-col gap-3">
+          <Checkbox
+            label={translate('form.readOnly', { fallback: 'Read Only' })}
+            checked={!!(field.flag & PDF_FORM_FIELD_FLAG.READONLY)}
+            onChange={(v) => toggleFlag(PDF_FORM_FIELD_FLAG.READONLY, v)}
+          />
+          <Checkbox
+            label={translate('form.required', { fallback: 'Required' })}
+            checked={!!(field.flag & PDF_FORM_FIELD_FLAG.REQUIRED)}
+            onChange={(v) => toggleFlag(PDF_FORM_FIELD_FLAG.REQUIRED, v)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChoiceFieldSection({
+  field,
+  updateField,
+  renameField,
+  fieldNameError,
+  translate,
+}: FieldSectionProps) {
   const toggleFlag = useToggleFlag(field, updateField);
   const options: PdfWidgetAnnoOption[] =
     field.type === PDF_FORM_FIELD_TYPE.COMBOBOX || field.type === PDF_FORM_FIELD_TYPE.LISTBOX
@@ -240,11 +430,14 @@ function ChoiceFieldSection({ field, updateField, translate }: FieldSectionProps
           type="text"
           class={INPUT_CLASS}
           value={field.name}
-          onBlur={(e) => updateField({ name: (e.target as HTMLInputElement).value })}
+          onBlur={(e) =>
+            renameField((e.target as HTMLInputElement).value, e.target as HTMLInputElement)
+          }
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
         />
+        {fieldNameError && <p class="mt-1 text-xs text-red-600">{fieldNameError}</p>}
       </div>
 
       <hr class="border-border-default" />

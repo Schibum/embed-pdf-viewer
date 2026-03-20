@@ -69,6 +69,7 @@ var createPdfium = (() => {
       '_EPDFAnnot_GetColor',
       '_EPDFAnnot_GetDefaultAppearance',
       '_EPDFAnnot_GetExtendedRotation',
+      '_EPDFAnnot_GetFormFieldObjectNumber',
       '_EPDFAnnot_GetIcon',
       '_EPDFAnnot_GetIntent',
       '_EPDFAnnot_GetLineEndings',
@@ -112,6 +113,7 @@ var createPdfium = (() => {
       '_EPDFAnnot_SetUnrotatedRect',
       '_EPDFAnnot_SetVerticalAlignment',
       '_EPDFAnnot_SetVertices',
+      '_EPDFAnnot_ShareFormField',
       '_EPDFAnnot_UpdateAppearanceToRect',
       '_EPDFAttachment_GetDescription',
       '_EPDFAttachment_GetIntegerValue',
@@ -6362,6 +6364,12 @@ var createPdfium = (() => {
       createExportWrapper('EPDFAnnot_SetFormFieldValue', 3));
     var _EPDFAnnot_SetFormFieldName = (Module['_EPDFAnnot_SetFormFieldName'] = createExportWrapper(
       'EPDFAnnot_SetFormFieldName',
+      3,
+    ));
+    var _EPDFAnnot_GetFormFieldObjectNumber = (Module['_EPDFAnnot_GetFormFieldObjectNumber'] =
+      createExportWrapper('EPDFAnnot_GetFormFieldObjectNumber', 2));
+    var _EPDFAnnot_ShareFormField = (Module['_EPDFAnnot_ShareFormField'] = createExportWrapper(
+      'EPDFAnnot_ShareFormField',
       3,
     ));
     var _EPDFAnnot_SetFormFieldOptions = (Module['_EPDFAnnot_SetFormFieldOptions'] =

@@ -221,6 +221,7 @@ export const TOOL_PROPERTIES: Record<string, string[]> = {
   formCheckbox: ['strokeColor', 'color', 'strokeWidth'],
   formCombobox: ['fontSize', 'fontColor', 'strokeColor', 'strokeWidth', 'color'],
   formListbox: ['fontFamily', 'fontSize', 'fontColor', 'strokeColor', 'strokeWidth', 'color'],
+  formRadioButton: ['strokeColor', 'color', 'strokeWidth'],
 };
 
 /**

@@ -104,6 +104,8 @@ type MessageType =
   | 'getPageWidgetJavaScriptActions'
   | 'setFormFieldValue'
   | 'setFormFieldState'
+  | 'renameWidgetField'
+  | 'shareWidgetField'
   | 'regenerateWidgetAppearances'
   | 'flattenPage'
   | 'extractPages'
@@ -498,6 +500,31 @@ export class RemoteExecutor implements IPdfiumExecutor {
     field: PdfWidgetAnnoField,
   ): PdfTask<boolean> {
     return this.send<boolean>('setFormFieldState', [doc, page, annotation, field]);
+  }
+
+  renameWidgetField(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ): PdfTask<boolean> {
+    return this.send<boolean>('renameWidgetField', [doc, page, annotation, name]);
+  }
+
+  shareWidgetField(
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
+  ): PdfTask<boolean> {
+    return this.send<boolean>('shareWidgetField', [
+      doc,
+      sourcePage,
+      sourceAnnotation,
+      targetPage,
+      targetAnnotation,
+    ]);
   }
 
   regenerateWidgetAppearances(

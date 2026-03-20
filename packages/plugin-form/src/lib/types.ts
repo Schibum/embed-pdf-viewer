@@ -48,14 +48,16 @@ export interface FormScope {
     annotation: PdfWidgetAnnoObject,
     newField: PdfWidgetAnnoField,
   ): PdfTask<boolean>;
+  renameField(annotationId: string, name: string): PdfTask<boolean>;
+  shareField(annotationId: string, targetAnnotationId: string): PdfTask<boolean>;
   renderWidget(options: RenderWidgetOptions): Task<Blob, PdfErrorReason>;
   selectField(annotationId: string): void;
   deselectField(): void;
   getSelectedFieldId(): string | null;
   getState(): FormDocumentState;
-  /** Get all widget entries sharing the same field name (including the given annotation) */
+  /** Get all widget entries sharing the same logical field (including the given annotation) */
   getFieldGroup(annotationId: string): FieldGroupEntry[];
-  /** Get sibling widget entries sharing the same field name (excluding the given annotation) */
+  /** Get sibling widget entries sharing the same logical field (excluding the given annotation) */
   getFieldSiblings(annotationId: string): FieldGroupEntry[];
   onStateChange: EventHook<FormDocumentState>;
   onFieldValueChange: EventHook<FieldValueChangeEvent>;
@@ -69,14 +71,20 @@ export interface FormCapability {
     newField: PdfWidgetAnnoField,
     documentId?: string,
   ): PdfTask<boolean>;
+  renameField(annotationId: string, name: string, documentId?: string): PdfTask<boolean>;
+  shareField(
+    annotationId: string,
+    targetAnnotationId: string,
+    documentId?: string,
+  ): PdfTask<boolean>;
   renderWidget(options: RenderWidgetOptions, documentId?: string): Task<Blob, PdfErrorReason>;
   selectField(annotationId: string, documentId?: string): void;
   deselectField(documentId?: string): void;
   getSelectedFieldId(documentId?: string): string | null;
   getState(documentId?: string): FormDocumentState;
-  /** Get all widget entries sharing the same field name (including the given annotation) */
+  /** Get all widget entries sharing the same logical field (including the given annotation) */
   getFieldGroup(annotationId: string, documentId?: string): FieldGroupEntry[];
-  /** Get sibling widget entries sharing the same field name (excluding the given annotation) */
+  /** Get sibling widget entries sharing the same logical field (excluding the given annotation) */
   getFieldSiblings(annotationId: string, documentId?: string): FieldGroupEntry[];
   forDocument(documentId: string): FormScope;
   onStateChange: EventHook<FormStateChangeEvent>;

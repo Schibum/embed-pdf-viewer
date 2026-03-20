@@ -1349,7 +1349,8 @@ export class PdfiumNative implements IPdfiumExecutor {
               isSucceed = this.addTextFieldContent(widgetFormHandle, annotationPtr, widget);
               break;
             case PDF_FORM_FIELD_TYPE.CHECKBOX:
-              isSucceed = this.addCheckboxContent(widgetFormHandle, annotationPtr, widget);
+            case PDF_FORM_FIELD_TYPE.RADIOBUTTON:
+              isSucceed = this.addToggleFieldContent(widgetFormHandle, annotationPtr, widget);
               break;
             case PDF_FORM_FIELD_TYPE.COMBOBOX:
             case PDF_FORM_FIELD_TYPE.LISTBOX:
@@ -1628,7 +1629,8 @@ export class PdfiumNative implements IPdfiumExecutor {
               ok = this.addTextFieldContent(formHandle, annotPtr, widget);
               break;
             case PDF_FORM_FIELD_TYPE.CHECKBOX:
-              ok = this.addCheckboxContent(formHandle, annotPtr, widget);
+            case PDF_FORM_FIELD_TYPE.RADIOBUTTON:
+              ok = this.addToggleFieldContent(formHandle, annotPtr, widget);
               break;
             case PDF_FORM_FIELD_TYPE.COMBOBOX:
             case PDF_FORM_FIELD_TYPE.LISTBOX:
@@ -2323,6 +2325,186 @@ export class PdfiumNative implements IPdfiumExecutor {
       });
     } finally {
       pageCtx.release();
+    }
+  }
+
+  renameWidgetField(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ): PdfTask<boolean> {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'RenameWidgetField', doc, annotation, name);
+    this.logger.perf(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      `RenameWidgetField`,
+      'Begin',
+      `${doc.id}-${annotation.id}`,
+    );
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      this.logger.perf(
+        LOG_SOURCE,
+        LOG_CATEGORY,
+        `RenameWidgetField`,
+        'End',
+        `${doc.id}-${annotation.id}`,
+      );
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    const pageCtx = ctx.acquirePage(page.index);
+    try {
+      return pageCtx.withFormHandle((formHandle) => {
+        const annotationPtr = this.getAnnotationByName(pageCtx.pagePtr, annotation.id);
+        if (!annotationPtr) {
+          return PdfTaskHelper.reject({
+            code: PdfErrorCode.NotFound,
+            message: 'annotation not found',
+          });
+        }
+
+        try {
+          const ok = this.withWString(name, (namePtr) =>
+            this.pdfiumModule.EPDFAnnot_SetFormFieldName(formHandle, annotationPtr, namePtr),
+          );
+          if (!ok) {
+            return PdfTaskHelper.reject({
+              code: PdfErrorCode.CantSetAnnotString,
+              message: 'failed to rename widget field',
+            });
+          }
+
+          this.logger.perf(
+            LOG_SOURCE,
+            LOG_CATEGORY,
+            `RenameWidgetField`,
+            'End',
+            `${doc.id}-${annotation.id}`,
+          );
+          return PdfTaskHelper.resolve<boolean>(true);
+        } finally {
+          this.pdfiumModule.FPDFPage_CloseAnnot(annotationPtr);
+        }
+      });
+    } finally {
+      pageCtx.release();
+    }
+  }
+
+  shareWidgetField(
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
+  ): PdfTask<boolean> {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'ShareWidgetField',
+      doc,
+      sourceAnnotation,
+      targetAnnotation,
+    );
+    this.logger.perf(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      `ShareWidgetField`,
+      'Begin',
+      `${doc.id}-${sourceAnnotation.id}-${targetAnnotation.id}`,
+    );
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      this.logger.perf(
+        LOG_SOURCE,
+        LOG_CATEGORY,
+        `ShareWidgetField`,
+        'End',
+        `${doc.id}-${sourceAnnotation.id}-${targetAnnotation.id}`,
+      );
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    const sourcePageCtx = ctx.acquirePage(sourcePage.index);
+    const targetPageCtx =
+      targetPage.index === sourcePage.index ? sourcePageCtx : ctx.acquirePage(targetPage.index);
+
+    try {
+      return sourcePageCtx.withFormHandle((formHandle) => {
+        let targetPageLoaded = false;
+        if (targetPageCtx !== sourcePageCtx) {
+          this.pdfiumModule.FORM_OnAfterLoadPage(targetPageCtx.pagePtr, formHandle);
+          targetPageLoaded = true;
+        }
+
+        const sourceAnnotationPtr = this.getAnnotationByName(
+          sourcePageCtx.pagePtr,
+          sourceAnnotation.id,
+        );
+        const targetAnnotationPtr = this.getAnnotationByName(
+          targetPageCtx.pagePtr,
+          targetAnnotation.id,
+        );
+        if (!sourceAnnotationPtr || !targetAnnotationPtr) {
+          if (sourceAnnotationPtr) {
+            this.pdfiumModule.FPDFPage_CloseAnnot(sourceAnnotationPtr);
+          }
+          if (targetAnnotationPtr) {
+            this.pdfiumModule.FPDFPage_CloseAnnot(targetAnnotationPtr);
+          }
+          if (targetPageLoaded) {
+            this.pdfiumModule.FORM_OnBeforeClosePage(targetPageCtx.pagePtr, formHandle);
+          }
+          return PdfTaskHelper.reject({
+            code: PdfErrorCode.NotFound,
+            message: 'annotation not found',
+          });
+        }
+
+        try {
+          const ok = this.pdfiumModule.EPDFAnnot_ShareFormField(
+            formHandle,
+            sourceAnnotationPtr,
+            targetAnnotationPtr,
+          );
+          if (!ok) {
+            return PdfTaskHelper.reject({
+              code: PdfErrorCode.Unknown,
+              message: 'failed to share widget field',
+            });
+          }
+
+          this.logger.perf(
+            LOG_SOURCE,
+            LOG_CATEGORY,
+            `ShareWidgetField`,
+            'End',
+            `${doc.id}-${sourceAnnotation.id}-${targetAnnotation.id}`,
+          );
+          return PdfTaskHelper.resolve<boolean>(true);
+        } finally {
+          this.pdfiumModule.FPDFPage_CloseAnnot(sourceAnnotationPtr);
+          this.pdfiumModule.FPDFPage_CloseAnnot(targetAnnotationPtr);
+          if (targetPageLoaded) {
+            this.pdfiumModule.FORM_OnBeforeClosePage(targetPageCtx.pagePtr, formHandle);
+          }
+        }
+      });
+    } finally {
+      sourcePageCtx.release();
+      if (targetPageCtx !== sourcePageCtx) {
+        targetPageCtx.release();
+      }
     }
   }
 
@@ -3092,7 +3274,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     return true;
   }
 
-  private addCheckboxContent(
+  private addToggleFieldContent(
     formHandle: number,
     annotationPtr: number,
     annotation: PdfWidgetAnnoObject,
@@ -3120,9 +3302,12 @@ export class PdfiumNative implements IPdfiumExecutor {
       this.clearMKColor(annotationPtr, 1);
     }
 
-    // 3. Form field flags
-    const userFlags = annotation.field.flag ?? PDF_FORM_FIELD_FLAG.NONE;
-    this.pdfiumModule.FPDFAnnot_SetFormFieldFlags(formHandle, annotationPtr, userFlags);
+    // 3. Form field flags (preserve structural bits for radio buttons)
+    let finalFlags = annotation.field.flag ?? PDF_FORM_FIELD_FLAG.NONE;
+    if (annotation.field.type === PDF_FORM_FIELD_TYPE.RADIOBUTTON) {
+      finalFlags |= PDF_FORM_FIELD_FLAG.BUTTON_RADIO | PDF_FORM_FIELD_FLAG.BUTTON_NOTOGGLETOOFF;
+    }
+    this.pdfiumModule.FPDFAnnot_SetFormFieldFlags(formHandle, annotationPtr, finalFlags);
 
     // 4. Field name
     if (annotation.field.name) {
@@ -8486,7 +8671,18 @@ export class PdfiumNative implements IPdfiumExecutor {
       this.pdfiumModule.pdfium.UTF16ToString,
     );
 
-    const base = { flag, name, alternateName, value };
+    const fieldObjectId = this.pdfiumModule.EPDFAnnot_GetFormFieldObjectNumber(
+      formHandle,
+      annotationPtr,
+    );
+
+    const base = {
+      flag,
+      name,
+      alternateName,
+      value,
+      fieldObjectId: fieldObjectId > 0 ? fieldObjectId : undefined,
+    };
 
     switch (type) {
       case PDF_FORM_FIELD_TYPE.TEXTFIELD: {

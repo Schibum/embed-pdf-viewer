@@ -935,7 +935,21 @@ export const commands: Record<string, Command<State>> = {
     labelKey: 'form.radio',
     icon: 'formRadio',
     categories: ['form', 'form-radio'],
-    action: () => {},
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'formRadioButton') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('formRadioButton');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'formRadioButton';
+    },
   },
 
   'form:add-select': {

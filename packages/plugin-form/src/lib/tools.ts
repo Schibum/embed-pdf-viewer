@@ -10,6 +10,7 @@ import { AnnotationTool, defineAnnotationTool } from '@embedpdf/plugin-annotatio
 import {
   textFieldHandlerFactory,
   checkboxHandlerFactory,
+  radioButtonHandlerFactory,
   comboboxHandlerFactory,
   listboxHandlerFactory,
 } from './handlers';
@@ -103,6 +104,51 @@ export const formCheckboxTool = defineAnnotationTool({
   },
   pointerHandler: checkboxHandlerFactory,
 } satisfies AnnotationTool<PdfWidgetAnnoObject, 'formCheckbox'>);
+
+export const formRadioButtonTool = defineAnnotationTool({
+  id: 'formRadioButton' as const,
+  name: 'Radio Button',
+  labelKey: 'form.radiobutton',
+  categories: ['annotation', 'form'],
+  matchScore: (a: PdfAnnotationObject) => {
+    if (a.type !== PdfAnnotationSubtype.WIDGET) return 0;
+    const widget = a;
+    return widget.field?.type === PDF_FORM_FIELD_TYPE.RADIOBUTTON ? 10 : 0;
+  },
+  interaction: {
+    exclusive: false,
+    cursor: 'crosshair',
+    isDraggable: true,
+    isResizable: true,
+    isRotatable: false,
+    isGroupDraggable: false,
+    isGroupResizable: false,
+    isGroupRotatable: false,
+  },
+  defaults: {
+    type: PdfAnnotationSubtype.WIDGET,
+    strokeColor: '#000000',
+    color: '#FFFFFF',
+    strokeWidth: 1,
+    field: {
+      flag: PDF_FORM_FIELD_FLAG.BUTTON_RADIO | PDF_FORM_FIELD_FLAG.BUTTON_NOTOGGLETOOFF,
+      name: 'RadioButton',
+      alternateName: 'RadioButton',
+      value: '',
+      type: PDF_FORM_FIELD_TYPE.RADIOBUTTON,
+      isChecked: false,
+      options: [],
+    },
+  },
+  behavior: {
+    useAppearanceStream: false,
+  },
+  clickBehavior: {
+    enabled: true,
+    defaultSize: { width: 20, height: 20 },
+  },
+  pointerHandler: radioButtonHandlerFactory,
+} satisfies AnnotationTool<PdfWidgetAnnoObject, 'formRadioButton'>);
 
 export const formComboboxTool = defineAnnotationTool({
   id: 'formCombobox' as const,
@@ -206,4 +252,10 @@ export const formListboxTool = defineAnnotationTool({
   pointerHandler: listboxHandlerFactory,
 } satisfies AnnotationTool<PdfWidgetAnnoObject, 'formListbox'>);
 
-export const formTools = [formTextFieldTool, formCheckboxTool, formComboboxTool, formListboxTool];
+export const formTools = [
+  formTextFieldTool,
+  formCheckboxTool,
+  formRadioButtonTool,
+  formComboboxTool,
+  formListboxTool,
+];

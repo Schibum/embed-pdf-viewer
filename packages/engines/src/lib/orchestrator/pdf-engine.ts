@@ -843,6 +843,48 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     );
   }
 
+  renameWidgetField(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.renameWidgetField(doc, page, annotation, name),
+        meta: { docId: doc.id, pageIndex: page.index, operation: 'renameWidgetField' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  shareWidgetField(
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
+  ): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () =>
+          this.executor.shareWidgetField(
+            doc,
+            sourcePage,
+            sourceAnnotation,
+            targetPage,
+            targetAnnotation,
+          ),
+        meta: {
+          docId: doc.id,
+          pageIndex: sourcePage.index,
+          operation: 'shareWidgetField',
+        },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
   regenerateWidgetAppearances(
     doc: PdfDocumentObject,
     page: PdfPageObject,

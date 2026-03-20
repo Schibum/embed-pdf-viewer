@@ -1480,6 +1480,7 @@ export interface PdfWidgetAnnoFieldBase {
   name: string;
   alternateName: string;
   value: string;
+  fieldObjectId?: number;
 }
 
 /**
@@ -3667,6 +3668,36 @@ export interface PdfEngine<T = Blob> {
     field: PdfWidgetAnnoField,
   ) => PdfTask<boolean>;
   /**
+   * Rename the logical form field associated with a widget annotation.
+   * This updates the field dictionary rather than patching only a single widget snapshot.
+   * @param doc - pdf document
+   * @param page - pdf page containing the widget annotation
+   * @param annotation - pdf widget annotation
+   * @param name - the desired partial field name (/T)
+   */
+  renameWidgetField: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ) => PdfTask<boolean>;
+  /**
+   * Attach the source widget's logical field to the target widget's logical field.
+   * This is a structural field operation and may merge multiple widget kids under one parent.
+   * @param doc - pdf document
+   * @param sourcePage - page containing the source widget annotation
+   * @param sourceAnnotation - widget whose field should be shared into the target field
+   * @param targetPage - page containing the target widget annotation
+   * @param targetAnnotation - widget whose logical field should be reused
+   */
+  shareWidgetField: (
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
+  ) => PdfTask<boolean>;
+  /**
    * Flatten annotations and form fields into the page contents.
    * @param doc - pdf document
    * @param page - pdf page
@@ -3998,6 +4029,19 @@ export interface IPdfiumExecutor {
     page: PdfPageObject,
     annotation: PdfWidgetAnnoObject,
     field: PdfWidgetAnnoField,
+  ): PdfTask<boolean>;
+  renameWidgetField(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ): PdfTask<boolean>;
+  shareWidgetField(
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
   ): PdfTask<boolean>;
   flattenPage(
     doc: PdfDocumentObject,

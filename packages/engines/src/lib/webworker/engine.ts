@@ -893,6 +893,57 @@ export class WebWorkerEngine implements PdfEngine {
     return task;
   }
 
+  renameWidgetField(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfWidgetAnnoObject,
+    name: string,
+  ) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renameWidgetField', doc, annotation, name);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'renameWidgetField', [
+      doc,
+      page,
+      annotation,
+      name,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  shareWidgetField(
+    doc: PdfDocumentObject,
+    sourcePage: PdfPageObject,
+    sourceAnnotation: PdfWidgetAnnoObject,
+    targetPage: PdfPageObject,
+    targetAnnotation: PdfWidgetAnnoObject,
+  ) {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'shareWidgetField',
+      doc,
+      sourceAnnotation,
+      targetAnnotation,
+    );
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'shareWidgetField', [
+      doc,
+      sourcePage,
+      sourceAnnotation,
+      targetPage,
+      targetAnnotation,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
   regenerateWidgetAppearances(
     doc: PdfDocumentObject,
     page: PdfPageObject,

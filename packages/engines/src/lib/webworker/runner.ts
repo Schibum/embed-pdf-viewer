@@ -411,6 +411,12 @@ export class EngineRunner {
       case 'setFormFieldState':
         this.handleTask(request.id, engine.setFormFieldState!(...args));
         return;
+      case 'renameWidgetField':
+        this.handleTask(request.id, engine.renameWidgetField!(...args));
+        return;
+      case 'shareWidgetField':
+        this.handleTask(request.id, engine.shareWidgetField!(...args));
+        return;
       case 'flattenPage':
         this.handleTask(request.id, engine.flattenPage!(...args));
         return;
