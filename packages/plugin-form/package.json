@@ -45,6 +45,7 @@
     "@embedpdf/build": "workspace:*",
     "@embedpdf/plugin-annotation": "workspace:*",
     "@embedpdf/plugin-history": "workspace:*",
+    "@embedpdf/plugin-scroll": "workspace:*",
     "@types/react": "^18.2.0",
     "typescript": "^5.0.0"
   },
@@ -52,6 +53,7 @@
     "@embedpdf/core": "workspace:*",
     "@embedpdf/plugin-annotation": "workspace:*",
     "@embedpdf/plugin-history": "workspace:*",
+    "@embedpdf/plugin-scroll": "workspace:*",
     "react": ">=16.8.0",
     "react-dom": ">=16.8.0",
     "preact": "^10.26.4",

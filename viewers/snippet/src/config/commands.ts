@@ -20,6 +20,7 @@ import {
   RedactionPlugin,
 } from '@embedpdf/plugin-redaction/preact';
 import { ExportPlugin } from '@embedpdf/plugin-export/preact';
+import { FormPlugin } from '@embedpdf/plugin-form/preact';
 import { DocumentManagerPlugin } from '@embedpdf/plugin-document-manager/preact';
 import { HISTORY_PLUGIN_ID, HistoryPlugin } from '@embedpdf/plugin-history/preact';
 import { State } from './types';
@@ -1019,6 +1020,62 @@ export const commands: Record<string, Command<State>> = {
         ?.provides()
         .forDocument(documentId);
       return !(scope?.isCategoryLocked('form') ?? true);
+    },
+  },
+
+  'form:focus-next': {
+    id: 'form:focus-next',
+    labelKey: 'form.focusNext',
+    shortcuts: ['Tab'],
+    categories: ['form', 'form-navigation'],
+    action: ({ registry, documentId }) => {
+      const form = registry.getPlugin<FormPlugin>(FormPlugin.id)?.provides();
+      form?.forDocument(documentId).selectNextField();
+    },
+    disabled: ({ registry, documentId }) => {
+      const scope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      return !(scope?.isCategoryLocked('form') ?? false);
+    },
+  },
+
+  'form:focus-previous': {
+    id: 'form:focus-previous',
+    labelKey: 'form.focusPrevious',
+    shortcuts: ['Shift+Tab'],
+    categories: ['form', 'form-navigation'],
+    action: ({ registry, documentId }) => {
+      const form = registry.getPlugin<FormPlugin>(FormPlugin.id)?.provides();
+      form?.forDocument(documentId).selectPreviousField();
+    },
+    disabled: ({ registry, documentId }) => {
+      const scope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      return !(scope?.isCategoryLocked('form') ?? false);
+    },
+  },
+
+  'form:activate-focused': {
+    id: 'form:activate-focused',
+    labelKey: 'form.activateFocused',
+    shortcuts: ['Space'],
+    categories: ['form', 'form-navigation'],
+    action: ({ registry, documentId }) => {
+      const form = registry.getPlugin<FormPlugin>(FormPlugin.id)?.provides();
+      form?.forDocument(documentId).activateField();
+    },
+    disabled: ({ registry, documentId }) => {
+      const annotation = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      if (!(annotation?.isCategoryLocked('form') ?? false)) return true;
+      const form = registry.getPlugin<FormPlugin>(FormPlugin.id)?.provides();
+      return form?.forDocument(documentId).getSelectedFieldId() === null;
     },
   },
 

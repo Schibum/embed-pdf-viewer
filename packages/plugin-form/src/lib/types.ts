@@ -54,6 +54,9 @@ export interface FormScope {
   selectField(annotationId: string): void;
   deselectField(): void;
   getSelectedFieldId(): string | null;
+  selectNextField(): void;
+  selectPreviousField(): void;
+  activateField(): void;
   getState(): FormDocumentState;
   /** Get all widget entries sharing the same logical field (including the given annotation) */
   getFieldGroup(annotationId: string): FieldGroupEntry[];
@@ -81,6 +84,9 @@ export interface FormCapability {
   selectField(annotationId: string, documentId?: string): void;
   deselectField(documentId?: string): void;
   getSelectedFieldId(documentId?: string): string | null;
+  selectNextField(documentId?: string): void;
+  selectPreviousField(documentId?: string): void;
+  activateField(documentId?: string): void;
   getState(documentId?: string): FormDocumentState;
   /** Get all widget entries sharing the same logical field (including the given annotation) */
   getFieldGroup(annotationId: string, documentId?: string): FieldGroupEntry[];

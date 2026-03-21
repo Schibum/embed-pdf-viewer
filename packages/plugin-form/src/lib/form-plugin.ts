@@ -29,6 +29,7 @@ import {
   PdfDocumentObject,
   PdfErrorCode,
   PdfErrorReason,
+  PDF_FORM_FIELD_FLAG,
   PDF_FORM_FIELD_TYPE,
   PdfCheckboxWidgetAnnoField,
   PdfTask,
@@ -45,6 +46,7 @@ import {
   AnnotationPlugin,
 } from '@embedpdf/plugin-annotation';
 import { Command, HistoryCapability, HistoryPlugin } from '@embedpdf/plugin-history';
+import { ScrollCapability, ScrollPlugin } from '@embedpdf/plugin-scroll';
 import { initialDocumentState } from './reducer';
 import { formTools } from './tools';
 
@@ -60,12 +62,16 @@ export class FormPlugin extends BasePlugin<
 
   private annotation: AnnotationCapability | null = null;
   private history: HistoryCapability | null = null;
+  private scroll: ScrollCapability | null = null;
 
   private readonly state$ = createBehaviorEmitter<FormStateChangeEvent>();
   private readonly fieldValueChange$ = createEmitter<FieldValueChangeEvent>();
 
   /** Per-document logical field index: documentId → (fieldKey → FieldGroupEntry[]) */
   private readonly fieldGroupIndex = new Map<string, Map<string, FieldGroupEntry[]>>();
+
+  /** Per-document tab-order sorted widget list: documentId → FieldGroupEntry[] */
+  private readonly orderedFieldIndex = new Map<string, FieldGroupEntry[]>();
 
   /** IDs currently being propagated to siblings; prevents recursive loops */
   private readonly propagationInProgress = new Set<string>();
@@ -75,6 +81,7 @@ export class FormPlugin extends BasePlugin<
 
     this.annotation = registry.getPlugin<AnnotationPlugin>('annotation')?.provides() ?? null;
     this.history = registry.getPlugin<HistoryPlugin>(HistoryPlugin.id)?.provides() ?? null;
+    this.scroll = registry.getPlugin<ScrollPlugin>(ScrollPlugin.id)?.provides() ?? null;
 
     if (this.annotation) {
       for (const tool of formTools) {
@@ -93,6 +100,7 @@ export class FormPlugin extends BasePlugin<
   protected override onDocumentClosed(documentId: string): void {
     this.dispatch(cleanupFormState(documentId));
     this.fieldGroupIndex.delete(documentId);
+    this.orderedFieldIndex.delete(documentId);
   }
 
   override onStoreUpdated(prev: FormState, next: FormState): void {
@@ -119,6 +127,9 @@ export class FormPlugin extends BasePlugin<
       selectField: (annotationId, documentId?) => this.selectFieldMethod(annotationId, documentId),
       deselectField: (documentId?) => this.deselectFieldMethod(documentId),
       getSelectedFieldId: (documentId?) => this.getSelectedFieldId(documentId),
+      selectNextField: (documentId?) => this.selectNextFieldMethod(documentId),
+      selectPreviousField: (documentId?) => this.selectPreviousFieldMethod(documentId),
+      activateField: (documentId?) => this.activateFieldMethod(documentId),
       getState: (documentId?) => this.getDocumentState(documentId),
       getFieldGroup: (annotationId, documentId?) => this.getFieldGroup(annotationId, documentId),
       getFieldSiblings: (annotationId, documentId?) =>
@@ -141,6 +152,9 @@ export class FormPlugin extends BasePlugin<
       selectField: (annotationId) => this.selectFieldMethod(annotationId, documentId),
       deselectField: () => this.deselectFieldMethod(documentId),
       getSelectedFieldId: () => this.getSelectedFieldId(documentId),
+      selectNextField: () => this.selectNextFieldMethod(documentId),
+      selectPreviousField: () => this.selectPreviousFieldMethod(documentId),
+      activateField: () => this.activateFieldMethod(documentId),
       getState: () => this.getDocumentState(documentId),
       getFieldGroup: (annotationId) => this.getFieldGroup(annotationId, documentId),
       getFieldSiblings: (annotationId) => this.getFieldSiblings(annotationId, documentId),
@@ -226,6 +240,7 @@ export class FormPlugin extends BasePlugin<
     if (!annoState) return;
 
     const idx = new Map<string, FieldGroupEntry[]>();
+    const allWidgets: { entry: FieldGroupEntry; widget: PdfWidgetAnnoObject }[] = [];
 
     for (const [pageStr, uids] of Object.entries(annoState.pages)) {
       const pageIndex = Number(pageStr);
@@ -233,16 +248,35 @@ export class FormPlugin extends BasePlugin<
         const tracked = annoState.byUid[uid];
         if (!tracked || tracked.object.type !== PdfAnnotationSubtype.WIDGET) continue;
         const widget = tracked.object as PdfWidgetAnnoObject;
+
+        const entry: FieldGroupEntry = { annotationId: uid, pageIndex };
+        allWidgets.push({ entry, widget });
+
         const fieldKey = this.getFieldKey(widget.field);
         if (!fieldKey) continue;
 
         const group = idx.get(fieldKey) ?? [];
-        group.push({ annotationId: uid, pageIndex });
+        group.push(entry);
         idx.set(fieldKey, group);
       }
     }
 
     this.fieldGroupIndex.set(documentId, idx);
+
+    const navigable = allWidgets.filter(
+      ({ widget }) => !(widget.field.flag & PDF_FORM_FIELD_FLAG.READONLY),
+    );
+    navigable.sort((a, b) => {
+      if (a.entry.pageIndex !== b.entry.pageIndex) return a.entry.pageIndex - b.entry.pageIndex;
+      const ay = a.widget.rect.origin.y;
+      const by = b.widget.rect.origin.y;
+      if (ay !== by) return ay - by;
+      return a.widget.rect.origin.x - b.widget.rect.origin.x;
+    });
+    this.orderedFieldIndex.set(
+      documentId,
+      navigable.map(({ entry }) => entry),
+    );
   }
 
   private getDocumentState(documentId?: string): FormDocumentState {
@@ -678,6 +712,7 @@ export class FormPlugin extends BasePlugin<
   private selectFieldMethod(annotationId: string, documentId?: string): void {
     const docId = documentId ?? this.getActiveDocumentId();
     this.dispatch(selectFieldAction(docId, annotationId));
+    this.scrollToField(annotationId, docId);
   }
 
   private deselectFieldMethod(documentId?: string): void {
@@ -687,6 +722,83 @@ export class FormPlugin extends BasePlugin<
 
   private getSelectedFieldId(documentId?: string): string | null {
     return this.getDocumentState(documentId).selectedFieldId;
+  }
+
+  private selectNextFieldMethod(documentId?: string): void {
+    const docId = documentId ?? this.getActiveDocumentId();
+    const ordered = this.orderedFieldIndex.get(docId);
+    if (!ordered || ordered.length === 0) return;
+
+    const currentId = this.getSelectedFieldId(docId);
+    let nextIndex = 0;
+    if (currentId) {
+      const currentIndex = ordered.findIndex((e) => e.annotationId === currentId);
+      nextIndex = currentIndex >= 0 ? (currentIndex + 1) % ordered.length : 0;
+    }
+
+    const next = ordered[nextIndex];
+    this.dispatch(selectFieldAction(docId, next.annotationId));
+    this.scrollToField(next.annotationId, docId);
+  }
+
+  private selectPreviousFieldMethod(documentId?: string): void {
+    const docId = documentId ?? this.getActiveDocumentId();
+    const ordered = this.orderedFieldIndex.get(docId);
+    if (!ordered || ordered.length === 0) return;
+
+    const currentId = this.getSelectedFieldId(docId);
+    let prevIndex = ordered.length - 1;
+    if (currentId) {
+      const currentIndex = ordered.findIndex((e) => e.annotationId === currentId);
+      prevIndex =
+        currentIndex >= 0
+          ? (currentIndex - 1 + ordered.length) % ordered.length
+          : ordered.length - 1;
+    }
+
+    const prev = ordered[prevIndex];
+    this.dispatch(selectFieldAction(docId, prev.annotationId));
+    this.scrollToField(prev.annotationId, docId);
+  }
+
+  private activateFieldMethod(documentId?: string): void {
+    const docId = documentId ?? this.getActiveDocumentId();
+    const selectedId = this.getSelectedFieldId(docId);
+    if (!selectedId) return;
+
+    const widget = this.resolveWidgetAnnotation(selectedId, docId);
+    if (!widget) return;
+
+    const field = widget.field;
+    if (field.type === PDF_FORM_FIELD_TYPE.CHECKBOX) {
+      this.setFormFieldValues(
+        widget.pageIndex,
+        widget,
+        { ...field, isChecked: !field.isChecked },
+        docId,
+      );
+    } else if (field.type === PDF_FORM_FIELD_TYPE.RADIOBUTTON) {
+      if (!field.isChecked) {
+        this.setFormFieldValues(widget.pageIndex, widget, { ...field, isChecked: true }, docId);
+      }
+    }
+  }
+
+  private scrollToField(annotationId: string, documentId: string): void {
+    if (!this.scroll) return;
+    const widget = this.resolveWidgetAnnotation(annotationId, documentId);
+    if (!widget) return;
+
+    this.scroll.forDocument(documentId).scrollToPage({
+      pageNumber: widget.pageIndex + 1,
+      pageCoordinates: {
+        x: widget.rect.origin.x,
+        y: widget.rect.origin.y,
+      },
+      alignX: 50,
+      alignY: 50,
+      behavior: 'smooth',
+    });
   }
 
   private renderWidget(
