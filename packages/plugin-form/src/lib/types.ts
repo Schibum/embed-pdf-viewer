@@ -41,6 +41,11 @@ export interface FieldValueChangeEvent {
   widget: PdfWidgetAnnoObject;
 }
 
+export type RenameFieldResult =
+  | { outcome: 'renamed' }
+  | { outcome: 'no-op' }
+  | { outcome: 'conflict'; targetAnnotationId: string; fieldName: string };
+
 export interface FormScope {
   getPageFormAnnoWidgets(pageIndex: number): PdfTask<PdfWidgetAnnoObject[]>;
   setFormFieldValues(
@@ -48,7 +53,7 @@ export interface FormScope {
     annotation: PdfWidgetAnnoObject,
     newField: PdfWidgetAnnoField,
   ): PdfTask<boolean>;
-  renameField(annotationId: string, name: string): PdfTask<boolean>;
+  renameField(annotationId: string, name: string): PdfTask<RenameFieldResult>;
   shareField(annotationId: string, targetAnnotationId: string): PdfTask<boolean>;
   renderWidget(options: RenderWidgetOptions): Task<Blob, PdfErrorReason>;
   selectField(annotationId: string, options?: { scroll?: boolean }): void;
@@ -74,7 +79,7 @@ export interface FormCapability {
     newField: PdfWidgetAnnoField,
     documentId?: string,
   ): PdfTask<boolean>;
-  renameField(annotationId: string, name: string, documentId?: string): PdfTask<boolean>;
+  renameField(annotationId: string, name: string, documentId?: string): PdfTask<RenameFieldResult>;
   shareField(
     annotationId: string,
     targetAnnotationId: string,

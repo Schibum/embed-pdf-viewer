@@ -14,6 +14,7 @@ import {
   FormScope,
   FormState,
   FormStateChangeEvent,
+  RenameFieldResult,
   RenderWidgetOptions,
 } from './types';
 import {
@@ -579,17 +580,54 @@ export class FormPlugin extends BasePlugin<
     return resultTask;
   }
 
+  private findConflictingFieldGroups(
+    normalizedName: string,
+    sourceAnnotationId: string,
+    documentId: string,
+  ): Map<string, { entries: FieldGroupEntry[]; widget: PdfWidgetAnnoObject }> {
+    const result = new Map<string, { entries: FieldGroupEntry[]; widget: PdfWidgetAnnoObject }>();
+    if (!this.annotation) return result;
+
+    const annoState = this.annotation.forDocument(documentId).getState();
+    if (!annoState) return result;
+
+    const sourceFieldKey = (() => {
+      const w = this.resolveWidgetAnnotation(sourceAnnotationId, documentId);
+      return w ? this.getFieldKey(w.field) : null;
+    })();
+
+    for (const [pageStr, uids] of Object.entries(annoState.pages)) {
+      const pageIndex = Number(pageStr);
+      for (const uid of uids) {
+        const tracked = annoState.byUid[uid];
+        if (!tracked || tracked.object.type !== PdfAnnotationSubtype.WIDGET) continue;
+        const widget = tracked.object as PdfWidgetAnnoObject;
+        if (widget.field.name.trim() !== normalizedName) continue;
+
+        const fieldKey = this.getFieldKey(widget.field);
+        if (!fieldKey || fieldKey === sourceFieldKey) continue;
+
+        if (!result.has(fieldKey)) {
+          result.set(fieldKey, { entries: [], widget });
+        }
+        result.get(fieldKey)!.entries.push({ annotationId: uid, pageIndex });
+      }
+    }
+
+    return result;
+  }
+
   private renameFieldMethod(
     annotationId: string,
     name: string,
     documentId?: string,
-  ): PdfTask<boolean> {
+  ): PdfTask<RenameFieldResult> {
     const docId = documentId ?? this.getActiveDocumentId();
     const normalizedName = name.trim();
     if (!normalizedName) {
       return PdfTaskHelper.reject({
         code: PdfErrorCode.Unknown,
-        message: 'field name must not be empty',
+        message: 'Field name must not be empty.',
       });
     }
 
@@ -610,11 +648,37 @@ export class FormPlugin extends BasePlugin<
       });
     }
 
-    if (source.widget.field.name === normalizedName) {
-      return PdfTaskHelper.resolve(true);
+    if (source.widget.field.name.trim() === normalizedName) {
+      return PdfTaskHelper.resolve<RenameFieldResult>({ outcome: 'no-op' });
     }
 
-    const resultTask = new Task<boolean, PdfErrorReason>();
+    const conflicts = this.findConflictingFieldGroups(normalizedName, annotationId, docId);
+
+    if (conflicts.size > 0) {
+      if (conflicts.size > 1) {
+        return PdfTaskHelper.reject({
+          code: PdfErrorCode.Unknown,
+          message: 'That field name is used by multiple fields. Choose a unique name.',
+        });
+      }
+
+      const [, match] = [...conflicts.entries()][0];
+
+      if (match.widget.field.type !== source.widget.field.type) {
+        return PdfTaskHelper.reject({
+          code: PdfErrorCode.Unknown,
+          message: 'That field name is already used by a different widget type.',
+        });
+      }
+
+      return PdfTaskHelper.resolve<RenameFieldResult>({
+        outcome: 'conflict',
+        targetAnnotationId: match.entries[0].annotationId,
+        fieldName: normalizedName,
+      });
+    }
+
+    const resultTask = new Task<RenameFieldResult, PdfErrorReason>();
     const seq = new TaskSequence(resultTask);
 
     seq.execute(
@@ -626,7 +690,7 @@ export class FormPlugin extends BasePlugin<
 
         const syncedEntries = await this.readFieldWidgets(doc, groupEntries, seq, false);
         this.syncFieldBatch(docId, syncedEntries);
-        resultTask.resolve(true);
+        resultTask.resolve({ outcome: 'renamed' });
       },
       (err) => ({ code: PdfErrorCode.Unknown, message: String(err) }),
     );

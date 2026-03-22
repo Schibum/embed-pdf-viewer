@@ -10,6 +10,7 @@ import {
   PDF_FORM_FIELD_TYPE,
   PDF_FORM_FIELD_FLAG,
 } from '@embedpdf/models';
+import type { RenameFieldResult } from '@embedpdf/plugin-form';
 import { useAnnotation } from '@embedpdf/plugin-annotation/preact';
 import { getSelectedAnnotations } from '@embedpdf/plugin-annotation';
 import { useTranslations } from '@embedpdf/plugin-i18n/preact';
@@ -39,13 +40,6 @@ const FIELD_TYPE_FALLBACKS: Partial<Record<PDF_FORM_FIELD_TYPE, string>> = {
 
 const INPUT_CLASS =
   'border-border-default bg-bg-input text-fg-primary w-full rounded border px-2 py-1.5 text-sm';
-
-const normalizeFieldName = (name: string) => name.trim();
-
-const getLogicalFieldKey = (field: PdfWidgetAnnoField) =>
-  typeof field.fieldObjectId === 'number' && field.fieldObjectId > 0
-    ? `field:${field.fieldObjectId}`
-    : `legacy:${field.type}:${normalizeFieldName(field.name)}`;
 
 export const WidgetEditSidebar = ({ documentId }: WidgetEditSidebarProps) => {
   const { provides: annotation, state } = useAnnotation(documentId);
@@ -82,81 +76,34 @@ export const WidgetEditSidebar = ({ documentId }: WidgetEditSidebarProps) => {
 
   const renameField = useCallback(
     (nextName: string, input: HTMLInputElement) => {
-      const normalizedName = normalizeFieldName(nextName);
-      if (!normalizedName) {
-        setFieldNameError('Field name must not be empty.');
-        input.value = widget.field.name;
-        return;
-      }
-
-      if (normalizedName === normalizeFieldName(widget.field.name)) {
-        setFieldNameError(null);
-        input.value = widget.field.name;
-        return;
-      }
-
-      const currentFieldKey = getLogicalFieldKey(widget.field);
-      const candidateGroups = new Map<string, PdfWidgetAnnoObject>();
-
-      for (const tracked of Object.values(state.byUid)) {
-        const candidate = tracked.object;
-        if (candidate.type !== PdfAnnotationSubtype.WIDGET) continue;
-        if (candidate.id === widget.id) continue;
-        if (normalizeFieldName(candidate.field.name) !== normalizedName) continue;
-
-        if (candidate.field.type !== widget.field.type) {
-          setFieldNameError('That field name is already used by a different widget type.');
-          input.value = widget.field.name;
-          return;
-        }
-
-        const candidateFieldKey = getLogicalFieldKey(candidate.field);
-        if (candidateFieldKey !== currentFieldKey) {
-          candidateGroups.set(candidateFieldKey, candidate);
-        }
-      }
-
-      const handleFailure = (message: string) => {
-        setFieldNameError(message);
-        input.value = widget.field.name;
-      };
-
-      if (candidateGroups.size === 0) {
-        setFieldNameError(null);
-        formProvides.renameField(widget.id, normalizedName, documentId).wait(
-          () => {
-            setFieldNameError(null);
-          },
-          (error) => handleFailure(error.reason.message),
-        );
-        return;
-      }
-
-      if (candidateGroups.size > 1) {
-        handleFailure('That field name is already used by multiple fields. Choose a unique name.');
-        return;
-      }
-
-      const targetWidget = [...candidateGroups.values()][0];
-      const confirmed =
-        globalThis.confirm?.(
-          `Share this ${fieldLabel} with the existing field "${normalizedName}"?`,
-        ) ?? false;
-
-      if (!confirmed) {
-        input.value = widget.field.name;
-        return;
-      }
-
-      setFieldNameError(null);
-      formProvides.shareField(widget.id, targetWidget.id, documentId).wait(
-        () => {
+      formProvides.renameField(widget.id, nextName, documentId).wait(
+        (result: RenameFieldResult) => {
           setFieldNameError(null);
+          if (result.outcome === 'conflict') {
+            const confirmed =
+              globalThis.confirm?.(
+                `Share this ${fieldLabel} with the existing field "${result.fieldName}"?`,
+              ) ?? false;
+            if (confirmed) {
+              formProvides.shareField(widget.id, result.targetAnnotationId, documentId).wait(
+                () => setFieldNameError(null),
+                (error) => {
+                  setFieldNameError(error.reason.message);
+                  input.value = widget.field.name;
+                },
+              );
+            } else {
+              input.value = widget.field.name;
+            }
+          }
         },
-        (error) => handleFailure(error.reason.message),
+        (error) => {
+          setFieldNameError(error.reason.message);
+          input.value = widget.field.name;
+        },
       );
     },
-    [documentId, fieldLabel, formProvides, state.byUid, widget.field, widget.id],
+    [documentId, fieldLabel, formProvides, widget.field.name, widget.id],
   );
 
   return (
