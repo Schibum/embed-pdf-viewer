@@ -56,7 +56,7 @@ export function TextFillMode(props: AnnotationRendererProps<PdfWidgetAnnoObject>
         annotation={annotation}
         scaleFactor={scale}
         renderKey={renderKey}
-        style={{ pointerEvents: 'none' }}
+        style={{ pointerEvents: 'none', visibility: editing ? 'hidden' : 'visible' }}
       />
       {editing && (
         <TextField
