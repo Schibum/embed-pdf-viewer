@@ -5727,13 +5727,12 @@ export class PdfiumNative implements IPdfiumExecutor {
     annotPtr: number,
     rect: Rect,
   ): boolean {
-    // Snap device edges the same way setPageAnnoRect does
-    const x0d = Math.floor(rect.origin.x);
-    const y0d = Math.floor(rect.origin.y);
-    const x1d = Math.floor(rect.origin.x + rect.size.width);
-    const y1d = Math.floor(rect.origin.y + rect.size.height);
+    const x0d = rect.origin.x;
+    const y0d = rect.origin.y;
+    const x1d = rect.origin.x + rect.size.width;
+    const y1d = rect.origin.y + rect.size.height;
 
-    // Map all 4 integer corners to page space (handles any /Rotate)
+    // Map all 4 corners to page space (handles any /Rotate)
     const TL = this.convertDevicePointToPagePoint(doc, page, { x: x0d, y: y0d });
     const TR = this.convertDevicePointToPagePoint(doc, page, { x: x1d, y: y0d });
     const BR = this.convertDevicePointToPagePoint(doc, page, { x: x1d, y: y1d });
@@ -9908,13 +9907,12 @@ export class PdfiumNative implements IPdfiumExecutor {
     annotPtr: number,
     rect: Rect,
   ): boolean {
-    // Snap device edges the same way FPDF_DeviceToPage(int,int,...) did (truncate → floor for ≥0)
-    const x0d = Math.floor(rect.origin.x);
-    const y0d = Math.floor(rect.origin.y);
-    const x1d = Math.floor(rect.origin.x + rect.size.width);
-    const y1d = Math.floor(rect.origin.y + rect.size.height);
+    const x0d = rect.origin.x;
+    const y0d = rect.origin.y;
+    const x1d = rect.origin.x + rect.size.width;
+    const y1d = rect.origin.y + rect.size.height;
 
-    // Map all 4 integer corners to page space (handles any /Rotate)
+    // Map all 4 corners to page space (handles any /Rotate)
     const TL = this.convertDevicePointToPagePoint(doc, page, { x: x0d, y: y0d });
     const TR = this.convertDevicePointToPagePoint(doc, page, { x: x1d, y: y0d });
     const BR = this.convertDevicePointToPagePoint(doc, page, { x: x1d, y: y1d });
