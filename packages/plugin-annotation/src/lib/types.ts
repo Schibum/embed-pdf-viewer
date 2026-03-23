@@ -480,7 +480,7 @@ export interface AnnotationCapability<TTools extends AnnotationToolMap = Annotat
     <TId extends ToolId<TTools>>(toolId: TId): ToolEntry<TTools, TId> | undefined;
     (toolId: string): AnnotationTool | undefined;
   };
-  addTool: (tool: AnnotationTool<any>) => void;
+  addTool: <T extends AnnotationTool<any> = AnnotationTool<any>>(tool: T) => void;
   findToolForAnnotation: (annotation: PdfAnnotationObject) => ToolUnion<TTools> | null;
   setToolDefaults: {
     <TId extends ToolId<TTools>>(

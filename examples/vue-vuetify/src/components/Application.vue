@@ -76,7 +76,7 @@ const { engine, isLoading: engineLoading, error: engineError } = usePdfiumEngine
 
 const handleInitialized = async (registry: PluginRegistry) => {
   const annotation = registry.getPlugin<AnnotationPlugin>('annotation')?.provides();
-  annotation?.addTool({
+  annotation?.addTool<AnnotationTool<PdfStampAnnoObject>>({
     id: 'stampApproved',
     name: 'Stamp Approved',
     interaction: {

@@ -571,7 +571,7 @@ const linkTools = [
     name: 'Link',
     labelKey: 'annotation.link',
     categories: ['annotation', 'markup'],
-    matchScore: (a) => (a.type === PdfAnnotationSubtype.LINK && !a.inReplyToId ? 1 : 0),
+    matchScore: (a) => (a.type === PdfAnnotationSubtype.LINK ? 1 : 0),
     interaction: {
       exclusive: false,
       cursor: 'crosshair',
