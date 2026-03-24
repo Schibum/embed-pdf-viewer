@@ -1,5 +1,13 @@
 # @embedpdf/plugin-annotation
 
+## 2.10.0
+
+### Minor Changes
+
+- [#537](https://github.com/embedpdf/embed-pdf-viewer/pull/537) by [@bobsingor](https://github.com/bobsingor) –
+  - Add annotation lock modes, scoped navigation/state events, richer tool metadata, and locked-mode renderer support so annotations can switch cleanly between authoring and fill interactions.
+  - Add link previews and locked link navigation support plus shared React, Svelte, and Vue updates for the new renderer and interaction APIs.
+
 ## 2.9.1
 
 ### Patch Changes
