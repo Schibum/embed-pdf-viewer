@@ -1,5 +1,7 @@
 # @embedpdf/plugin-document-manager
 
+## 2.10.1
+
 ## 2.10.0
 
 ## 2.9.1
