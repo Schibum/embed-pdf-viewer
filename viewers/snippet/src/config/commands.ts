@@ -23,6 +23,7 @@ import {
 import { ExportPlugin } from '@embedpdf/plugin-export/preact';
 import { DocumentManagerPlugin } from '@embedpdf/plugin-document-manager/preact';
 import { HISTORY_PLUGIN_ID, HistoryPlugin } from '@embedpdf/plugin-history/preact';
+import { STAMP_PLUGIN_ID, StampPlugin } from '@embedpdf/plugin-stamp/preact';
 import { State } from './types';
 import { isSidebarOpen, isToolbarOpen, UI_PLUGIN_ID, UIPlugin } from '@embedpdf/plugin-ui';
 import { ScrollPlugin, ScrollStrategy } from '@embedpdf/plugin-scroll/preact';
@@ -883,6 +884,27 @@ export const commands: Record<string, Command<State>> = {
     },
   },
 
+  'mode:insert': {
+    id: 'mode:insert',
+    label: 'Insert',
+    categories: ['mode', 'mode-insert', 'insert'],
+    action: ({ registry, documentId }) => {
+      const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
+      if (!ui) return;
+
+      ui.setActiveToolbar('top', 'secondary', 'insert-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: LockModeType.None });
+    },
+    active: ({ state, documentId }) => {
+      return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'insert-toolbar');
+    },
+  },
+
   // ─────────────────────────────────────────────────────────
   // Form Commands
   // ─────────────────────────────────────────────────────────
@@ -1055,6 +1077,82 @@ export const commands: Record<string, Command<State>> = {
     },
     active: ({ state, documentId }) => {
       return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'redaction-toolbar');
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // Insert Commands
+  // ─────────────────────────────────────────────────────────
+  'insert:add-rubber-stamp': {
+    id: 'insert:add-rubber-stamp',
+    label: 'Rubber Stamp',
+    icon: 'rubberStamp',
+    categories: ['insert', 'insert-rubber-stamp'],
+    action: ({ registry, documentId }) => {
+      const uiPlugin = registry.getPlugin<UIPlugin>(UI_PLUGIN_ID);
+      if (!uiPlugin || !uiPlugin.provides) return;
+
+      const uiCapability = uiPlugin.provides();
+      if (!uiCapability) return;
+
+      const scope = uiCapability.forDocument(documentId);
+      scope.toggleSidebar('left', 'main', 'rubber-stamp-panel');
+    },
+    active: ({ state, documentId }) => {
+      return isSidebarOpen(state.plugins, documentId, 'left', 'main', 'rubber-stamp-panel');
+    },
+  },
+
+  'insert:add-signature': {
+    id: 'insert:add-signature',
+    label: 'Signature',
+    icon: 'signature',
+    categories: ['insert', 'insert-signature'],
+    action: ({ registry, documentId }) => {
+      const uiPlugin = registry.getPlugin<UIPlugin>(UI_PLUGIN_ID);
+      if (!uiPlugin || !uiPlugin.provides) return;
+
+      const uiCapability = uiPlugin.provides();
+      if (!uiCapability) return;
+
+      const scope = uiCapability.forDocument(documentId);
+      scope.toggleSidebar('left', 'main', 'signature-panel');
+    },
+    active: ({ state, documentId }) => {
+      return isSidebarOpen(state.plugins, documentId, 'left', 'main', 'signature-panel');
+    },
+  },
+
+  'insert:add-attachment': {
+    id: 'insert:add-attachment',
+    label: 'Attachment',
+    icon: 'paperclip',
+    categories: ['insert', 'insert-attachment'],
+    action: () => {},
+  },
+
+  'insert:add-image': {
+    id: 'insert:add-image',
+    label: 'Image',
+    icon: 'photo',
+    categories: ['insert', 'insert-image'],
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'stamp') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('stamp');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'stamp';
+    },
+    disabled: ({ state, documentId }) => {
+      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
     },
   },
 
@@ -1560,31 +1658,6 @@ export const commands: Record<string, Command<State>> = {
     },
   },
 
-  'annotation:add-stamp': {
-    id: 'annotation:add-stamp',
-    labelKey: 'annotation.stamp',
-    icon: 'photo',
-    categories: ['annotation', 'annotation-stamp'],
-    action: ({ registry, documentId }) => {
-      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
-      const annotationScope = annotation?.forDocument(documentId);
-      if (!annotationScope) return;
-
-      if (annotationScope.getActiveTool()?.id === 'stamp') {
-        annotationScope.setActiveTool(null);
-      } else {
-        annotationScope.setActiveTool('stamp');
-      }
-    },
-    active: ({ state, documentId }) => {
-      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
-      return annotation?.activeToolId === 'stamp';
-    },
-    disabled: ({ state, documentId }) => {
-      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
-    },
-  },
-
   'annotation:add-rectangle': {
     id: 'annotation:add-rectangle',
     labelKey: 'annotation.rectangle',
@@ -1850,6 +1923,67 @@ export const commands: Record<string, Command<State>> = {
     },
   },
 
+  'stamp:create-from-selected': {
+    id: 'stamp:create-from-selected',
+    labelKey: 'stamp.createFromSelected',
+    icon: 'rubberStamp',
+    categories: ['annotation', 'stamp'],
+    action: ({ registry, documentId }) => {
+      const annotationScope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      if (!annotationScope) return;
+
+      const selected = annotationScope.getSelectedAnnotation();
+      if (!selected) return;
+
+      const stampScope = registry
+        .getPlugin<StampPlugin>(STAMP_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      if (!stampScope) return;
+
+      const name = `Custom Stamp ${Date.now()}`;
+      stampScope.createStampFromAnnotation(selected.object, {
+        name,
+        subject: name,
+        categories: ['custom', 'sidebar'],
+      });
+    },
+  },
+
+  'stamp:create-from-group': {
+    id: 'stamp:create-from-group',
+    labelKey: 'stamp.createFromGroup',
+    icon: 'rubberStamp',
+    categories: ['annotation', 'stamp', 'annotation-group'],
+    action: ({ registry, documentId }) => {
+      const annotationScope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      if (!annotationScope) return;
+
+      const selected = annotationScope.getSelectedAnnotations();
+      if (selected.length === 0) return;
+
+      const stampScope = registry
+        .getPlugin<StampPlugin>(STAMP_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      if (!stampScope) return;
+
+      const annotations = selected.map((ta) => ta.object);
+      const name = `Custom Stamp ${Date.now()}`;
+      stampScope.createStampFromAnnotations(annotations, {
+        name,
+        subject: name,
+        categories: ['custom', 'sidebar'],
+      });
+    },
+  },
+
   'annotation:overflow-tools': {
     id: 'annotation:overflow-tools',
     labelKey: 'annotation.moreTools',
@@ -1894,6 +2028,29 @@ export const commands: Record<string, Command<State>> = {
     active: ({ state, documentId }) => {
       const ui = state.plugins['ui']?.documents[documentId];
       return ui?.openMenus['shapes-tools-menu'] !== undefined;
+    },
+    disabled: ({ state, documentId }) => {
+      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
+    },
+  },
+
+  'form:overflow-tools': {
+    id: 'form:overflow-tools',
+    labelKey: 'annotation.moreTools',
+    icon: 'dots',
+    categories: ['form', 'form-overflow'],
+    action: ({ registry, documentId }) => {
+      const uiCapability = registry.getPlugin<UIPlugin>('ui')?.provides();
+      if (!uiCapability) return;
+
+      const scope = uiCapability.forDocument(documentId);
+      if (!scope) return;
+
+      scope.toggleMenu('form-tools-menu', 'form:overflow-tools', 'overflow-forms-tools');
+    },
+    active: ({ state, documentId }) => {
+      const ui = state.plugins['ui']?.documents[documentId];
+      return ui?.openMenus['form-tools-menu'] !== undefined;
     },
     disabled: ({ state, documentId }) => {
       return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);

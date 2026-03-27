@@ -420,6 +420,41 @@ export class PdfiumNative implements IPdfiumExecutor {
   }
 
   /**
+   * Create a new empty PDF document and register it in the cache.
+   *
+   * @param id - unique document identifier
+   * @returns task containing the empty PdfDocumentObject
+   */
+  public createDocument(id: string): PdfTask<PdfDocumentObject> {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'createDocument', id);
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'CreateDocument', 'Begin', id);
+
+    const docPtr = this.pdfiumModule.FPDF_CreateNewDocument();
+    if (!docPtr) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'CreateDocument', 'End', id);
+      return PdfTaskHelper.reject<PdfDocumentObject>({
+        code: PdfErrorCode.CantCreateNewDoc,
+        message: 'can not create new document',
+      });
+    }
+
+    const pdfDoc: PdfDocumentObject = {
+      id,
+      pageCount: 0,
+      pages: [],
+      isEncrypted: false,
+      isOwnerUnlocked: true,
+      permissions: 0xffffffff,
+      normalizedRotation: false,
+    };
+
+    this.cache.setDocument(id, 0, docPtr, false);
+
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'CreateDocument', 'End', id);
+    return PdfTaskHelper.resolve(pdfDoc);
+  }
+
+  /**
    * {@inheritDoc @embedpdf/models!PdfEngine.getMetadata}
    *
    * @public
@@ -1258,7 +1293,7 @@ export class PdfiumNative implements IPdfiumExecutor {
           pageCtx.pagePtr,
           annotationPtr,
           saveAnnotation as PdfStampAnnoObject,
-          context?.imageData,
+          context,
         );
         break;
       case PdfAnnotationSubtype.TEXT:
@@ -2605,6 +2640,114 @@ export class PdfiumNative implements IPdfiumExecutor {
   }
 
   /**
+   * Import pages from a source document into a destination document.
+   *
+   * @param destDoc - destination document (must be open in cache)
+   * @param srcDoc - source document (must be open in cache)
+   * @param srcPageIndices - zero-based page indices in the source document
+   * @param insertIndex - position to insert at in destination (defaults to end)
+   * @returns task containing the newly added PdfPageObjects
+   */
+  public importPages(
+    destDoc: PdfDocumentObject,
+    srcDoc: PdfDocumentObject,
+    srcPageIndices: number[],
+    insertIndex?: number,
+  ): PdfTask<PdfPageObject[]> {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'importPages',
+      destDoc.id,
+      srcDoc.id,
+      srcPageIndices,
+    );
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'ImportPages', 'Begin', destDoc.id);
+
+    const destCtx = this.cache.getContext(destDoc.id);
+    if (!destCtx) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'ImportPages', 'End', destDoc.id);
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'destination document is not open',
+      });
+    }
+
+    const srcCtx = this.cache.getContext(srcDoc.id);
+    if (!srcCtx) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'ImportPages', 'End', destDoc.id);
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'source document is not open',
+      });
+    }
+
+    const destInsertIndex = insertIndex ?? this.pdfiumModule.FPDF_GetPageCount(destCtx.docPtr);
+
+    const indicesPtr = this.memoryManager.malloc(srcPageIndices.length * 4);
+    for (let i = 0; i < srcPageIndices.length; i++) {
+      this.pdfiumModule.pdfium.setValue(indicesPtr + i * 4, srcPageIndices[i], 'i32');
+    }
+
+    if (
+      !this.pdfiumModule.FPDF_ImportPagesByIndex(
+        destCtx.docPtr,
+        srcCtx.docPtr,
+        indicesPtr,
+        srcPageIndices.length,
+        destInsertIndex,
+      )
+    ) {
+      this.memoryManager.free(indicesPtr);
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'ImportPages', 'End', destDoc.id);
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.CantImportPages,
+        message: 'can not import pages into destination document',
+      });
+    }
+
+    this.memoryManager.free(indicesPtr);
+
+    const newPages: PdfPageObject[] = [];
+    const sizePtr = this.memoryManager.malloc(8);
+    const normalizeRotation = destCtx.normalizeRotation;
+
+    for (let i = 0; i < srcPageIndices.length; i++) {
+      const newPageIndex = destInsertIndex + i;
+      const result = normalizeRotation
+        ? this.pdfiumModule.EPDF_GetPageSizeByIndexNormalized(destCtx.docPtr, newPageIndex, sizePtr)
+        : this.pdfiumModule.FPDF_GetPageSizeByIndexF(destCtx.docPtr, newPageIndex, sizePtr);
+
+      if (!result) {
+        this.memoryManager.free(sizePtr);
+        this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'ImportPages', 'End', destDoc.id);
+        return PdfTaskHelper.reject({
+          code: PdfErrorCode.Unknown,
+          message: `failed to read metadata for imported page ${newPageIndex}`,
+        });
+      }
+
+      const rotation = this.pdfiumModule.EPDF_GetPageRotationByIndex(
+        destCtx.docPtr,
+        newPageIndex,
+      ) as Rotation;
+
+      newPages.push({
+        index: newPageIndex,
+        size: {
+          width: this.pdfiumModule.pdfium.getValue(sizePtr, 'float'),
+          height: this.pdfiumModule.pdfium.getValue(sizePtr + 4, 'float'),
+        },
+        rotation,
+      });
+    }
+
+    this.memoryManager.free(sizePtr);
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, 'ImportPages', 'End', destDoc.id);
+    return PdfTaskHelper.resolve(newPages);
+  }
+
+  /**
    * {@inheritDoc @embedpdf/models!PdfEngine.extractText}
    *
    * @public
@@ -3940,22 +4083,34 @@ export class PdfiumNative implements IPdfiumExecutor {
     pagePtr: number,
     annotationPtr: number,
     annotation: PdfStampAnnoObject,
-    imageData?: ImageData,
+    context?: AnnotationCreateContext<PdfStampAnnoObject>,
   ) {
-    // Type-specific properties
     if (annotation.icon && !this.setAnnotationIcon(annotationPtr, annotation.icon)) {
       return false;
     }
     if (annotation.subject && !this.setAnnotString(annotationPtr, 'Subj', annotation.subject)) {
       return false;
     }
-    if (imageData) {
+
+    if (context && 'appearance' in context && context.appearance) {
+      if (!this.setAppearanceFromPdf(docPtr, annotationPtr, context.appearance)) {
+        return false;
+      }
+    } else if (context && 'imageData' in context && context.imageData) {
       for (let i = this.pdfiumModule.FPDFAnnot_GetObjectCount(annotationPtr) - 1; i >= 0; i--) {
         this.pdfiumModule.FPDFAnnot_RemoveObject(annotationPtr, i);
       }
 
       if (
-        !this.addImageObject(doc, docPtr, page, pagePtr, annotationPtr, annotation.rect, imageData)
+        !this.addImageObject(
+          doc,
+          docPtr,
+          page,
+          pagePtr,
+          annotationPtr,
+          annotation.rect,
+          context.imageData,
+        )
       ) {
         return false;
       }
@@ -3968,6 +4123,33 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     return !!this.pdfiumModule.EPDFAnnot_UpdateAppearanceToRect(annotationPtr, PdfStampFit.Cover);
+  }
+
+  /**
+   * Set an annotation's appearance from a single-page PDF document.
+   * Loads the PDF into WASM memory, calls the native SetAppearanceFromPage,
+   * then cleans up.
+   */
+  private setAppearanceFromPdf(
+    docPtr: number,
+    annotationPtr: number,
+    appearance: ArrayBuffer,
+  ): boolean {
+    const data = new Uint8Array(appearance);
+    const filePtr = this.memoryManager.malloc(data.byteLength);
+    this.pdfiumModule.pdfium.HEAPU8.set(data, filePtr);
+
+    const tempDocPtr = this.pdfiumModule.FPDF_LoadMemDocument(filePtr, data.byteLength, '');
+    if (!tempDocPtr) {
+      this.memoryManager.free(filePtr);
+      return false;
+    }
+
+    const ok = this.pdfiumModule.EPDFAnnot_SetAppearanceFromPage(annotationPtr, tempDocPtr, 0);
+
+    this.pdfiumModule.FPDF_CloseDocument(tempDocPtr);
+    this.memoryManager.free(filePtr);
+    return !!ok;
   }
 
   /**
@@ -6750,6 +6932,167 @@ export class PdfiumNative implements IPdfiumExecutor {
     this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
 
     return PdfTaskHelper.resolve<boolean>(!!ok);
+  }
+
+  /**
+   * Export an annotation's appearance as a standalone single-page PDF.
+   *
+   * @param doc - document object
+   * @param page - page object
+   * @param annotation - the annotation to export
+   * @returns a PDF buffer containing the annotation appearance
+   */
+  public exportAnnotationAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfAnnotationObject,
+  ): PdfTask<ArrayBuffer> {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'exportAnnotationAppearanceAsPdf',
+      doc.id,
+      page.index,
+      annotation.id,
+    );
+    const label = 'ExportAnnotationAppearanceAsPdf';
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'Begin', `${doc.id}-${page.index}`);
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
+      return PdfTaskHelper.reject<ArrayBuffer>({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    const pageCtx = ctx.acquirePage(page.index);
+    const annotPtr = this.getAnnotationByName(pageCtx.pagePtr, annotation.id);
+    if (!annotPtr) {
+      pageCtx.release();
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
+      return PdfTaskHelper.reject<ArrayBuffer>({
+        code: PdfErrorCode.NotFound,
+        message: 'annotation not found',
+      });
+    }
+
+    const exportedDocPtr = this.pdfiumModule.EPDFAnnot_ExportAppearanceAsDocument(annotPtr);
+    this.pdfiumModule.FPDFPage_CloseAnnot(annotPtr);
+
+    if (!exportedDocPtr) {
+      pageCtx.release();
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
+      return PdfTaskHelper.reject<ArrayBuffer>({
+        code: PdfErrorCode.CantCreateNewDoc,
+        message: 'can not export annotation as pdf',
+      });
+    }
+
+    try {
+      return PdfTaskHelper.resolve(this.saveDocument(exportedDocPtr));
+    } finally {
+      this.pdfiumModule.FPDF_CloseDocument(exportedDocPtr);
+      pageCtx.release();
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
+    }
+  }
+
+  /**
+   * Export multiple annotations' appearances as a standalone single-page PDF.
+   * All annotations must be on the same page. The resulting page is sized to
+   * the union of all annotation rects, with each appearance positioned correctly.
+   *
+   * @param doc - document object
+   * @param page - page object
+   * @param annotations - the annotations to export
+   * @returns a PDF buffer containing the combined appearances
+   */
+  public exportAnnotationsAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotations: PdfAnnotationObject[],
+  ): PdfTask<ArrayBuffer> {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'exportAnnotationsAppearanceAsPdf',
+      doc.id,
+      page.index,
+      annotations.map((a) => a.id),
+    );
+    const label = 'ExportAnnotationsAppearanceAsPdf';
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'Begin', `${doc.id}-${page.index}`);
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
+      return PdfTaskHelper.reject<ArrayBuffer>({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    if (annotations.length === 0) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
+      return PdfTaskHelper.reject<ArrayBuffer>({
+        code: PdfErrorCode.NotFound,
+        message: 'no annotations provided',
+      });
+    }
+
+    const pageCtx = ctx.acquirePage(page.index);
+
+    const annotPtrs: number[] = [];
+    for (const annotation of annotations) {
+      const annotPtr = this.getAnnotationByName(pageCtx.pagePtr, annotation.id);
+      if (!annotPtr) {
+        for (const ptr of annotPtrs) {
+          this.pdfiumModule.FPDFPage_CloseAnnot(ptr);
+        }
+        pageCtx.release();
+        this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
+        return PdfTaskHelper.reject<ArrayBuffer>({
+          code: PdfErrorCode.NotFound,
+          message: `annotation not found: ${annotation.id}`,
+        });
+      }
+      annotPtrs.push(annotPtr);
+    }
+
+    const ptrArraySize = annotPtrs.length * 4;
+    const ptrArrayPtr = this.memoryManager.malloc(ptrArraySize);
+    for (let i = 0; i < annotPtrs.length; i++) {
+      this.pdfiumModule.pdfium.setValue(ptrArrayPtr + i * 4, annotPtrs[i], 'i32');
+    }
+
+    const exportedDocPtr = this.pdfiumModule.EPDFAnnot_ExportMultipleAppearancesAsDocument(
+      ptrArrayPtr,
+      annotPtrs.length,
+    );
+
+    this.memoryManager.free(ptrArrayPtr);
+    for (const ptr of annotPtrs) {
+      this.pdfiumModule.FPDFPage_CloseAnnot(ptr);
+    }
+
+    if (!exportedDocPtr) {
+      pageCtx.release();
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
+      return PdfTaskHelper.reject<ArrayBuffer>({
+        code: PdfErrorCode.CantCreateNewDoc,
+        message: 'can not export annotations as pdf',
+      });
+    }
+
+    try {
+      return PdfTaskHelper.resolve(this.saveDocument(exportedDocPtr));
+    } finally {
+      this.pdfiumModule.FPDF_CloseDocument(exportedDocPtr);
+      pageCtx.release();
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', `${doc.id}-${page.index}`);
+    }
   }
 
   /** Pack device-space Rects into an FS_QUADPOINTSF[] buffer (page space). */

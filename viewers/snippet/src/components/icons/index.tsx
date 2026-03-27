@@ -31,6 +31,7 @@ import { Book2Icon } from './book2';
 import { SquaresIcon } from './squares';
 import { ListTreeIcon } from './list-tree';
 import { PaperclipIcon } from './paperclip';
+import { RubberStampIcon } from './rubber-stamp';
 import { UnderlineIcon } from './underline';
 import { SquigglyIcon } from './squiggly';
 import { StrikethroughIcon } from './strikethrough';
@@ -92,6 +93,7 @@ import { FormSelectIcon } from './form-select';
 import { FormListboxIcon } from './form-listbox';
 import { FormTextfieldIcon } from './form-textfield';
 import { WidgetEditIcon } from './widget-edit';
+import { SignatureIcon } from './signature';
 
 export type Icons = {
   [key: string]: IconComponent;
@@ -128,6 +130,7 @@ export const icons: Icons = {
   squares: SquaresIcon,
   listTree: ListTreeIcon,
   paperclip: PaperclipIcon,
+  rubberStamp: RubberStampIcon,
   copy: CopyIcon,
   underline: UnderlineIcon,
   squiggly: SquigglyIcon,
@@ -191,4 +194,5 @@ export const icons: Icons = {
   formListbox: FormListboxIcon,
   formTextfield: FormTextfieldIcon,
   widgetEdit: WidgetEditIcon,
+  signature: SignatureIcon,
 };

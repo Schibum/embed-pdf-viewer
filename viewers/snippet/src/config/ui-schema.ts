@@ -37,6 +37,7 @@ export const viewerUISchema: UISchema = {
                     'annotate-mode',
                     'shapes-mode',
                     'form-mode',
+                    'insert-mode',
                     'redact-mode',
 
                     'pan-button',
@@ -50,6 +51,7 @@ export const viewerUISchema: UISchema = {
                     'annotate-mode',
                     'shapes-mode',
                     'form-mode',
+                    'insert-mode',
                     'redact-mode',
                     'zoom-toolbar',
                     'pan-button',
@@ -87,6 +89,7 @@ export const viewerUISchema: UISchema = {
               'view-mode',
               'shapes-mode',
               'form-mode',
+              'insert-mode',
               'redact-mode',
               'zoom-toolbar',
               'pan-button',
@@ -112,7 +115,14 @@ export const viewerUISchema: UISchema = {
           sm: {
             minWidth: 640,
             maxWidth: 768,
-            hide: ['shapes-mode', 'form-mode', 'redact-mode', 'zoom-toolbar', 'mode-select-button'],
+            hide: [
+              'shapes-mode',
+              'form-mode',
+              'insert-mode',
+              'redact-mode',
+              'zoom-toolbar',
+              'mode-select-button',
+            ],
             show: [
               'view-mode',
               'annotate-mode',
@@ -138,7 +148,7 @@ export const viewerUISchema: UISchema = {
           },
           lg: {
             minWidth: 1024,
-            show: ['shapes-mode', 'form-mode', 'redact-mode'],
+            show: ['shapes-mode', 'form-mode', 'insert-mode', 'redact-mode'],
             hide: ['overflow-tabs-button'],
           },
         },
@@ -250,7 +260,7 @@ export const viewerUISchema: UISchema = {
           componentId: 'mode-select-button',
           categories: ['mode'],
           visibilityDependsOn: {
-            itemIds: ['mode:annotate', 'mode:shapes', 'mode:form', 'mode:redact'],
+            itemIds: ['mode:annotate', 'mode:shapes', 'mode:form', 'mode:insert', 'mode:redact'],
           },
         },
 
@@ -265,7 +275,13 @@ export const viewerUISchema: UISchema = {
               variant: 'text',
               categories: ['mode', 'mode-view'],
               visibilityDependsOn: {
-                itemIds: ['annotate-mode', 'shapes-mode', 'form-mode', 'redact-mode'],
+                itemIds: [
+                  'annotate-mode',
+                  'shapes-mode',
+                  'form-mode',
+                  'insert-mode',
+                  'redact-mode',
+                ],
               },
             },
             {
@@ -285,6 +301,12 @@ export const viewerUISchema: UISchema = {
               commandId: 'mode:form',
               variant: 'text',
               categories: ['mode', 'mode-form', 'form'],
+            },
+            {
+              id: 'insert-mode',
+              commandId: 'mode:insert',
+              variant: 'text',
+              categories: ['mode', 'mode-insert', 'insert'],
             },
             {
               id: 'redact-mode',
@@ -351,7 +373,6 @@ export const viewerUISchema: UISchema = {
             maxWidth: 640,
             hide: [
               'add-text',
-              'add-stamp',
               'add-ink',
               'add-ink-highlighter',
               'add-insert-text',
@@ -365,7 +386,6 @@ export const viewerUISchema: UISchema = {
             hide: ['overflow-annotation-tools'],
             show: [
               'add-text',
-              'add-stamp',
               'add-ink',
               'add-ink-highlighter',
               'add-insert-text',
@@ -454,13 +474,6 @@ export const viewerUISchema: UISchema = {
               commandId: 'annotation:add-comment',
               variant: 'icon',
               categories: ['annotation', 'annotation-comment-tool'],
-            },
-            {
-              type: 'command-button',
-              id: 'add-stamp',
-              commandId: 'annotation:add-stamp',
-              variant: 'icon',
-              categories: ['annotation', 'annotation-stamp'],
             },
             {
               type: 'command-button',
@@ -637,6 +650,20 @@ export const viewerUISchema: UISchema = {
         slot: 'secondary',
         order: 0,
       },
+      responsive: {
+        breakpoints: {
+          sm: {
+            maxWidth: 640,
+            hide: ['add-form-select', 'add-form-listbox'],
+            show: ['overflow-forms-tools'],
+          },
+          md: {
+            minWidth: 640,
+            hide: ['overflow-forms-tools'],
+            show: ['add-form-select', 'add-form-listbox'],
+          },
+        },
+      },
       permanent: false,
       categories: ['form'],
       items: [
@@ -683,6 +710,13 @@ export const viewerUISchema: UISchema = {
               categories: ['form', 'form-listbox'],
             },
             {
+              type: 'command-button',
+              id: 'overflow-forms-tools',
+              commandId: 'form:overflow-tools',
+              variant: 'icon',
+              categories: ['form', 'form-overflow'],
+            },
+            {
               type: 'divider',
               id: 'form-tools-divider-1',
               orientation: 'vertical',
@@ -723,6 +757,92 @@ export const viewerUISchema: UISchema = {
           ],
         },
         { type: 'spacer', id: 'spacer-form-2', flex: true },
+      ],
+    },
+
+    // Insert toolbar (shown when in insert mode)
+    'insert-toolbar': {
+      id: 'insert-toolbar',
+      position: {
+        placement: 'top',
+        slot: 'secondary',
+        order: 0,
+      },
+      permanent: false,
+      categories: ['insert'],
+      items: [
+        { type: 'spacer', id: 'spacer-insert-1', flex: true },
+        {
+          type: 'group',
+          id: 'insert-tools',
+          alignment: 'start',
+          gap: 2,
+          items: [
+            {
+              type: 'command-button',
+              id: 'add-rubber-stamp',
+              commandId: 'insert:add-rubber-stamp',
+              variant: 'icon',
+              categories: ['insert', 'insert-rubber-stamp'],
+            },
+            {
+              type: 'command-button',
+              id: 'add-signature',
+              commandId: 'insert:add-signature',
+              variant: 'icon',
+              categories: ['insert', 'insert-signature'],
+            },
+            {
+              type: 'command-button',
+              id: 'add-attachment',
+              commandId: 'insert:add-attachment',
+              variant: 'icon',
+              categories: ['insert', 'insert-attachment'],
+            },
+            {
+              type: 'command-button',
+              id: 'add-image',
+              commandId: 'insert:add-image',
+              variant: 'icon',
+              categories: ['insert', 'insert-image'],
+            },
+            {
+              type: 'divider',
+              id: 'insert-tools-divider-1',
+              orientation: 'vertical',
+            },
+            {
+              type: 'command-button',
+              id: 'toggle-annotation-style',
+              commandId: 'panel:toggle-annotation-style',
+              variant: 'icon',
+              categories: ['panel', 'panel-annotation-style'],
+            },
+            {
+              type: 'divider',
+              id: 'insert-tools-divider-2',
+              orientation: 'vertical',
+              visibilityDependsOn: {
+                itemIds: ['toggle-annotation-style'],
+              },
+            },
+            {
+              type: 'command-button',
+              id: 'undo-button',
+              commandId: 'history:undo',
+              variant: 'icon',
+              categories: ['history', 'history-undo'],
+            },
+            {
+              type: 'command-button',
+              id: 'redo-button',
+              commandId: 'history:redo',
+              variant: 'icon',
+              categories: ['history', 'history-redo'],
+            },
+          ],
+        },
+        { type: 'spacer', id: 'spacer-insert-2', flex: true },
       ],
     },
 
@@ -872,6 +992,12 @@ export const viewerUISchema: UISchema = {
         },
         {
           type: 'command',
+          id: 'mode:insert',
+          commandId: 'mode:insert',
+          categories: ['mode', 'mode-insert', 'insert'],
+        },
+        {
+          type: 'command',
           id: 'mode:redact',
           commandId: 'mode:redact',
           categories: ['mode', 'mode-redact', 'redaction'],
@@ -881,7 +1007,14 @@ export const viewerUISchema: UISchema = {
         breakpoints: {
           xs: {
             maxWidth: 640,
-            show: ['mode:view', 'mode:annotate', 'mode:shapes', 'mode:form', 'mode:redact'],
+            show: [
+              'mode:view',
+              'mode:annotate',
+              'mode:shapes',
+              'mode:form',
+              'mode:insert',
+              'mode:redact',
+            ],
           },
           sm: {
             minWidth: 640,
@@ -1215,12 +1348,6 @@ export const viewerUISchema: UISchema = {
           commandId: 'annotation:add-comment',
           categories: ['annotation', 'annotation-comment-tool'],
         },
-        {
-          type: 'command',
-          id: 'annotation:add-stamp',
-          commandId: 'annotation:add-stamp',
-          categories: ['annotation', 'annotation-stamp'],
-        },
       ],
     },
     'shapes-tools-menu': {
@@ -1238,6 +1365,24 @@ export const viewerUISchema: UISchema = {
           id: 'annotation:add-polyline',
           commandId: 'annotation:add-polyline',
           categories: ['annotation', 'annotation-shape', 'annotation-polyline'],
+        },
+      ],
+    },
+    'form-tools-menu': {
+      id: 'form-tools-menu',
+      categories: ['form'],
+      items: [
+        {
+          type: 'command',
+          id: 'form:add-select',
+          commandId: 'form:add-select',
+          categories: ['form', 'form-select'],
+        },
+        {
+          type: 'command',
+          id: 'form:add-listbox',
+          commandId: 'form:add-listbox',
+          categories: ['form', 'form-listbox'],
         },
       ],
     },
@@ -1382,6 +1527,40 @@ export const viewerUISchema: UISchema = {
       width: '250px',
       collapsible: true,
       defaultOpen: false,
+    },
+
+    'rubber-stamp-panel': {
+      id: 'rubber-stamp-panel',
+      position: {
+        placement: 'left',
+        slot: 'main',
+        order: 0,
+      },
+      content: {
+        type: 'component',
+        componentId: 'rubber-stamp-sidebar',
+      },
+      width: '250px',
+      collapsible: true,
+      defaultOpen: false,
+      categories: ['insert', 'insert-rubber-stamp'],
+    },
+
+    'signature-panel': {
+      id: 'signature-panel',
+      position: {
+        placement: 'left',
+        slot: 'main',
+        order: 0,
+      },
+      content: {
+        type: 'component',
+        componentId: 'signature-sidebar',
+      },
+      width: '250px',
+      collapsible: true,
+      defaultOpen: false,
+      categories: ['insert', 'insert-signature'],
     },
 
     'search-panel': {
@@ -1576,6 +1755,13 @@ export const viewerUISchema: UISchema = {
         },
         {
           type: 'command-button',
+          id: 'create-stamp-from-annotation',
+          commandId: 'stamp:create-from-selected',
+          variant: 'icon',
+          categories: ['annotation', 'stamp'],
+        },
+        {
+          type: 'command-button',
           id: 'delete-annotation',
           commandId: 'annotation:delete-selected',
           variant: 'icon',
@@ -1614,6 +1800,13 @@ export const viewerUISchema: UISchema = {
           commandId: 'panel:toggle-annotation-style',
           variant: 'icon',
           categories: ['panel', 'panel-annotation-style'],
+        },
+        {
+          type: 'command-button',
+          id: 'create-stamp-from-group',
+          commandId: 'stamp:create-from-group',
+          variant: 'icon',
+          categories: ['annotation', 'stamp', 'annotation-group'],
         },
         {
           type: 'command-button',

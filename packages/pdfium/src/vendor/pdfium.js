@@ -55,6 +55,8 @@ var createPdfium = (() => {
       '_EPDFAnnot_ClearColor',
       '_EPDFAnnot_ClearMKColor',
       '_EPDFAnnot_ClearRectangleDifferences',
+      '_EPDFAnnot_ExportAppearanceAsDocument',
+      '_EPDFAnnot_ExportMultipleAppearancesAsDocument',
       '_EPDFAnnot_Flatten',
       '_EPDFAnnot_GenerateAppearance',
       '_EPDFAnnot_GenerateAppearanceWithBlend',
@@ -90,6 +92,7 @@ var createPdfium = (() => {
       '_EPDFAnnot_HasAppearanceStream',
       '_EPDFAnnot_SetAction',
       '_EPDFAnnot_SetAPMatrix',
+      '_EPDFAnnot_SetAppearanceFromPage',
       '_EPDFAnnot_SetBorderDashPattern',
       '_EPDFAnnot_SetBorderEffect',
       '_EPDFAnnot_SetBorderStyle',
@@ -6321,6 +6324,13 @@ var createPdfium = (() => {
       'EPDFAnnot_Flatten',
       2,
     ));
+    var _EPDFAnnot_SetAppearanceFromPage = (Module['_EPDFAnnot_SetAppearanceFromPage'] =
+      createExportWrapper('EPDFAnnot_SetAppearanceFromPage', 3));
+    var _EPDFAnnot_ExportAppearanceAsDocument = (Module['_EPDFAnnot_ExportAppearanceAsDocument'] =
+      createExportWrapper('EPDFAnnot_ExportAppearanceAsDocument', 1));
+    var _EPDFAnnot_ExportMultipleAppearancesAsDocument = (Module[
+      '_EPDFAnnot_ExportMultipleAppearancesAsDocument'
+    ] = createExportWrapper('EPDFAnnot_ExportMultipleAppearancesAsDocument', 2));
     var _EPDFAnnot_SetExtendedRotation = (Module['_EPDFAnnot_SetExtendedRotation'] =
       createExportWrapper('EPDFAnnot_SetExtendedRotation', 2));
     var _EPDFAnnot_GetExtendedRotation = (Module['_EPDFAnnot_GetExtendedRotation'] =

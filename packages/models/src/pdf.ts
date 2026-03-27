@@ -720,8 +720,9 @@ export const PdfAnnotationSubtypeName: Record<PdfAnnotationSubtype, string> = {
  * @public
  */
 export interface AnnotationContextMap {
-  [PdfAnnotationSubtype.STAMP]: { imageData: ImageData };
-  // add more sub-types here if they ever need extra data
+  [PdfAnnotationSubtype.STAMP]:
+    | { imageData: ImageData; appearance?: never }
+    | { imageData?: never; appearance: ArrayBuffer };
 }
 
 /**
@@ -3732,6 +3733,26 @@ export interface PdfEngine<T = Blob> {
    */
   extractPages: (doc: PdfDocumentObject, pageIndexes: number[]) => PdfTask<ArrayBuffer>;
   /**
+   * Create a new empty PDF document
+   * @param id - unique document identifier
+   * @returns task contains the empty document object
+   */
+  createDocument: (id: string) => PdfTask<PdfDocumentObject>;
+  /**
+   * Import pages from a source document into a destination document
+   * @param destDoc - destination document
+   * @param srcDoc - source document
+   * @param srcPageIndices - zero-based page indices in the source document
+   * @param insertIndex - position to insert at (defaults to end)
+   * @returns task contains the newly added page objects
+   */
+  importPages: (
+    destDoc: PdfDocumentObject,
+    srcDoc: PdfDocumentObject,
+    srcPageIndices: number[],
+    insertIndex?: number,
+  ) => PdfTask<PdfPageObject[]>;
+  /**
    * Extract text on specified pdf pages
    * @param doc - pdf document
    * @param pageIndexes - indexes of pdf pages
@@ -3783,6 +3804,30 @@ export interface PdfEngine<T = Blob> {
     page: PdfPageObject,
     annotation: PdfAnnotationObject,
   ) => PdfTask<boolean>;
+  /**
+   * Export an annotation's appearance as a standalone PDF document
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param annotation - the annotation to export
+   * @returns task contains the exported PDF as ArrayBuffer
+   */
+  exportAnnotationAppearanceAsPdf: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfAnnotationObject,
+  ) => PdfTask<ArrayBuffer>;
+  /**
+   * Export multiple annotations' appearances as a standalone single-page PDF
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param annotations - the annotations to export
+   * @returns task contains the exported PDF as ArrayBuffer
+   */
+  exportAnnotationsAppearanceAsPdf: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotations: PdfAnnotationObject[],
+  ) => PdfTask<ArrayBuffer>;
   /**
    * Extract text on specified pdf pages
    * @param doc - pdf document
@@ -4065,6 +4110,13 @@ export interface IPdfiumExecutor {
     options?: PdfFlattenPageOptions,
   ): PdfTask<PdfPageFlattenResult>;
   extractPages(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<ArrayBuffer>;
+  createDocument(id: string): PdfTask<PdfDocumentObject>;
+  importPages(
+    destDoc: PdfDocumentObject,
+    srcDoc: PdfDocumentObject,
+    srcPageIndices: number[],
+    insertIndex?: number,
+  ): PdfTask<PdfPageObject[]>;
   extractText(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<string>;
   redactTextInRects(
     doc: PdfDocumentObject,
@@ -4083,6 +4135,16 @@ export interface IPdfiumExecutor {
     page: PdfPageObject,
     annotation: PdfAnnotationObject,
   ): PdfTask<boolean>;
+  exportAnnotationAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfAnnotationObject,
+  ): PdfTask<ArrayBuffer>;
+  exportAnnotationsAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotations: PdfAnnotationObject[],
+  ): PdfTask<ArrayBuffer>;
   getTextSlices(doc: PdfDocumentObject, slices: PageTextSlice[]): PdfTask<string[]>;
   getPageGlyphs(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfGlyphObject[]>;
   getPageGeometry(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfPageGeometry>;

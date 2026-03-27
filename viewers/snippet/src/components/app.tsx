@@ -104,6 +104,7 @@ import {
   AttachmentPluginConfig,
 } from '@embedpdf/plugin-attachment/preact';
 import { FormPluginPackage, FormPluginConfig } from '@embedpdf/plugin-form/preact';
+import { StampPluginPackage, StampPluginConfig } from '@embedpdf/plugin-stamp/preact';
 
 import { SchemaToolbar } from '@/ui/schema-toolbar';
 import { SchemaSidebar } from '@/ui/schema-sidebar';
@@ -119,6 +120,8 @@ import { CustomZoomToolbar } from '@/components/custom-zoom-toolbar';
 import { AnnotationSidebar } from '@/components/annotation-sidebar';
 import { RedactionSidebar } from '@/components/redaction-sidebar';
 import { WidgetEditSidebar } from '@/components/widget-edit-sidebar';
+import { RubberStampSidebar } from '@/components/rubber-stamp-sidebar';
+import { SignatureSidebar } from '@/components/signature-sidebar';
 import { SchemaSelectionMenu } from '@/ui/schema-selection-menu';
 import { SchemaOverlay } from '@/ui/schema-overlay';
 import { PrintModal } from '@/components/print-modal';
@@ -278,6 +281,10 @@ export interface PDFViewerConfig {
   /** Fullscreen options (targetElement) */
   fullscreen?: Partial<FullscreenPluginConfig>;
 
+  // Stamps
+  /** Stamp options (libraries) */
+  stamp?: Partial<StampPluginConfig>;
+
   // Infrastructure
   /** History/undo options */
   history?: Partial<HistoryPluginConfig>;
@@ -335,6 +342,9 @@ const DEFAULTS = {
   print: {} as PrintPluginConfig,
   export: { defaultFileName: 'document.pdf' } as ExportPluginConfig,
   fullscreen: {} as FullscreenPluginConfig,
+
+  // Stamps
+  stamp: {} as StampPluginConfig,
 
   // Infrastructure
   history: {} as HistoryPluginConfig,
@@ -489,6 +499,8 @@ export function PDFViewer({ config, onRegistryReady }: PDFViewerProps) {
     () => ({
       'thumbnails-sidebar': ThumbnailsSidebar,
       'annotation-sidebar': AnnotationSidebar,
+      'rubber-stamp-sidebar': RubberStampSidebar,
+      'signature-sidebar': SignatureSidebar,
       'zoom-toolbar': CustomZoomToolbar,
       'search-sidebar': SearchSidebar,
       'outline-sidebar': OutlineSidebar,
@@ -631,6 +643,9 @@ export function PDFViewer({ config, onRegistryReady }: PDFViewerProps) {
             ...config.interactionManager,
           }),
           createPluginRegistration(FormPluginPackage, { ...DEFAULTS.form, ...config.form }),
+
+          // Stamps
+          createPluginRegistration(StampPluginPackage, { ...DEFAULTS.stamp, ...config.stamp }),
         ]}
       >
         {({ pluginsReady, activeDocumentId }) => (

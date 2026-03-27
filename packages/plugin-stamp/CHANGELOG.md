@@ -1,0 +1,1 @@
+# @embedpdf/plugin-stamp
