@@ -1,5 +1,5 @@
 import { h } from 'preact';
-import { useState, useCallback } from 'preact/hooks';
+import { useState, useCallback, useEffect } from 'preact/hooks';
 import { useTranslations } from '@embedpdf/plugin-i18n/preact';
 import {
   useStampLibraries,
@@ -14,17 +14,27 @@ import { ignore } from '@embedpdf/models';
 
 export interface RubberStampSidebarProps {
   documentId: string;
+  selectedLibraryId?: string;
 }
 
 const STAMP_THUMB_WIDTH = 120;
 
-export function RubberStampSidebar({ documentId }: RubberStampSidebarProps) {
+export function RubberStampSidebar({
+  documentId,
+  selectedLibraryId: selectedLibraryIdProp,
+}: RubberStampSidebarProps) {
   const { translate } = useTranslations(documentId);
   const { provides: stampCapability } = useStampCapability();
   const { libraries } = useStampLibraries();
   const [selectedLibraryId, setSelectedLibraryId] = useState<string>('all');
   const stamps = useStampsByLibrary(selectedLibraryId, 'sidebar');
   const activeStamp = useActiveStamp(documentId);
+
+  useEffect(() => {
+    if (selectedLibraryIdProp) {
+      setSelectedLibraryId(selectedLibraryIdProp);
+    }
+  }, [selectedLibraryIdProp]);
 
   const handleStampClick = useCallback(
     (libraryId: string, stamp: StampDefinition) => {

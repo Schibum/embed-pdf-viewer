@@ -4105,6 +4105,7 @@ export interface IPdfiumExecutor {
   merge(files: PdfFile[]): PdfTask<PdfFile>;
   mergePages(mergeConfigs: Array<{ docId: string; pageIndices: number[] }>): PdfTask<PdfFile>;
   preparePrintDocument(doc: PdfDocumentObject, options?: PdfPrintOptions): PdfTask<ArrayBuffer>;
+  deletePage(doc: PdfDocumentObject, pageIndex: number): PdfTask<boolean>;
   saveAsCopy(doc: PdfDocumentObject): PdfTask<ArrayBuffer>;
   closeDocument(doc: PdfDocumentObject): PdfTask<boolean>;
   closeAllDocuments(): PdfTask<boolean>;

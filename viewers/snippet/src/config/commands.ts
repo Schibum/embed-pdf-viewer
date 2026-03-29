@@ -1955,7 +1955,28 @@ export const commands: Record<string, Command<State>> = {
         .getPlugin<UIPlugin>(UI_PLUGIN_ID)
         ?.provides()
         ?.forDocument(documentId);
-      uiScope?.setActiveSidebar('left', 'main', 'rubber-stamp-panel');
+      uiScope?.setActiveSidebar('left', 'main', 'rubber-stamp-panel', undefined, {
+        selectedLibraryId: 'custom',
+      });
+    },
+    visible: ({ registry, documentId }) => {
+      const annotationScope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      if (!annotationScope) return false;
+      const type = annotationScope.getSelectedAnnotation()?.object.type;
+      if (!type) return false;
+      const excluded: PdfAnnotationSubtype[] = [
+        PdfAnnotationSubtype.REDACT,
+        PdfAnnotationSubtype.HIGHLIGHT,
+        PdfAnnotationSubtype.SQUIGGLY,
+        PdfAnnotationSubtype.UNDERLINE,
+        PdfAnnotationSubtype.STRIKEOUT,
+        PdfAnnotationSubtype.CARET,
+        PdfAnnotationSubtype.WIDGET,
+      ];
+      return !excluded.includes(type);
     },
   },
 
@@ -1991,7 +2012,28 @@ export const commands: Record<string, Command<State>> = {
         .getPlugin<UIPlugin>(UI_PLUGIN_ID)
         ?.provides()
         ?.forDocument(documentId);
-      uiScope?.setActiveSidebar('left', 'main', 'rubber-stamp-panel');
+      uiScope?.setActiveSidebar('left', 'main', 'rubber-stamp-panel', undefined, {
+        selectedLibraryId: 'custom',
+      });
+    },
+    visible: ({ registry, documentId }) => {
+      const annotationScope = registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId);
+      if (!annotationScope) return false;
+      const selected = annotationScope.getSelectedAnnotations();
+      if (selected.length === 0) return false;
+      const excluded: PdfAnnotationSubtype[] = [
+        PdfAnnotationSubtype.REDACT,
+        PdfAnnotationSubtype.HIGHLIGHT,
+        PdfAnnotationSubtype.SQUIGGLY,
+        PdfAnnotationSubtype.UNDERLINE,
+        PdfAnnotationSubtype.STRIKEOUT,
+        PdfAnnotationSubtype.CARET,
+        PdfAnnotationSubtype.WIDGET,
+      ];
+      return selected.every((ta) => !excluded.includes(ta.object.type));
     },
   },
 

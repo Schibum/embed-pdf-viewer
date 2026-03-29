@@ -108,8 +108,6 @@ import {
   isUuidV4,
   uuidV4,
   PdfAnnotationName,
-  PdfStampName,
-  PdfTextIconName,
   PdfAnnotationReplyType,
   PdfRenderPageAnnotationOptions,
   PdfRedactTextOptions,
@@ -134,8 +132,6 @@ import {
   PdfPageTextRuns,
   PdfAlphaColor,
   PdfBlendMode,
-  PdfFileAttachmentIconName,
-  PdfSoundIconName,
 } from '@embedpdf/models';
 import { computeFormDrawParams, isValidCustomKey, readArrayBuffer, readString } from './helper';
 import { WrappedPdfiumModule } from '@embedpdf/pdfium';

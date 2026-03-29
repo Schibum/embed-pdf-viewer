@@ -44,6 +44,8 @@ export class StampPlugin extends BasePlugin<
   private annotation: AnnotationCapability | null = null;
   private i18n: I18nCapability | null = null;
   private localeUnsubscribe: (() => void) | null = null;
+  private toolChangeUnsubscribe: (() => void) | null = null;
+  private currentGhostUrl: string | null = null;
 
   constructor(
     id: string,
@@ -57,6 +59,12 @@ export class StampPlugin extends BasePlugin<
       for (const tool of stampTools) {
         this.annotation.addTool(tool);
       }
+      this.toolChangeUnsubscribe = this.annotation.onActiveToolChange(({ tool }) => {
+        if (tool?.id !== 'rubberStamp' && this.currentGhostUrl) {
+          URL.revokeObjectURL(this.currentGhostUrl);
+          this.currentGhostUrl = null;
+        }
+      });
     }
 
     this.i18n = registry.getPlugin<I18nPlugin>('i18n')?.provides() ?? null;
@@ -318,7 +326,11 @@ export class StampPlugin extends BasePlugin<
       (appearance) => {
         this.renderStamp(libraryId, stamp.pageIndex, stampSize.width, 2).wait(
           (blob) => {
+            if (this.currentGhostUrl) {
+              URL.revokeObjectURL(this.currentGhostUrl);
+            }
             const ghostUrl = URL.createObjectURL(blob);
+            this.currentGhostUrl = ghostUrl;
             this.annotation?.setActiveTool('rubberStamp', {
               appearance,
               ghostUrl,
@@ -900,6 +912,14 @@ export class StampPlugin extends BasePlugin<
   }
 
   override async destroy(): Promise<void> {
+    if (this.currentGhostUrl) {
+      URL.revokeObjectURL(this.currentGhostUrl);
+      this.currentGhostUrl = null;
+    }
+    if (this.toolChangeUnsubscribe) {
+      this.toolChangeUnsubscribe();
+      this.toolChangeUnsubscribe = null;
+    }
     if (this.localeUnsubscribe) {
       this.localeUnsubscribe();
       this.localeUnsubscribe = null;

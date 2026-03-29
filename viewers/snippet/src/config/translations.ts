@@ -353,6 +353,8 @@ export const englishTranslations: Locale = {
     },
     stamp: {
       allStamps: 'All Stamps',
+      createFromSelected: 'Create Stamp',
+      createFromGroup: 'Create Stamp from Group',
       library: {
         custom: 'Custom Stamps',
       },
@@ -712,6 +714,8 @@ export const germanTranslations: Locale = {
     },
     stamp: {
       allStamps: 'Alle Stempel',
+      createFromSelected: 'Stempel erstellen',
+      createFromGroup: 'Stempel aus Gruppe erstellen',
       library: {
         custom: 'Eigene Stempel',
       },
@@ -1071,6 +1075,8 @@ export const dutchTranslations: Locale = {
     },
     stamp: {
       allStamps: 'Alle stempels',
+      createFromSelected: 'Stempel maken',
+      createFromGroup: 'Stempel maken van groep',
       library: {
         custom: 'Eigen stempels',
       },
@@ -1430,6 +1436,8 @@ export const frenchTranslations: Locale = {
     },
     stamp: {
       allStamps: 'Tous les tampons',
+      createFromSelected: 'Créer un tampon',
+      createFromGroup: 'Créer un tampon à partir du groupe',
       library: {
         custom: 'Tampons personnalisés',
       },
@@ -1789,6 +1797,8 @@ export const spanishTranslations: Locale = {
     },
     stamp: {
       allStamps: 'Todos los sellos',
+      createFromSelected: 'Crear sello',
+      createFromGroup: 'Crear sello del grupo',
       library: {
         custom: 'Sellos personalizados',
       },
@@ -2142,6 +2152,8 @@ export const simplifiedChineseTranslations: Locale = {
     },
     stamp: {
       allStamps: '所有印章',
+      createFromSelected: '创建印章',
+      createFromGroup: '从组创建印章',
       library: {
         custom: '自定义印章',
       },
@@ -2497,6 +2509,8 @@ export const swedishTranslations: Locale = {
     },
     stamp: {
       allStamps: 'Alla stämplar',
+      createFromSelected: 'Skapa stämpel',
+      createFromGroup: 'Skapa stämpel från grupp',
       library: {
         custom: 'Egna stämplar',
       },
@@ -2851,6 +2865,8 @@ export const japaneseTranslations: Locale = {
     },
     stamp: {
       allStamps: 'すべてのスタンプ',
+      createFromSelected: 'スタンプを作成',
+      createFromGroup: 'グループからスタンプを作成',
       library: {
         custom: 'カスタムスタンプ',
       },
