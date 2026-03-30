@@ -28,6 +28,7 @@
       "@embedpdf/plugin-search",
       "@embedpdf/plugin-selection",
       "@embedpdf/plugin-spread",
+      "@embedpdf/plugin-stamp",
       "@embedpdf/plugin-thumbnail",
       "@embedpdf/plugin-tiling",
       "@embedpdf/plugin-ui",
