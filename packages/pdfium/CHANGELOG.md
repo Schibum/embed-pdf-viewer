@@ -1,5 +1,11 @@
 # @embedpdf/pdfium
 
+## 2.11.0
+
+### Minor Changes
+
+- [#562](https://github.com/embedpdf/embed-pdf-viewer/pull/562) by [@bobsingor](https://github.com/bobsingor) – Expose new PDFium functions for annotation appearance generation and export (`EPDFAnnot_ExportAppearanceAsDocument`, `EPDFAnnot_ExportMultipleAppearancesAsDocument`, `EPDFAnnot_SetAppearanceFromPage`, `EPDFAnnot_GetName`, `EPDFAnnot_SetName`).
+
 ## 2.10.1
 
 ## 2.10.0
