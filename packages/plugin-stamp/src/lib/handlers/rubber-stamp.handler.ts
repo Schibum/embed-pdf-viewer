@@ -17,7 +17,6 @@ export const rubberStampHandlerFactory: HandlerFactory<PdfStampAnnoObject, 'rubb
       onPointerMove: (pos) => {
         const ctx = getToolContext();
         if (!ctx?.stampSize) return;
-
         const { width, height } = ctx.stampSize;
         onPreview({
           type: PdfAnnotationSubtype.STAMP,
@@ -31,6 +30,7 @@ export const rubberStampHandlerFactory: HandlerFactory<PdfStampAnnoObject, 'rubb
               size: { width, height },
             },
             ghostUrl: ctx.ghostUrl,
+            pageRotation,
           },
         });
       },

@@ -98,6 +98,7 @@ export interface LinkPreviewData {
 export interface StampPreviewData {
   rect: Rect;
   ghostUrl: string;
+  pageRotation: Rotation;
 }
 
 /**

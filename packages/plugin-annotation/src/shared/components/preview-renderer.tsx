@@ -97,6 +97,7 @@ export function PreviewRenderer({ toolId, preview, scale }: Props) {
   }
 
   if (preview.type === PdfAnnotationSubtype.STAMP) {
+    const rotationDeg = ((4 - preview.data.pageRotation) % 4) * 90;
     return (
       <div style={style}>
         <img
@@ -107,6 +108,7 @@ export function PreviewRenderer({ toolId, preview, scale }: Props) {
             opacity: 0.6,
             objectFit: 'contain' as const,
             pointerEvents: 'none' as const,
+            transform: rotationDeg ? `rotate(${rotationDeg}deg)` : undefined,
           }}
           alt=""
         />

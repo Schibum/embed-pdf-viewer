@@ -77,7 +77,7 @@ export function RubberStampSidebar({
       <div class="border-border-subtle border-b p-4">
         <div class="flex items-center justify-between">
           <h2 class="text-fg-primary text-md font-medium">
-            {translate('insert.rubberStamp', { fallback: 'Rubber Stamps' })}
+            {translate('stamp.title', { fallback: 'Rubber Stamps' })}
           </h2>
           {stamps.length > 0 && (
             <button
@@ -146,7 +146,7 @@ export function RubberStampSidebar({
         <div class="text-fg-muted mt-8 flex flex-col items-center gap-2 p-4">
           <Icon icon="rubberStamp" className="h-18 w-18 text-fg-muted" />
           <div class="text-fg-muted max-w-[150px] text-center text-sm">
-            {translate('insert.rubberStamp.emptyState', {
+            {translate('stamp.emptyState', {
               fallback: 'No stamps found in the selected library.',
             })}
           </div>

@@ -352,7 +352,10 @@ export const englishTranslations: Locale = {
       link: 'Link',
     },
     stamp: {
+      title: 'Rubber Stamps',
       allStamps: 'All Stamps',
+      export: 'Export Stamps',
+      emptyState: 'No stamps found in the selected library.',
       createFromSelected: 'Create Stamp',
       createFromGroup: 'Create Stamp from Group',
       library: {
@@ -713,7 +716,10 @@ export const germanTranslations: Locale = {
       link: 'Verknüpfen',
     },
     stamp: {
+      title: 'Stempel',
       allStamps: 'Alle Stempel',
+      export: 'Stempel exportieren',
+      emptyState: 'Keine Stempel in der ausgewählten Bibliothek gefunden.',
       createFromSelected: 'Stempel erstellen',
       createFromGroup: 'Stempel aus Gruppe erstellen',
       library: {
@@ -1074,7 +1080,10 @@ export const dutchTranslations: Locale = {
       link: 'Koppelen',
     },
     stamp: {
+      title: 'Stempels',
       allStamps: 'Alle stempels',
+      export: 'Stempels exporteren',
+      emptyState: 'Geen stempels gevonden in de geselecteerde bibliotheek.',
       createFromSelected: 'Stempel maken',
       createFromGroup: 'Stempel maken van groep',
       library: {
@@ -1435,7 +1444,10 @@ export const frenchTranslations: Locale = {
       link: 'Lier',
     },
     stamp: {
+      title: 'Tampons',
       allStamps: 'Tous les tampons',
+      export: 'Exporter les tampons',
+      emptyState: 'Aucun tampon trouvé dans la bibliothèque sélectionnée.',
       createFromSelected: 'Créer un tampon',
       createFromGroup: 'Créer un tampon à partir du groupe',
       library: {
@@ -1796,7 +1808,10 @@ export const spanishTranslations: Locale = {
       link: 'Enlazar',
     },
     stamp: {
+      title: 'Sellos',
       allStamps: 'Todos los sellos',
+      export: 'Exportar sellos',
+      emptyState: 'No se encontraron sellos en la biblioteca seleccionada.',
       createFromSelected: 'Crear sello',
       createFromGroup: 'Crear sello del grupo',
       library: {
@@ -2151,7 +2166,10 @@ export const simplifiedChineseTranslations: Locale = {
       link: '链接',
     },
     stamp: {
+      title: '印章',
       allStamps: '所有印章',
+      export: '导出印章',
+      emptyState: '所选库中没有找到印章。',
       createFromSelected: '创建印章',
       createFromGroup: '从组创建印章',
       library: {
@@ -2508,7 +2526,10 @@ export const swedishTranslations: Locale = {
       link: 'Länk',
     },
     stamp: {
+      title: 'Stämplar',
       allStamps: 'Alla stämplar',
+      export: 'Exportera stämplar',
+      emptyState: 'Inga stämplar hittades i det valda biblioteket.',
       createFromSelected: 'Skapa stämpel',
       createFromGroup: 'Skapa stämpel från grupp',
       library: {
@@ -2864,7 +2885,10 @@ export const japaneseTranslations: Locale = {
       link: 'リンク',
     },
     stamp: {
+      title: 'スタンプ',
       allStamps: 'すべてのスタンプ',
+      export: 'スタンプをエクスポート',
+      emptyState: '選択したライブラリにスタンプが見つかりません。',
       createFromSelected: 'スタンプを作成',
       createFromGroup: 'グループからスタンプを作成',
       library: {

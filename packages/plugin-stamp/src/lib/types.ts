@@ -4,6 +4,7 @@ import {
   PdfAnnotationObject,
   PdfDocumentObject,
   PdfTask,
+  Rotation,
 } from '@embedpdf/models';
 
 export interface RubberStampToolContext {
@@ -12,6 +13,7 @@ export interface RubberStampToolContext {
   stampSize: { width: number; height: number };
   libraryId: string;
   stamp: StampDefinition;
+  pageRotation: Rotation;
 }
 
 declare module '@embedpdf/plugin-annotation' {
