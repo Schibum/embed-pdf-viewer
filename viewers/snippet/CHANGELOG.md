@@ -1,5 +1,11 @@
 # @embedpdf/snippet
 
+## 2.11.0
+
+### Minor Changes
+
+- [#562](https://github.com/embedpdf/embed-pdf-viewer/pull/562) by [@bobsingor](https://github.com/bobsingor) – Integrate `@embedpdf/plugin-stamp` with the default viewer. Add the Rubber Stamp sidebar, Signature sidebar, and Insert tools to the default UI schema. Include standard stamp/insert translations.
+
 ## 2.10.1
 
 ### Patch Changes

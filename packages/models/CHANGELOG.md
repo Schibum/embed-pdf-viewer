@@ -1,5 +1,11 @@
 # @embedpdf/models
 
+## 2.11.0
+
+### Minor Changes
+
+- [#562](https://github.com/embedpdf/embed-pdf-viewer/pull/562) by [@bobsingor](https://github.com/bobsingor) – Add `PdfAnnotationName` enum (deprecating `PdfAnnotationIcon`). Extend `PdfEngine` and `IPdfiumExecutor` interfaces with new document manipulation capabilities (`createDocument`, `importPages`, `deletePage`) and annotation appearance export methods.
+
 ## 2.10.1
 
 ## 2.10.0
