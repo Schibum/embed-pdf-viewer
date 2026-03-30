@@ -1,7 +1,6 @@
 {
   "name": "@embedpdf/default-stamps",
   "version": "0.0.1",
-  "license": "MIT",
   "description": "Default stamp assets for @embedpdf/plugin-stamp",
   "files": [
     "en",
