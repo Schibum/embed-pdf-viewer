@@ -59,10 +59,6 @@ export default [
             src: 'demo-pdf/*.pdf',
             dest: 'dist',
           },
-          {
-            src: 'stamps/*',
-            dest: 'dist/stamps',
-          },
         ],
       }),
       url({
