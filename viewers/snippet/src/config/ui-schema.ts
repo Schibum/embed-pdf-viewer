@@ -31,14 +31,13 @@ export const viewerUISchema: UISchema = {
               locales: ['zh-CN', 'ja'],
               breakpoints: {
                 sm: {
-                  replaceHide: ['zoom-toolbar', 'mode-select-button', 'overflow-tabs-button'],
+                  replaceHide: ['zoom-toolbar', 'mode-select-button', 'form-mode', 'redact-mode'],
                   replaceShow: [
                     'view-mode',
                     'annotate-mode',
                     'shapes-mode',
-                    'form-mode',
                     'insert-mode',
-                    'redact-mode',
+                    'overflow-tabs-button',
 
                     'pan-button',
                     'pointer-button',
@@ -50,15 +49,19 @@ export const viewerUISchema: UISchema = {
                     'view-mode',
                     'annotate-mode',
                     'shapes-mode',
-                    'form-mode',
                     'insert-mode',
-                    'redact-mode',
                     'zoom-toolbar',
+                    'overflow-tabs-button',
                     'pan-button',
                     'pointer-button',
                     'divider-3',
                   ],
-                  replaceHide: ['zoom-menu-button', 'mode-select-button', 'overflow-tabs-button'],
+                  replaceHide: [
+                    'zoom-menu-button',
+                    'mode-select-button',
+                    'form-mode',
+                    'redact-mode',
+                  ],
                 },
               },
             },
@@ -88,8 +91,8 @@ export const viewerUISchema: UISchema = {
               'annotate-mode',
               'view-mode',
               'shapes-mode',
-              'form-mode',
               'insert-mode',
+              'form-mode',
               'redact-mode',
               'zoom-toolbar',
               'pan-button',
@@ -117,8 +120,8 @@ export const viewerUISchema: UISchema = {
             maxWidth: 768,
             hide: [
               'shapes-mode',
-              'form-mode',
               'insert-mode',
+              'form-mode',
               'redact-mode',
               'zoom-toolbar',
               'mode-select-button',
@@ -148,7 +151,7 @@ export const viewerUISchema: UISchema = {
           },
           lg: {
             minWidth: 1024,
-            show: ['shapes-mode', 'form-mode', 'insert-mode', 'redact-mode'],
+            show: ['shapes-mode', 'insert-mode', 'form-mode', 'redact-mode'],
             hide: ['overflow-tabs-button'],
           },
         },
@@ -260,7 +263,7 @@ export const viewerUISchema: UISchema = {
           componentId: 'mode-select-button',
           categories: ['mode'],
           visibilityDependsOn: {
-            itemIds: ['mode:annotate', 'mode:shapes', 'mode:form', 'mode:insert', 'mode:redact'],
+            itemIds: ['mode:annotate', 'mode:shapes', 'mode:insert', 'mode:form', 'mode:redact'],
           },
         },
 
@@ -278,8 +281,8 @@ export const viewerUISchema: UISchema = {
                 itemIds: [
                   'annotate-mode',
                   'shapes-mode',
-                  'form-mode',
                   'insert-mode',
+                  'form-mode',
                   'redact-mode',
                 ],
               },
@@ -297,16 +300,16 @@ export const viewerUISchema: UISchema = {
               categories: ['mode', 'mode-shapes', 'annotation'],
             },
             {
-              id: 'form-mode',
-              commandId: 'mode:form',
-              variant: 'text',
-              categories: ['mode', 'mode-form', 'form'],
-            },
-            {
               id: 'insert-mode',
               commandId: 'mode:insert',
               variant: 'text',
               categories: ['mode', 'mode-insert', 'insert'],
+            },
+            {
+              id: 'form-mode',
+              commandId: 'mode:form',
+              variant: 'text',
+              categories: ['mode', 'mode-form', 'form'],
             },
             {
               id: 'redact-mode',
@@ -986,15 +989,15 @@ export const viewerUISchema: UISchema = {
         },
         {
           type: 'command',
-          id: 'mode:form',
-          commandId: 'mode:form',
-          categories: ['mode', 'mode-form', 'form'],
-        },
-        {
-          type: 'command',
           id: 'mode:insert',
           commandId: 'mode:insert',
           categories: ['mode', 'mode-insert', 'insert'],
+        },
+        {
+          type: 'command',
+          id: 'mode:form',
+          commandId: 'mode:form',
+          categories: ['mode', 'mode-form', 'form'],
         },
         {
           type: 'command',
@@ -1011,8 +1014,8 @@ export const viewerUISchema: UISchema = {
               'mode:view',
               'mode:annotate',
               'mode:shapes',
-              'mode:form',
               'mode:insert',
+              'mode:form',
               'mode:redact',
             ],
           },
@@ -1028,6 +1031,20 @@ export const viewerUISchema: UISchema = {
         },
         localeOverrides: {
           groups: [
+            {
+              id: 'cjk-languages',
+              locales: ['zh-CN', 'ja'],
+              breakpoints: {
+                sm: {
+                  replaceHide: ['mode:view', 'mode:annotate', 'mode:shapes', 'mode:insert'],
+                  replaceShow: ['mode:form', 'mode:redact'],
+                },
+                md: {
+                  replaceHide: ['mode:view', 'mode:annotate', 'mode:shapes', 'mode:insert'],
+                  replaceShow: ['mode:form', 'mode:redact'],
+                },
+              },
+            },
             {
               id: 'germanic-languages',
               locales: ['de', 'nl'],

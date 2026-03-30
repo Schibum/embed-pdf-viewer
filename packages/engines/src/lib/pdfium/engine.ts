@@ -3224,11 +3224,8 @@ export class PdfiumNative implements IPdfiumExecutor {
     this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'closeDocument', doc);
     this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `CloseDocument`, 'Begin', doc.id);
 
-    const ctx = this.cache.getContext(doc.id);
+    this.cache.closeDocument(doc.id);
 
-    if (!ctx) return PdfTaskHelper.resolve(true);
-
-    ctx.dispose();
     this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `CloseDocument`, 'End', doc.id);
     return PdfTaskHelper.resolve(true);
   }

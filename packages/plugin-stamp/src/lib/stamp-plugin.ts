@@ -18,7 +18,6 @@ import {
   StampState,
   ExportedStampLibrary,
   ResolvedStamp,
-  DefaultLibraryConfig,
 } from './types';
 import { addStampLibrary, removeStampLibrary, StampAction } from './actions';
 import { STAMP_PLUGIN_ID } from './manifest';
@@ -525,7 +524,7 @@ export class StampPlugin extends BasePlugin<
       return task;
     }
 
-    const defaults = this.config.defaultLibrary as DefaultLibraryConfig | undefined;
+    const defaults = this.config.defaultLibrary;
     if (this.config.defaultLibrary === false || !defaults) {
       const task = new Task<string, PdfErrorReason>();
       task.reject({

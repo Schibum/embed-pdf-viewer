@@ -864,6 +864,27 @@ export const commands: Record<string, Command<State>> = {
     },
   },
 
+  'mode:insert': {
+    id: 'mode:insert',
+    labelKey: 'mode.insert',
+    categories: ['mode', 'mode-insert', 'insert'],
+    action: ({ registry, documentId }) => {
+      const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
+      if (!ui) return;
+
+      ui.setActiveToolbar('top', 'secondary', 'insert-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: LockModeType.None });
+    },
+    active: ({ state, documentId }) => {
+      return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'insert-toolbar');
+    },
+  },
+
   'mode:form': {
     id: 'mode:form',
     labelKey: 'mode.form',
@@ -882,27 +903,6 @@ export const commands: Record<string, Command<State>> = {
     },
     active: ({ state, documentId }) => {
       return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'form-toolbar');
-    },
-  },
-
-  'mode:insert': {
-    id: 'mode:insert',
-    label: 'Insert',
-    categories: ['mode', 'mode-insert', 'insert'],
-    action: ({ registry, documentId }) => {
-      const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
-      if (!ui) return;
-
-      ui.setActiveToolbar('top', 'secondary', 'insert-toolbar', documentId);
-
-      registry
-        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
-        ?.provides()
-        .forDocument(documentId)
-        .setLocked({ type: LockModeType.None });
-    },
-    active: ({ state, documentId }) => {
-      return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'insert-toolbar');
     },
   },
 

@@ -117,6 +117,7 @@ export const englishTranslations: Locale = {
       shapes: 'Shapes',
       form: 'Form',
       redact: 'Redact',
+      insert: 'Insert',
     },
     form: {
       textfield: 'Text Field',
@@ -480,6 +481,7 @@ export const germanTranslations: Locale = {
       shapes: 'Formen',
       form: 'Formular',
       redact: 'Schwärzen',
+      insert: 'Einfügen',
     },
     form: {
       textfield: 'Textfeld',
@@ -845,6 +847,7 @@ export const dutchTranslations: Locale = {
       shapes: 'Vormen',
       form: 'Formulier',
       redact: 'Redigeren',
+      insert: 'Invoegen',
     },
     form: {
       textfield: 'Tekstveld',
@@ -1208,6 +1211,7 @@ export const frenchTranslations: Locale = {
       shapes: 'Formes',
       form: 'Formulaire',
       redact: 'Caviarder',
+      insert: 'Insérer',
     },
     form: {
       textfield: 'Champ de texte',
@@ -1573,6 +1577,7 @@ export const spanishTranslations: Locale = {
       shapes: 'Formas',
       form: 'Formulario',
       redact: 'Redactar',
+      insert: 'Insertar',
     },
     form: {
       textfield: 'Campo de texto',
@@ -1936,6 +1941,7 @@ export const simplifiedChineseTranslations: Locale = {
       shapes: '形状',
       form: '表单',
       redact: '遮蔽',
+      insert: '插入',
     },
     form: {
       textfield: '文本框',
@@ -2294,6 +2300,7 @@ export const swedishTranslations: Locale = {
       shapes: 'Rita former',
       form: 'Formulär',
       redact: 'Maskera',
+      insert: 'Infoga',
     },
     form: {
       textfield: 'Textfält',
@@ -2654,6 +2661,7 @@ export const japaneseTranslations: Locale = {
       shapes: '図形',
       form: 'フォーム',
       redact: '黒塗り',
+      insert: '挿入',
     },
     form: {
       textfield: 'テキストフィールド',

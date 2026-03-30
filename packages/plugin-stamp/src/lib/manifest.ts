@@ -17,5 +17,11 @@ export const manifest: PluginManifest<StampPluginConfig> = {
       nameKey: 'stamp.library.custom',
       categories: ['custom', 'sidebar'],
     },
+    manifests: [
+      {
+        url: 'https://cdn.jsdelivr.net/npm/@embedpdf/default-stamps/{locale}/manifest.json',
+        fallbackLocale: 'en',
+      },
+    ],
   },
 };
