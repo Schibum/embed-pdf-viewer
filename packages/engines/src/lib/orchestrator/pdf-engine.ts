@@ -925,6 +925,41 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     );
   }
 
+  createDocument(id: string): PdfTask<PdfDocumentObject> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.createDocument(id),
+        meta: { docId: id, operation: 'createDocument' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  importPages(
+    destDoc: PdfDocumentObject,
+    srcDoc: PdfDocumentObject,
+    srcPageIndices: number[],
+    insertIndex?: number,
+  ): PdfTask<PdfPageObject[]> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.importPages(destDoc, srcDoc, srcPageIndices, insertIndex),
+        meta: { docId: destDoc.id, operation: 'importPages' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  deletePage(doc: PdfDocumentObject, pageIndex: number): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.deletePage(doc, pageIndex),
+        meta: { docId: doc.id, operation: 'deletePage' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
   extractText(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<string> {
     return this.workerQueue.enqueue(
       {
@@ -983,6 +1018,42 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
       {
         execute: () => this.executor.flattenAnnotation(doc, page, annotation),
         meta: { docId: doc.id, pageIndex: page.index, operation: 'flattenAnnotation' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  exportAnnotationAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfAnnotationObject,
+  ): PdfTask<ArrayBuffer> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.exportAnnotationAppearanceAsPdf(doc, page, annotation),
+        meta: {
+          docId: doc.id,
+          pageIndex: page.index,
+          operation: 'exportAnnotationAppearanceAsPdf',
+        },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  exportAnnotationsAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotations: PdfAnnotationObject[],
+  ): PdfTask<ArrayBuffer> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.exportAnnotationsAppearanceAsPdf(doc, page, annotations),
+        meta: {
+          docId: doc.id,
+          pageIndex: page.index,
+          operation: 'exportAnnotationsAppearanceAsPdf',
+        },
       },
       { priority: Priority.MEDIUM },
     );

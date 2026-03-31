@@ -693,6 +693,27 @@ export const commands: Record<string, Command<State>> = {
     },
   },
 
+  'mode:insert': {
+    id: 'mode:insert',
+    labelKey: 'mode.insert',
+    categories: ['mode'],
+    action: ({ registry, documentId }) => {
+      const ui = registry.getPlugin<UIPlugin>('ui')?.provides();
+      if (!ui) return;
+
+      ui.setActiveToolbar('top', 'secondary', 'insert-toolbar', documentId);
+
+      registry
+        .getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)
+        ?.provides()
+        .forDocument(documentId)
+        .setLocked({ type: LockModeType.None });
+    },
+    active: ({ state, documentId }) => {
+      return isToolbarOpen(state.plugins, documentId, 'top', 'secondary', 'insert-toolbar');
+    },
+  },
+
   'mode:form': {
     id: 'mode:form',
     labelKey: 'mode.form',
@@ -1135,28 +1156,6 @@ export const commands: Record<string, Command<State>> = {
     active: ({ state, documentId }) => {
       const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
       return annotation?.activeToolId === 'inkHighlighter';
-    },
-  },
-
-  'annotation:add-stamp': {
-    id: 'annotation:add-stamp',
-    labelKey: 'annotation.stamp',
-    icon: 'Photo',
-    categories: ['annotation'],
-    action: ({ registry, documentId }) => {
-      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
-      const annotationScope = annotation?.forDocument(documentId);
-      if (!annotationScope) return;
-
-      if (annotationScope.getActiveTool()?.id === 'stamp') {
-        annotationScope.setActiveTool(null);
-      } else {
-        annotationScope.setActiveTool('stamp');
-      }
-    },
-    active: ({ state, documentId }) => {
-      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
-      return annotation?.activeToolId === 'stamp';
     },
   },
 
@@ -1691,6 +1690,51 @@ export const commands: Record<string, Command<State>> = {
         ?.provides()
         .forDocument(documentId);
       return !(scope?.isCategoryLocked('form') ?? true);
+    },
+  },
+
+  // ─────────────────────────────────────────────────────────
+  // Insert Commands
+  // ─────────────────────────────────────────────────────────
+  'insert:add-rubber-stamp': {
+    id: 'insert:add-rubber-stamp',
+    labelKey: 'insert.rubberStamp',
+    icon: 'RubberStamp',
+    categories: ['insert'],
+    action: ({ registry, documentId }) => {
+      const uiPlugin = registry.getPlugin<UIPlugin>(UI_PLUGIN_ID);
+      if (!uiPlugin || !uiPlugin.provides) return;
+
+      const uiCapability = uiPlugin.provides();
+      if (!uiCapability) return;
+
+      const scope = uiCapability.forDocument(documentId);
+      scope.toggleSidebar('left', 'main', 'rubber-stamp-panel');
+    },
+    active: ({ state, documentId }) => {
+      return isSidebarOpen(state.plugins, documentId, 'left', 'main', 'rubber-stamp-panel');
+    },
+  },
+
+  'insert:add-image': {
+    id: 'insert:add-image',
+    labelKey: 'insert.image',
+    icon: 'Photo',
+    categories: ['insert'],
+    action: ({ registry, documentId }) => {
+      const annotation = registry.getPlugin<AnnotationPlugin>(ANNOTATION_PLUGIN_ID)?.provides();
+      const annotationScope = annotation?.forDocument(documentId);
+      if (!annotationScope) return;
+
+      if (annotationScope.getActiveTool()?.id === 'stamp') {
+        annotationScope.setActiveTool(null);
+      } else {
+        annotationScope.setActiveTool('stamp');
+      }
+    },
+    active: ({ state, documentId }) => {
+      const annotation = state.plugins[ANNOTATION_PLUGIN_ID]?.documents[documentId];
+      return annotation?.activeToolId === 'stamp';
     },
   },
 };

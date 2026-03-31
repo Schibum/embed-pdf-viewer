@@ -720,8 +720,9 @@ export const PdfAnnotationSubtypeName: Record<PdfAnnotationSubtype, string> = {
  * @public
  */
 export interface AnnotationContextMap {
-  [PdfAnnotationSubtype.STAMP]: { imageData: ImageData };
-  // add more sub-types here if they ever need extra data
+  [PdfAnnotationSubtype.STAMP]:
+    | { imageData: ImageData; appearance?: never }
+    | { imageData?: never; appearance: ArrayBuffer };
 }
 
 /**
@@ -812,124 +813,57 @@ export enum PdfAnnotationStateModel {
 }
 
 /**
- * Icon of pdf annotation
+ * Name (/Name entry) of a pdf annotation — identifies the icon for text/sound/file
+ * annotations and the stamp type for stamp annotations.
  *
  * @public
  */
-export enum PdfAnnotationIcon {
-  /**
-   * Unknown icon
-   */
+export enum PdfAnnotationName {
   Unknown = -1,
-  /**
-   * Comment icon
-   */
   Comment = 0,
-  /**
-   * Key icon
-   */
   Key = 1,
-  /**
-   * Note icon
-   */
   Note = 2,
-  /**
-   * Help icon
-   */
   Help = 3,
-  /**
-   * New paragraph icon
-   */
   NewParagraph = 4,
-  /**
-   * Paragraph icon
-   */
   Paragraph = 5,
-  /**
-   * Insert icon
-   */
   Insert = 6,
-  /**
-   * Graph icon
-   */
   Graph = 7,
-  /**
-   * Push pin icon
-   */
   PushPin = 8,
-  /**
-   * Paperclip icon
-   */
   Paperclip = 9,
-  /**
-   * Tag icon
-   */
   Tag = 10,
-  /**
-   * Speaker icon
-   */
   Speaker = 11,
-  /**
-   * Mic icon
-   */
   Mic = 12,
-  /**
-   * Approved icon
-   */
   Approved = 13,
-  /**
-   * Experimental icon
-   */
   Experimental = 14,
-  /**
-   * Not approved icon
-   */
   NotApproved = 15,
-  /**
-   * As is icon
-   */
   AsIs = 16,
-  /**
-   * Expired icon
-   */
   Expired = 17,
-  /**
-   * Not for public release icon
-   */
   NotForPublicRelease = 18,
-  /**
-   * Confidential icon
-   */
   Confidential = 19,
-  /**
-   * Final icon
-   */
   Final = 20,
-  /**
-   * Sold icon
-   */
   Sold = 21,
-  /**
-   * Departmental icon
-   */
   Departmental = 22,
-  /**
-   * For comment icon
-   */
   ForComment = 23,
-  /**
-   * Top secret icon
-   */
   TopSecret = 24,
-  /**
-   * Draft icon
-   */
   Draft = 25,
-  /**
-   * For public release icon
-   */
   ForPublicRelease = 26,
+  Completed = 27,
+  Void = 28,
+  PreliminaryResults = 29,
+  InformationOnly = 30,
+  Rejected = 31,
+  Witness = 32,
+  InitialHere = 33,
+  SignHere = 34,
+  Accepted = 35,
+  Custom = 36,
+  Image = 37,
 }
+
+/** @deprecated Use PdfAnnotationName instead */
+export type PdfAnnotationIcon = PdfAnnotationName;
+/** @deprecated Use PdfAnnotationName instead */
+export const PdfAnnotationIcon = PdfAnnotationName;
 
 /**
  * Line ending of annotation
@@ -1119,6 +1053,11 @@ export interface PdfAnnotationObjectBase {
    * Reply type (how this annotation relates to the parent via IRT)
    */
   replyType?: PdfAnnotationReplyType;
+
+  /**
+   * Subject of the annotation
+   */
+  subject?: string;
 }
 
 /**
@@ -1213,8 +1152,11 @@ export interface PdfTextAnnoObject extends PdfAnnotationObjectBase {
   stateModel?: PdfAnnotationStateModel;
 
   /**
-   * Icon of the text annotation
+   * Name (/Name entry) of the text annotation
    */
+  name?: PdfAnnotationName;
+
+  /** @deprecated Use name instead */
   icon?: PdfAnnotationIcon;
 }
 
@@ -2088,13 +2030,12 @@ export interface PdfStampAnnoObject extends PdfAnnotationObjectBase {
   /** {@inheritDoc PdfAnnotationObjectBase.type} */
   type: PdfAnnotationSubtype.STAMP;
   /**
-   * Icon of the stamp annotation
+   * Name (/Name entry) of the stamp annotation
    */
+  name?: PdfAnnotationName;
+
+  /** @deprecated Use name instead */
   icon?: PdfAnnotationIcon;
-  /**
-   * Subject of the stamp annotation
-   */
-  subject?: string;
 }
 
 /**
@@ -3073,6 +3014,7 @@ export enum PdfErrorCode {
   CantSelectOption = 27,
   CantCheckField = 28,
   CantSetAnnotString = 29,
+  CantDeletePage = 30,
 }
 
 export interface PdfErrorReason {
@@ -3222,6 +3164,11 @@ export interface PdfRenderPageOptions extends PdfRenderOptions {
    * Whether to render interactive form widgets
    */
   withForms?: boolean;
+  /**
+   * When true, the background is transparent instead of white.
+   * Useful for rendering stamp thumbnails or overlay content.
+   */
+  transparentBackground?: boolean;
 }
 
 export interface PdfRenderPageAnnotationOptions extends PdfRenderOptions {
@@ -3732,6 +3679,33 @@ export interface PdfEngine<T = Blob> {
    */
   extractPages: (doc: PdfDocumentObject, pageIndexes: number[]) => PdfTask<ArrayBuffer>;
   /**
+   * Create a new empty PDF document
+   * @param id - unique document identifier
+   * @returns task contains the empty document object
+   */
+  createDocument: (id: string) => PdfTask<PdfDocumentObject>;
+  /**
+   * Import pages from a source document into a destination document
+   * @param destDoc - destination document
+   * @param srcDoc - source document
+   * @param srcPageIndices - zero-based page indices in the source document
+   * @param insertIndex - position to insert at (defaults to end)
+   * @returns task contains the newly added page objects
+   */
+  importPages: (
+    destDoc: PdfDocumentObject,
+    srcDoc: PdfDocumentObject,
+    srcPageIndices: number[],
+    insertIndex?: number,
+  ) => PdfTask<PdfPageObject[]>;
+  /**
+   * Delete a page from a document
+   * @param doc - pdf document
+   * @param pageIndex - zero-based index of the page to delete
+   * @returns task contains the result
+   */
+  deletePage: (doc: PdfDocumentObject, pageIndex: number) => PdfTask<boolean>;
+  /**
    * Extract text on specified pdf pages
    * @param doc - pdf document
    * @param pageIndexes - indexes of pdf pages
@@ -3783,6 +3757,30 @@ export interface PdfEngine<T = Blob> {
     page: PdfPageObject,
     annotation: PdfAnnotationObject,
   ) => PdfTask<boolean>;
+  /**
+   * Export an annotation's appearance as a standalone PDF document
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param annotation - the annotation to export
+   * @returns task contains the exported PDF as ArrayBuffer
+   */
+  exportAnnotationAppearanceAsPdf: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfAnnotationObject,
+  ) => PdfTask<ArrayBuffer>;
+  /**
+   * Export multiple annotations' appearances as a standalone single-page PDF
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param annotations - the annotations to export
+   * @returns task contains the exported PDF as ArrayBuffer
+   */
+  exportAnnotationsAppearanceAsPdf: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotations: PdfAnnotationObject[],
+  ) => PdfTask<ArrayBuffer>;
   /**
    * Extract text on specified pdf pages
    * @param doc - pdf document
@@ -4065,6 +4063,13 @@ export interface IPdfiumExecutor {
     options?: PdfFlattenPageOptions,
   ): PdfTask<PdfPageFlattenResult>;
   extractPages(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<ArrayBuffer>;
+  createDocument(id: string): PdfTask<PdfDocumentObject>;
+  importPages(
+    destDoc: PdfDocumentObject,
+    srcDoc: PdfDocumentObject,
+    srcPageIndices: number[],
+    insertIndex?: number,
+  ): PdfTask<PdfPageObject[]>;
   extractText(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<string>;
   redactTextInRects(
     doc: PdfDocumentObject,
@@ -4083,6 +4088,16 @@ export interface IPdfiumExecutor {
     page: PdfPageObject,
     annotation: PdfAnnotationObject,
   ): PdfTask<boolean>;
+  exportAnnotationAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfAnnotationObject,
+  ): PdfTask<ArrayBuffer>;
+  exportAnnotationsAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotations: PdfAnnotationObject[],
+  ): PdfTask<ArrayBuffer>;
   getTextSlices(doc: PdfDocumentObject, slices: PageTextSlice[]): PdfTask<string[]>;
   getPageGlyphs(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfGlyphObject[]>;
   getPageGeometry(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfPageGeometry>;
@@ -4090,6 +4105,7 @@ export interface IPdfiumExecutor {
   merge(files: PdfFile[]): PdfTask<PdfFile>;
   mergePages(mergeConfigs: Array<{ docId: string; pageIndices: number[] }>): PdfTask<PdfFile>;
   preparePrintDocument(doc: PdfDocumentObject, options?: PdfPrintOptions): PdfTask<ArrayBuffer>;
+  deletePage(doc: PdfDocumentObject, pageIndex: number): PdfTask<boolean>;
   saveAsCopy(doc: PdfDocumentObject): PdfTask<ArrayBuffer>;
   closeDocument(doc: PdfDocumentObject): PdfTask<boolean>;
   closeAllDocuments(): PdfTask<boolean>;

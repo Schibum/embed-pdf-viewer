@@ -7,6 +7,7 @@ export default {
   'plugin-thumbnail': 'Thumbnail',
   'plugin-annotation': 'Annotation',
   'plugin-form': 'Form',
+  'plugin-stamp': 'Stamp',
   'plugin-selection': 'Selection',
   'plugin-zoom': 'Zoom',
   'plugin-rotate': 'Rotate',

@@ -29,6 +29,7 @@ export * from './tools/tools-utils';
 export * from './geometry';
 export * as patching from './patching';
 export type { PatchFunction, TransformContext } from './patching/patch-registry';
+export * from './patching/insert-upright';
 export { initialState, initialDocumentState } from './reducer';
 export { useState } from './utils/use-state';
 export { useClickDetector } from './handlers/click-detector';

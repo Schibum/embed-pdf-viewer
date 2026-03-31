@@ -11,7 +11,7 @@ import { useScrollCapability } from '@embedpdf/plugin-scroll/preact';
 import { useTranslations } from '@embedpdf/plugin-i18n/preact';
 import { useDocumentPermissions } from '@embedpdf/core/preact';
 import { TrackedAnnotation } from '@embedpdf/plugin-annotation';
-import { uuidV4, PdfAnnotationSubtype, PdfAnnotationIcon } from '@embedpdf/models';
+import { uuidV4, PdfAnnotationSubtype, PdfAnnotationName } from '@embedpdf/models';
 import { AnnotationCard } from './comment-sidebar/annotation-card';
 import { EmptyState } from './comment-sidebar/empty-state';
 
@@ -107,7 +107,7 @@ export const CommentSidebar = ({ documentId }: CommentSidebarProps) => {
         contents,
         inReplyToId: parentAnn.object.id,
         flags: ['noRotate', 'noZoom', 'print'],
-        icon: PdfAnnotationIcon.Comment,
+        name: PdfAnnotationName.Comment,
       });
     }
   };

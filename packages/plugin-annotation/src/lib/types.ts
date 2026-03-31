@@ -135,6 +135,7 @@ export interface AnnotationDocumentState {
    */
   selectedUid: string | null;
   activeToolId: string | null;
+  activeToolContext?: Record<string, unknown>;
   hasPendingChanges: boolean;
   locked: LockMode;
 }
@@ -276,8 +277,11 @@ export interface AnnotationScope<TTools extends AnnotationToolMap = AnnotationTo
   /** Clear all selection */
   deselectAnnotation(): void;
   getActiveTool(): ToolUnion<TTools> | null;
-  setActiveTool<TId extends ToolId<TTools>>(toolId: TId | null): void;
-  setActiveTool(toolId: string | null): void;
+  setActiveTool<TId extends ToolId<TTools>>(
+    toolId: TId | null,
+    context?: Record<string, unknown>,
+  ): void;
+  setActiveTool(toolId: string | null, context?: Record<string, unknown>): void;
   findToolForAnnotation(annotation: PdfAnnotationObject): ToolUnion<TTools> | null;
   importAnnotations(items: ImportAnnotationItem<PdfAnnotationObject>[]): void;
   createAnnotation<A extends PdfAnnotationObject>(
@@ -479,8 +483,8 @@ export interface AnnotationCapability<TTools extends AnnotationToolMap = Annotat
   // Global operations (shared across documents)
   getActiveTool: () => ToolUnion<TTools> | null;
   setActiveTool: {
-    <TId extends ToolId<TTools>>(toolId: TId | null): void;
-    (toolId: string | null): void;
+    <TId extends ToolId<TTools>>(toolId: TId | null, context?: Record<string, unknown>): void;
+    (toolId: string | null, context?: Record<string, unknown>): void;
   };
   getTools: () => Array<ToolUnion<TTools>>;
   getTool: {

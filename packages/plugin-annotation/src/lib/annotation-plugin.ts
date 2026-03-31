@@ -403,7 +403,8 @@ export class AnnotationPlugin extends BasePlugin<
     return {
       // Active document operations
       getActiveTool: () => this.getActiveTool(),
-      setActiveTool: (toolId: string | null) => this.setActiveTool(toolId),
+      setActiveTool: (toolId: string | null, context?: Record<string, unknown>) =>
+        this.setActiveTool(toolId, undefined, context),
       getState: () => this.getDocumentState(),
       getPageAnnotations: (options) => this.getPageAnnotations(options),
       getSelectedAnnotation: () => this.getSelectedAnnotation(),
@@ -507,7 +508,8 @@ export class AnnotationPlugin extends BasePlugin<
       setSelection: (ids) => this.setSelectionMethod(ids, documentId),
       deselectAnnotation: () => this.deselectAnnotation(documentId),
       getActiveTool: () => this.getActiveTool(documentId),
-      setActiveTool: (toolId: string | null) => this.setActiveTool(toolId, documentId),
+      setActiveTool: (toolId: string | null, context?: Record<string, unknown>) =>
+        this.setActiveTool(toolId, documentId, context),
       findToolForAnnotation: (anno) => this.findToolForAnnotation(anno),
       importAnnotations: (items) => this.importAnnotations(items, documentId),
       createAnnotation: (pageIndex, anno, ctx) =>
@@ -633,7 +635,7 @@ export class AnnotationPlugin extends BasePlugin<
         pageSize: page.size,
         pageRotation: effectivePageRotation,
         scale,
-        services: callbacks.services, // Pass through services
+        services: callbacks.services,
         onPreview: (state) => callbacks.onPreview(tool.id, state),
         onCommit: (annotation, ctx) => {
           const editAfterCreate = tool.behavior?.editAfterCreate ?? false;
@@ -646,6 +648,7 @@ export class AnnotationPlugin extends BasePlugin<
           }
         },
         getTool: () => this.state.tools.find((t) => t.id === tool.id),
+        getToolContext: () => this.state.documents[documentId]?.activeToolContext,
       };
 
       const unregister = this.interactionManager.registerHandlers({
@@ -2462,7 +2465,11 @@ export class AnnotationPlugin extends BasePlugin<
     return this.state.tools.find((t) => t.id === docState.activeToolId) ?? null;
   }
 
-  public setActiveTool(toolId: string | null, documentId?: string): void {
+  public setActiveTool(
+    toolId: string | null,
+    documentId?: string,
+    context?: Record<string, unknown>,
+  ): void {
     const docId = documentId ?? this.getActiveDocumentId();
 
     // Prevent activating annotation tools without permission
@@ -2477,9 +2484,9 @@ export class AnnotationPlugin extends BasePlugin<
     }
 
     const docState = this.getDocumentState(docId);
-    if (toolId === docState.activeToolId) return;
+    if (toolId === docState.activeToolId && !context) return;
 
-    this.dispatch(setActiveToolId(docId, toolId));
+    this.dispatch(setActiveToolId(docId, toolId, context));
 
     const tool = this.state.tools.find((t) => t.id === toolId);
     if (tool) {

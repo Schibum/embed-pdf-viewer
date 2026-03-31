@@ -60,8 +60,18 @@ export const englishTranslations: Locale = {
       view: 'View',
       annotate: 'Annotate',
       shapes: 'Shapes',
+      insert: 'Insert',
       form: 'Form',
       redact: 'Redact',
+    },
+    stamp: {
+      title: 'Rubber Stamps',
+      allStamps: 'All Stamps',
+      emptyState: 'No stamps found in the selected library.',
+    },
+    insert: {
+      rubberStamp: 'Rubber Stamp',
+      image: 'Image',
     },
     form: {
       textfield: 'Text Field',
@@ -188,8 +198,18 @@ export const spanishTranslations: Locale = {
       view: 'Ver',
       annotate: 'Anotar',
       shapes: 'Formas',
+      insert: 'Insertar',
       form: 'Formulario',
       redact: 'Redactar',
+    },
+    stamp: {
+      title: 'Sellos',
+      allStamps: 'Todos los sellos',
+      emptyState: 'No se encontraron sellos en la biblioteca seleccionada.',
+    },
+    insert: {
+      rubberStamp: 'Sello',
+      image: 'Imagen',
     },
     form: {
       textfield: 'Campo de texto',
@@ -316,8 +336,18 @@ export const germanTranslations: Locale = {
       view: 'Ansicht',
       annotate: 'Annotieren',
       shapes: 'Formen',
+      insert: 'Einfügen',
       form: 'Formular',
       redact: 'Schwärzen',
+    },
+    stamp: {
+      title: 'Stempel',
+      allStamps: 'Alle Stempel',
+      emptyState: 'Keine Stempel in der ausgewählten Bibliothek gefunden.',
+    },
+    insert: {
+      rubberStamp: 'Stempel',
+      image: 'Bild',
     },
     form: {
       textfield: 'Textfeld',
@@ -444,8 +474,18 @@ export const dutchTranslations: Locale = {
       view: 'Weergave',
       annotate: 'Annoteren',
       shapes: 'Vormen',
+      insert: 'Invoegen',
       form: 'Formulier',
       redact: 'Redigeren',
+    },
+    stamp: {
+      title: 'Stempels',
+      allStamps: 'Alle stempels',
+      emptyState: 'Geen stempels gevonden in de geselecteerde bibliotheek.',
+    },
+    insert: {
+      rubberStamp: 'Stempel',
+      image: 'Afbeelding',
     },
     form: {
       textfield: 'Tekstveld',

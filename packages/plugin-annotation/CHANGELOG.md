@@ -1,5 +1,11 @@
 # @embedpdf/plugin-annotation
 
+## 2.11.0
+
+### Minor Changes
+
+- [#562](https://github.com/embedpdf/embed-pdf-viewer/pull/562) by [@bobsingor](https://github.com/bobsingor) – Add `ToolContextMap` to support typed context injection for active tools. Introduce preview renderers and bounding-box components for annotations (`CirclePreview`, `SquarePreview`, `InkPreview`, etc.) to support drag-to-create or stamp hover previews.
+
 ## 2.10.1
 
 ### Patch Changes

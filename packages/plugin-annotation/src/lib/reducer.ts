@@ -321,7 +321,7 @@ export const reducer: Reducer<AnnotationState, AnnotationAction> = (state, actio
     }
 
     case SET_ACTIVE_TOOL_ID: {
-      const { documentId, toolId } = action.payload;
+      const { documentId, toolId, context } = action.payload;
       const docState = state.documents[documentId];
       if (!docState) return state;
 
@@ -329,7 +329,7 @@ export const reducer: Reducer<AnnotationState, AnnotationAction> = (state, actio
         ...state,
         documents: {
           ...state.documents,
-          [documentId]: { ...docState, activeToolId: toolId },
+          [documentId]: { ...docState, activeToolId: toolId, activeToolContext: context },
         },
       };
     }

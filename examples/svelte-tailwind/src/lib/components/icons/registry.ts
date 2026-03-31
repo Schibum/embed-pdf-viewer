@@ -73,6 +73,7 @@ import FormRadioIcon from './FormRadioIcon.svelte';
 import FormSelectIcon from './FormSelectIcon.svelte';
 import FormListboxIcon from './FormListboxIcon.svelte';
 import WidgetEditIcon from './WidgetEditIcon.svelte';
+import RubberStampIcon from './RubberStampIcon.svelte';
 
 // Define the standard Prop type for your icons for consistency
 export interface IconProps extends SVGAttributes<SVGSVGElement> {
@@ -152,6 +153,7 @@ export const iconRegistry = {
   'form-select': FormSelectIcon,
   'form-listbox': FormListboxIcon,
   'widget-edit': WidgetEditIcon,
+  'rubber-stamp': RubberStampIcon,
 } as const;
 
 // Extract valid keys for Type Safety

@@ -1002,6 +1002,56 @@ export class WebWorkerEngine implements PdfEngine {
     return task;
   }
 
+  createDocument(id: string) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'createDocument', id);
+    const requestId = this.generateRequestId(id);
+    const task = new WorkerTask<PdfDocumentObject>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'createDocument', [id]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  importPages(
+    destDoc: PdfDocumentObject,
+    srcDoc: PdfDocumentObject,
+    srcPageIndices: number[],
+    insertIndex?: number,
+  ) {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'importPages',
+      destDoc.id,
+      srcDoc.id,
+      srcPageIndices,
+    );
+    const requestId = this.generateRequestId(destDoc.id);
+    const task = new WorkerTask<PdfPageObject[]>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'importPages', [
+      destDoc,
+      srcDoc,
+      srcPageIndices,
+      insertIndex,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  deletePage(doc: PdfDocumentObject, pageIndex: number) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'deletePage', doc.id, pageIndex);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'deletePage', [doc, pageIndex]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
   /**
    * {@inheritDoc @embedpdf/models!PdfEngine.redactTextInQuads}
    *
@@ -1078,6 +1128,63 @@ export class WebWorkerEngine implements PdfEngine {
       doc,
       page,
       annotation,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.exportAnnotationAppearanceAsPdf}
+   *
+   * @public
+   */
+  exportAnnotationAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfAnnotationObject,
+  ) {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'exportAnnotationAppearanceAsPdf',
+      doc,
+      page,
+      annotation,
+    );
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<ArrayBuffer>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'exportAnnotationAppearanceAsPdf', [
+      doc,
+      page,
+      annotation,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  exportAnnotationsAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotations: PdfAnnotationObject[],
+  ) {
+    this.logger.debug(
+      LOG_SOURCE,
+      LOG_CATEGORY,
+      'exportAnnotationsAppearanceAsPdf',
+      doc,
+      page,
+      annotations,
+    );
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<ArrayBuffer>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'exportAnnotationsAppearanceAsPdf', [
+      doc,
+      page,
+      annotations,
     ]);
     this.proxy(task, request);
 

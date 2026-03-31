@@ -423,6 +423,15 @@ export class EngineRunner {
       case 'extractPages':
         this.handleTask(request.id, engine.extractPages!(...args));
         return;
+      case 'createDocument':
+        this.handleTask(request.id, engine.createDocument!(...args));
+        return;
+      case 'importPages':
+        this.handleTask(request.id, engine.importPages!(...args));
+        return;
+      case 'deletePage':
+        this.handleTask(request.id, engine.deletePage!(...args));
+        return;
       case 'extractText':
         this.handleTask(request.id, engine.extractText!(...args));
         return;
@@ -437,6 +446,12 @@ export class EngineRunner {
         return;
       case 'flattenAnnotation':
         this.handleTask(request.id, engine.flattenAnnotation!(...args));
+        return;
+      case 'exportAnnotationAppearanceAsPdf':
+        this.handleTask(request.id, engine.exportAnnotationAppearanceAsPdf!(...args));
+        return;
+      case 'exportAnnotationsAppearanceAsPdf':
+        this.handleTask(request.id, engine.exportAnnotationsAppearanceAsPdf!(...args));
         return;
       case 'getTextSlices':
         this.handleTask(request.id, engine.getTextSlices!(...args));

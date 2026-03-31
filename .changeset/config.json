@@ -28,6 +28,7 @@
       "@embedpdf/plugin-search",
       "@embedpdf/plugin-selection",
       "@embedpdf/plugin-spread",
+      "@embedpdf/plugin-stamp",
       "@embedpdf/plugin-thumbnail",
       "@embedpdf/plugin-tiling",
       "@embedpdf/plugin-ui",
@@ -57,6 +58,7 @@
     "@embedpdf/example-pdfium-node",
     "@embedpdf/ai",
     "@embedpdf/plugin-ai-manager",
-    "@embedpdf/plugin-layout-analysis"
+    "@embedpdf/plugin-layout-analysis",
+    "@embedpdf/default-stamps"
   ]
 }

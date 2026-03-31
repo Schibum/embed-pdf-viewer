@@ -1,5 +1,5 @@
 import {
-  PdfAnnotationIcon,
+  PdfAnnotationName,
   PdfAnnotationSubtype,
   PdfStampAnnoObject,
   Rect,
@@ -31,7 +31,7 @@ export const stampHandlerFactory: HandlerFactory<PdfStampAnnoObject> = {
             ...tool.defaults,
             rect,
             type: PdfAnnotationSubtype.STAMP,
-            icon: tool.defaults.icon ?? PdfAnnotationIcon.Draft,
+            name: tool.defaults.name ?? PdfAnnotationName.Image,
             subject: tool.defaults.subject ?? 'Stamp',
             flags: tool.defaults.flags ?? ['print'],
             pageIndex: context.pageIndex,

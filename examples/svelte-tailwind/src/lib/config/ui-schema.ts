@@ -43,6 +43,7 @@ export const viewerUISchema: UISchema = {
             hide: [
               'annotate-mode',
               'shapes-mode',
+              'insert-mode',
               'form-mode',
               'redact-mode',
               'zoom-toolbar',
@@ -55,7 +56,7 @@ export const viewerUISchema: UISchema = {
           sm: {
             minWidth: 640,
             maxWidth: 768,
-            hide: ['shapes-mode', 'form-mode', 'redact-mode', 'zoom-toolbar'],
+            hide: ['shapes-mode', 'insert-mode', 'form-mode', 'redact-mode', 'zoom-toolbar'],
             show: [
               'annotate-mode',
               'overflow-tabs-button',
@@ -71,7 +72,7 @@ export const viewerUISchema: UISchema = {
           },
           lg: {
             minWidth: 1024,
-            show: ['shapes-mode', 'form-mode', 'redact-mode'],
+            show: ['shapes-mode', 'insert-mode', 'form-mode', 'redact-mode'],
             hide: ['overflow-tabs-button'],
           },
         },
@@ -178,6 +179,11 @@ export const viewerUISchema: UISchema = {
             {
               id: 'shapes-mode',
               commandId: 'mode:shapes',
+              variant: 'text',
+            },
+            {
+              id: 'insert-mode',
+              commandId: 'mode:insert',
               variant: 'text',
             },
             {
@@ -315,12 +321,6 @@ export const viewerUISchema: UISchema = {
               variant: 'icon',
             },
             {
-              type: 'command-button',
-              id: 'add-stamp',
-              commandId: 'annotation:add-stamp',
-              variant: 'icon',
-            },
-            {
               type: 'divider',
               id: 'divider-6',
               orientation: 'vertical',
@@ -421,6 +421,58 @@ export const viewerUISchema: UISchema = {
           ],
         },
         { type: 'spacer', id: 'spacer-6', flex: true },
+      ],
+    },
+
+    // Insert toolbar (shown when in insert mode)
+    'insert-toolbar': {
+      id: 'insert-toolbar',
+      position: {
+        placement: 'top',
+        slot: 'secondary',
+        order: 0,
+      },
+      permanent: false,
+      items: [
+        { type: 'spacer', id: 'spacer-insert-1', flex: true },
+        {
+          type: 'group',
+          id: 'insert-tools',
+          alignment: 'start',
+          gap: 2,
+          items: [
+            {
+              type: 'command-button',
+              id: 'add-rubber-stamp',
+              commandId: 'insert:add-rubber-stamp',
+              variant: 'icon',
+            },
+            {
+              type: 'command-button',
+              id: 'add-image',
+              commandId: 'insert:add-image',
+              variant: 'icon',
+            },
+            {
+              type: 'divider',
+              id: 'insert-tools-divider-1',
+              orientation: 'vertical',
+            },
+            {
+              type: 'command-button',
+              id: 'undo-button',
+              commandId: 'history:undo',
+              variant: 'icon',
+            },
+            {
+              type: 'command-button',
+              id: 'redo-button',
+              commandId: 'history:redo',
+              variant: 'icon',
+            },
+          ],
+        },
+        { type: 'spacer', id: 'spacer-insert-2', flex: true },
       ],
     },
 
@@ -577,6 +629,11 @@ export const viewerUISchema: UISchema = {
         },
         {
           type: 'command',
+          id: 'mode:insert',
+          commandId: 'mode:insert',
+        },
+        {
+          type: 'command',
           id: 'mode:form',
           commandId: 'mode:form',
         },
@@ -590,7 +647,7 @@ export const viewerUISchema: UISchema = {
         breakpoints: {
           xs: {
             maxWidth: 640,
-            show: ['mode:annotate', 'mode:shapes', 'mode:form', 'mode:redact'],
+            show: ['mode:annotate', 'mode:shapes', 'mode:insert', 'mode:form', 'mode:redact'],
           },
           md: {
             minWidth: 640,
@@ -966,6 +1023,22 @@ export const viewerUISchema: UISchema = {
       content: {
         type: 'component',
         componentId: 'comment-sidebar',
+      },
+      width: '250px',
+      collapsible: true,
+      defaultOpen: false,
+    },
+
+    'rubber-stamp-panel': {
+      id: 'rubber-stamp-panel',
+      position: {
+        placement: 'left',
+        slot: 'main',
+        order: 0,
+      },
+      content: {
+        type: 'component',
+        componentId: 'rubber-stamp-sidebar',
       },
       width: '250px',
       collapsible: true,

@@ -231,7 +231,7 @@ export type AnnotationTool<
     InkBehaviorFor<T>;
 
   /** Pointer-based creation handler (drag-to-create, click-to-place). */
-  pointerHandler?: HandlerFactory<T>;
+  pointerHandler?: HandlerFactory<T, TId>;
 
   /** Text-selection-based creation handler. */
   selectionHandler?: SelectionHandlerFactory<T>;

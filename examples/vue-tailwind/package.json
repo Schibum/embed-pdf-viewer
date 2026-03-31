@@ -56,6 +56,7 @@
     "@embedpdf/plugin-search": "workspace:*",
     "@embedpdf/plugin-selection": "workspace:*",
     "@embedpdf/plugin-spread": "workspace:*",
+    "@embedpdf/plugin-stamp": "workspace:*",
     "@embedpdf/plugin-thumbnail": "workspace:*",
     "@embedpdf/plugin-tiling": "workspace:*",
     "@embedpdf/plugin-ui": "workspace:*",

@@ -117,6 +117,7 @@ export const englishTranslations: Locale = {
       shapes: 'Shapes',
       form: 'Form',
       redact: 'Redact',
+      insert: 'Insert',
     },
     form: {
       textfield: 'Text Field',
@@ -183,6 +184,10 @@ export const englishTranslations: Locale = {
       overlayText: 'Overlay Text',
       overlayTextPlaceholder: 'e.g., REDACTED',
       rotation: 'Rotation',
+    },
+    insert: {
+      image: 'Image',
+      rubberStamp: 'Rubber Stamp',
     },
     redaction: {
       redact: 'Redact',
@@ -351,6 +356,17 @@ export const englishTranslations: Locale = {
       pageRange: 'Page 1 to {totalPages}',
       link: 'Link',
     },
+    stamp: {
+      title: 'Rubber Stamps',
+      allStamps: 'All Stamps',
+      export: 'Export Stamps',
+      emptyState: 'No stamps found in the selected library.',
+      createFromSelected: 'Create Stamp',
+      createFromGroup: 'Create Stamp from Group',
+      library: {
+        custom: 'Custom Stamps',
+      },
+    },
   },
 };
 
@@ -469,6 +485,7 @@ export const germanTranslations: Locale = {
       shapes: 'Formen',
       form: 'Formular',
       redact: 'Schwärzen',
+      insert: 'Einfügen',
     },
     form: {
       textfield: 'Textfeld',
@@ -535,6 +552,10 @@ export const germanTranslations: Locale = {
       overlayText: 'Überlagerungstext',
       overlayTextPlaceholder: 'z.B. GESCHWÄRZT',
       rotation: 'Drehung',
+    },
+    insert: {
+      image: 'Bild',
+      rubberStamp: 'Stempel',
     },
     redaction: {
       redact: 'Schwärzen',
@@ -704,6 +725,17 @@ export const germanTranslations: Locale = {
       pageRange: 'Seite 1 bis {totalPages}',
       link: 'Verknüpfen',
     },
+    stamp: {
+      title: 'Stempel',
+      allStamps: 'Alle Stempel',
+      export: 'Stempel exportieren',
+      emptyState: 'Keine Stempel in der ausgewählten Bibliothek gefunden.',
+      createFromSelected: 'Stempel erstellen',
+      createFromGroup: 'Stempel aus Gruppe erstellen',
+      library: {
+        custom: 'Eigene Stempel',
+      },
+    },
   },
 };
 
@@ -823,6 +855,7 @@ export const dutchTranslations: Locale = {
       shapes: 'Vormen',
       form: 'Formulier',
       redact: 'Redigeren',
+      insert: 'Invoegen',
     },
     form: {
       textfield: 'Tekstveld',
@@ -889,6 +922,10 @@ export const dutchTranslations: Locale = {
       overlayText: 'Overlaytekst',
       overlayTextPlaceholder: 'bijv. GEREDIGEERD',
       rotation: 'Rotatie',
+    },
+    insert: {
+      image: 'Afbeelding',
+      rubberStamp: 'Stempel',
     },
     redaction: {
       redact: 'Redigeren',
@@ -1057,6 +1094,17 @@ export const dutchTranslations: Locale = {
       pageRange: 'Pagina 1 tot {totalPages}',
       link: 'Koppelen',
     },
+    stamp: {
+      title: 'Stempels',
+      allStamps: 'Alle stempels',
+      export: 'Stempels exporteren',
+      emptyState: 'Geen stempels gevonden in de geselecteerde bibliotheek.',
+      createFromSelected: 'Stempel maken',
+      createFromGroup: 'Stempel maken van groep',
+      library: {
+        custom: 'Eigen stempels',
+      },
+    },
   },
 };
 
@@ -1175,6 +1223,7 @@ export const frenchTranslations: Locale = {
       shapes: 'Formes',
       form: 'Formulaire',
       redact: 'Caviarder',
+      insert: 'Insérer',
     },
     form: {
       textfield: 'Champ de texte',
@@ -1241,6 +1290,10 @@ export const frenchTranslations: Locale = {
       overlayText: 'Texte de superposition',
       overlayTextPlaceholder: 'ex: CAVIARDÉ',
       rotation: 'Rotation',
+    },
+    insert: {
+      image: 'Image',
+      rubberStamp: 'Tampon',
     },
     redaction: {
       redact: 'Caviarder',
@@ -1410,6 +1463,17 @@ export const frenchTranslations: Locale = {
       pageRange: 'Page 1 à {totalPages}',
       link: 'Lier',
     },
+    stamp: {
+      title: 'Tampons',
+      allStamps: 'Tous les tampons',
+      export: 'Exporter les tampons',
+      emptyState: 'Aucun tampon trouvé dans la bibliothèque sélectionnée.',
+      createFromSelected: 'Créer un tampon',
+      createFromGroup: 'Créer un tampon à partir du groupe',
+      library: {
+        custom: 'Tampons personnalisés',
+      },
+    },
   },
 };
 
@@ -1529,6 +1593,7 @@ export const spanishTranslations: Locale = {
       shapes: 'Formas',
       form: 'Formulario',
       redact: 'Redactar',
+      insert: 'Insertar',
     },
     form: {
       textfield: 'Campo de texto',
@@ -1595,6 +1660,10 @@ export const spanishTranslations: Locale = {
       overlayText: 'Texto superpuesto',
       overlayTextPlaceholder: 'ej: REDACTADO',
       rotation: 'Rotación',
+    },
+    insert: {
+      image: 'Imagen',
+      rubberStamp: 'Sello',
     },
     redaction: {
       redact: 'Redactar',
@@ -1763,6 +1832,17 @@ export const spanishTranslations: Locale = {
       pageRange: 'Página 1 a {totalPages}',
       link: 'Enlazar',
     },
+    stamp: {
+      title: 'Sellos',
+      allStamps: 'Todos los sellos',
+      export: 'Exportar sellos',
+      emptyState: 'No se encontraron sellos en la biblioteca seleccionada.',
+      createFromSelected: 'Crear sello',
+      createFromGroup: 'Crear sello del grupo',
+      library: {
+        custom: 'Sellos personalizados',
+      },
+    },
   },
 };
 
@@ -1881,6 +1961,7 @@ export const simplifiedChineseTranslations: Locale = {
       shapes: '形状',
       form: '表单',
       redact: '遮蔽',
+      insert: '插入',
     },
     form: {
       textfield: '文本框',
@@ -1947,6 +2028,10 @@ export const simplifiedChineseTranslations: Locale = {
       overlayText: '覆盖文字',
       overlayTextPlaceholder: '例如：已遮蔽',
       rotation: '旋转',
+    },
+    insert: {
+      image: '图片',
+      rubberStamp: '印章',
     },
     redaction: {
       redact: '遮蔽',
@@ -2110,6 +2195,17 @@ export const simplifiedChineseTranslations: Locale = {
       pageRange: '第1页到第{totalPages}页',
       link: '链接',
     },
+    stamp: {
+      title: '印章',
+      allStamps: '所有印章',
+      export: '导出印章',
+      emptyState: '所选库中没有找到印章。',
+      createFromSelected: '创建印章',
+      createFromGroup: '从组创建印章',
+      library: {
+        custom: '自定义印章',
+      },
+    },
   },
 };
 
@@ -2228,6 +2324,7 @@ export const swedishTranslations: Locale = {
       shapes: 'Rita former',
       form: 'Formulär',
       redact: 'Maskera',
+      insert: 'Infoga',
     },
     form: {
       textfield: 'Textfält',
@@ -2291,6 +2388,10 @@ export const swedishTranslations: Locale = {
       overlayText: 'Textöverlägg',
       overlayTextPlaceholder: 't.ex., MASKERAD',
       rotation: 'Rotera',
+    },
+    insert: {
+      image: 'Bild',
+      rubberStamp: 'Stämpel',
     },
     redaction: {
       redact: 'Maskera',
@@ -2459,6 +2560,17 @@ export const swedishTranslations: Locale = {
       pageRange: 'Sida 1 till {totalPages}',
       link: 'Länk',
     },
+    stamp: {
+      title: 'Stämplar',
+      allStamps: 'Alla stämplar',
+      export: 'Exportera stämplar',
+      emptyState: 'Inga stämplar hittades i det valda biblioteket.',
+      createFromSelected: 'Skapa stämpel',
+      createFromGroup: 'Skapa stämpel från grupp',
+      library: {
+        custom: 'Egna stämplar',
+      },
+    },
   },
 };
 
@@ -2577,6 +2689,7 @@ export const japaneseTranslations: Locale = {
       shapes: '図形',
       form: 'フォーム',
       redact: '黒塗り',
+      insert: '挿入',
     },
     form: {
       textfield: 'テキストフィールド',
@@ -2639,6 +2752,10 @@ export const japaneseTranslations: Locale = {
       overlayText: 'オーバーレイテキスト',
       overlayTextPlaceholder: '例: 黒塗り済み',
       rotation: '回転',
+    },
+    insert: {
+      image: '画像',
+      rubberStamp: 'スタンプ',
     },
     redaction: {
       redact: '黒塗り',
@@ -2806,6 +2923,17 @@ export const japaneseTranslations: Locale = {
       enterPage: 'ページ番号を入力',
       pageRange: '1～{totalPages}ページ',
       link: 'リンク',
+    },
+    stamp: {
+      title: 'スタンプ',
+      allStamps: 'すべてのスタンプ',
+      export: 'スタンプをエクスポート',
+      emptyState: '選択したライブラリにスタンプが見つかりません。',
+      createFromSelected: 'スタンプを作成',
+      createFromGroup: 'グループからスタンプを作成',
+      library: {
+        custom: 'カスタムスタンプ',
+      },
     },
   },
 };

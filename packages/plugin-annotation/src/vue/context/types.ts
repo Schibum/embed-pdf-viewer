@@ -1,6 +1,6 @@
 import type { Component, CSSProperties } from 'vue';
 import type { PdfAnnotationObject, PdfBlendMode, Rect } from '@embedpdf/models';
-import type { TrackedAnnotation } from '@embedpdf/plugin-annotation';
+import type { TrackedAnnotation, PreviewState } from '@embedpdf/plugin-annotation';
 import { VertexConfig } from '../../shared/types';
 /**
  * Properly typed event for annotation interactions (click, select, etc.)
@@ -44,10 +44,10 @@ export interface AnnotationRendererEntry<
 > {
   /** Unique identifier for this renderer */
   id: string;
-  /** Returns true if this renderer handles the annotation */
-  matches: (annotation: PdfAnnotationObject) => annotation is T;
-  /** Vue component to render the annotation */
-  component: Component<AnnotationRendererProps<T>>;
+  /** Returns true if this renderer handles the annotation. Optional for preview-only renderers. */
+  matches?: (annotation: PdfAnnotationObject) => annotation is T;
+  /** Vue component to render the annotation. Optional for preview-only renderers. */
+  component?: Component<AnnotationRendererProps<T>>;
 
   /** Vertex configuration for annotations with draggable vertices (line, polyline, polygon) */
   vertexConfig?: VertexConfig<T>;
@@ -78,8 +78,12 @@ export interface AnnotationRendererEntry<
   ) => void;
   /** Return true to hide the selection menu for this annotation */
   hideSelectionMenu?: (annotation: T) => boolean;
+  /** Returns true if this renderer should handle the given preview state */
+  matchesPreview?: (preview: PreviewState) => boolean;
   /** Render a preview during drag-to-create. P is the preview data type. */
   renderPreview?: Component<{ data: P; bounds: Rect; scale: number }>;
+  /** Extra styles merged onto the preview container div (e.g. mixBlendMode for ink). */
+  previewContainerStyle?: (props: { data: P; bounds: Rect; scale: number }) => CSSProperties;
   /** When true, the annotation is completely hidden when locked (e.g., form widgets defer to the form-filling layer). */
   hiddenWhenLocked?: boolean;
   /** Optional locked-mode renderer. When the annotation is locked, this replaces `component` inside the container. */
@@ -113,7 +117,9 @@ export interface BoxedAnnotationRenderer {
     helpers: SelectOverrideHelpers,
   ) => void;
   hideSelectionMenu?: (annotation: PdfAnnotationObject) => boolean;
+  matchesPreview?: (preview: PreviewState) => boolean;
   renderPreview?: Component<{ data: unknown; bounds: Rect; scale: number }>;
+  previewContainerStyle?: (props: { data: unknown; bounds: Rect; scale: number }) => CSSProperties;
   hiddenWhenLocked?: boolean;
   renderLocked?: Component<AnnotationRendererProps>;
 }

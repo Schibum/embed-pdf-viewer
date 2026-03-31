@@ -15,13 +15,21 @@ export function ModeSelectButton({ documentId, className }: ModeSelectButtonProp
   const commandShapes = useCommand('mode:shapes', documentId);
   const commandRedact = useCommand('mode:redact', documentId);
   const commandForm = useCommand('mode:form', documentId);
+  const commandInsert = useCommand('mode:insert', documentId);
   const commandOverflow = useCommand('tabs:overflow-menu', documentId);
 
   // Find the currently active mode
   const activeCommand = useMemo(() => {
-    const commands = [commandView, commandAnnotate, commandShapes, commandForm, commandRedact];
+    const commands = [
+      commandView,
+      commandAnnotate,
+      commandShapes,
+      commandForm,
+      commandInsert,
+      commandRedact,
+    ];
     return commands.find((cmd) => cmd?.active) || commandView;
-  }, [commandView, commandAnnotate, commandShapes, commandForm, commandRedact]);
+  }, [commandView, commandAnnotate, commandShapes, commandForm, commandInsert, commandRedact]);
 
   const handleClick = useCallback(
     (e: MouseEvent) => {

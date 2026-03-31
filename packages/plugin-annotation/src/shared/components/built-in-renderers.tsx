@@ -17,6 +17,7 @@ import {
   PdfSquigglyAnnoObject,
   PdfCaretAnnoObject,
   PdfBlendMode,
+  blendModeToCss,
 } from '@embedpdf/models';
 import { Fragment } from '@framework';
 import { BoxedAnnotationRenderer, createRenderer } from './types';
@@ -36,14 +37,24 @@ import { Strikeout } from './text-markup/strikeout';
 import { Squiggly } from './text-markup/squiggly';
 import { Caret } from './annotations/caret';
 import { LinkLockedMode } from './annotations/link-locked';
-import { LinkPreviewData } from '@embedpdf/plugin-annotation';
+import {
+  LinkPreviewData,
+  InkPreviewData,
+  CirclePreviewData,
+  SquarePreviewData,
+  LinePreviewData,
+  PolylinePreviewData,
+  PolygonPreviewData,
+  FreeTextPreviewData,
+} from '@embedpdf/plugin-annotation';
 
 export const builtInRenderers: BoxedAnnotationRenderer[] = [
   // --- Drawing ---
 
-  createRenderer<PdfInkAnnoObject>({
+  createRenderer<PdfInkAnnoObject, InkPreviewData>({
     id: 'ink',
     matches: (a): a is PdfInkAnnoObject => a.type === PdfAnnotationSubtype.INK,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.INK,
     render: ({ currentObject, isSelected, scale, onClick, appearanceActive }) => (
       <Ink
         {...currentObject}
@@ -53,14 +64,19 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         appearanceActive={appearanceActive}
       />
     ),
+    renderPreview: ({ data, scale }) => <Ink isSelected={false} scale={scale} {...data} />,
+    previewContainerStyle: ({ data }) => ({
+      mixBlendMode: blendModeToCss(data.blendMode ?? PdfBlendMode.Normal),
+    }),
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
   }),
 
   // --- Shapes ---
 
-  createRenderer<PdfSquareAnnoObject>({
+  createRenderer<PdfSquareAnnoObject, SquarePreviewData>({
     id: 'square',
     matches: (a): a is PdfSquareAnnoObject => a.type === PdfAnnotationSubtype.SQUARE,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.SQUARE,
     render: ({ currentObject, isSelected, scale, onClick, appearanceActive }) => (
       <Square
         {...currentObject}
@@ -70,12 +86,14 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         appearanceActive={appearanceActive}
       />
     ),
+    renderPreview: ({ data, scale }) => <Square isSelected={false} scale={scale} {...data} />,
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
   }),
 
-  createRenderer<PdfCircleAnnoObject>({
+  createRenderer<PdfCircleAnnoObject, CirclePreviewData>({
     id: 'circle',
     matches: (a): a is PdfCircleAnnoObject => a.type === PdfAnnotationSubtype.CIRCLE,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.CIRCLE,
     render: ({ currentObject, isSelected, scale, onClick, appearanceActive }) => (
       <Circle
         {...currentObject}
@@ -85,14 +103,16 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         appearanceActive={appearanceActive}
       />
     ),
+    renderPreview: ({ data, scale }) => <Circle isSelected={false} scale={scale} {...data} />,
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
   }),
 
   // --- Lines & Vertex-based ---
 
-  createRenderer<PdfLineAnnoObject>({
+  createRenderer<PdfLineAnnoObject, LinePreviewData>({
     id: 'line',
     matches: (a): a is PdfLineAnnoObject => a.type === PdfAnnotationSubtype.LINE,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.LINE,
     render: ({ currentObject, isSelected, scale, onClick, appearanceActive }) => (
       <Fragment>
         <Line
@@ -104,6 +124,7 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         />
       </Fragment>
     ),
+    renderPreview: ({ data, scale }) => <Line isSelected={false} scale={scale} {...data} />,
     vertexConfig: {
       extractVertices: (a) => [a.linePoints.start, a.linePoints.end],
       transformAnnotation: (a, v) => ({
@@ -114,9 +135,10 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     interactionDefaults: { isDraggable: true, isResizable: false, isRotatable: true },
   }),
 
-  createRenderer<PdfPolylineAnnoObject>({
+  createRenderer<PdfPolylineAnnoObject, PolylinePreviewData>({
     id: 'polyline',
     matches: (a): a is PdfPolylineAnnoObject => a.type === PdfAnnotationSubtype.POLYLINE,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.POLYLINE,
     render: ({ currentObject, isSelected, scale, onClick, appearanceActive }) => (
       <Fragment>
         <Polyline
@@ -128,6 +150,7 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         />
       </Fragment>
     ),
+    renderPreview: ({ data, scale }) => <Polyline isSelected={false} scale={scale} {...data} />,
     vertexConfig: {
       extractVertices: (a) => a.vertices,
       transformAnnotation: (a, vertices) => ({ ...a, vertices }),
@@ -135,9 +158,10 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     interactionDefaults: { isDraggable: true, isResizable: false, isRotatable: true },
   }),
 
-  createRenderer<PdfPolygonAnnoObject>({
+  createRenderer<PdfPolygonAnnoObject, PolygonPreviewData>({
     id: 'polygon',
     matches: (a): a is PdfPolygonAnnoObject => a.type === PdfAnnotationSubtype.POLYGON,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.POLYGON,
     render: ({ currentObject, isSelected, scale, onClick, appearanceActive }) => (
       <Fragment>
         <Polygon
@@ -149,6 +173,7 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         />
       </Fragment>
     ),
+    renderPreview: ({ data, scale }) => <Polygon isSelected={false} scale={scale} {...data} />,
     vertexConfig: {
       extractVertices: (a) => a.vertices,
       transformAnnotation: (a, vertices) => ({ ...a, vertices }),
@@ -255,9 +280,10 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
 
   // --- FreeText ---
 
-  createRenderer<PdfFreeTextAnnoObject>({
+  createRenderer<PdfFreeTextAnnoObject, FreeTextPreviewData>({
     id: 'freeText',
     matches: (a): a is PdfFreeTextAnnoObject => a.type === PdfAnnotationSubtype.FREETEXT,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT,
     render: ({
       annotation,
       currentObject,
@@ -278,6 +304,16 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         scale={scale}
         onClick={onClick}
         appearanceActive={appearanceActive}
+      />
+    ),
+    renderPreview: ({ data }) => (
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          border: `1px dashed ${data.fontColor || '#000000'}`,
+          backgroundColor: 'transparent',
+        }}
       />
     ),
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
@@ -309,6 +345,7 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
   createRenderer<PdfLinkAnnoObject, LinkPreviewData>({
     id: 'link',
     matches: (a): a is PdfLinkAnnoObject => a.type === PdfAnnotationSubtype.LINK,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.LINK,
     render: ({ currentObject, isSelected, scale, onClick }) => (
       <Link
         {...currentObject}

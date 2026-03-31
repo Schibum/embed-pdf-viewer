@@ -1,5 +1,11 @@
 # @embedpdf/engines
 
+## 2.11.0
+
+### Minor Changes
+
+- [#562](https://github.com/embedpdf/embed-pdf-viewer/pull/562) by [@bobsingor](https://github.com/bobsingor) – Implement new PDF manipulation and annotation appearance export methods: `createDocument`, `importPages`, `deletePage`, `exportAnnotationAppearanceAsPdf`, and `exportAnnotationsAppearanceAsPdf`.
+
 ## 2.10.1
 
 ## 2.10.0

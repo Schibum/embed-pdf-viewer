@@ -76,7 +76,7 @@ export interface SetSelectionAction extends Action {
 }
 export interface SetActiveToolIdAction extends Action {
   type: typeof SET_ACTIVE_TOOL_ID;
-  payload: { documentId: string; toolId: string | null };
+  payload: { documentId: string; toolId: string | null; context?: Record<string, unknown> };
 }
 export interface CreateAnnotationAction extends Action {
   type: typeof CREATE_ANNOTATION;
@@ -219,9 +219,10 @@ export const setSelection = (documentId: string, ids: string[]): SetSelectionAct
 export const setActiveToolId = (
   documentId: string,
   toolId: string | null,
+  context?: Record<string, unknown>,
 ): SetActiveToolIdAction => ({
   type: SET_ACTIVE_TOOL_ID,
-  payload: { documentId, toolId },
+  payload: { documentId, toolId, context },
 });
 
 export const createAnnotation = (

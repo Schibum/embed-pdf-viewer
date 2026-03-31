@@ -54,8 +54,8 @@ export class PdfCache {
   closeDocument(docId: string): boolean {
     const ctx = this.docs.get(docId);
     if (!ctx) return false;
-    ctx.dispose(); // tears down pages first, then FPDF_CloseDocument, free()
     this.docs.delete(docId);
+    ctx.dispose();
     return true;
   }
 
@@ -102,6 +102,7 @@ export class PdfCache {
 export class DocumentContext {
   private readonly pageCache: PageCache;
   public readonly normalizeRotation: boolean;
+  private disposed = false;
 
   constructor(
     public readonly filePtr: number,
@@ -136,6 +137,9 @@ export class DocumentContext {
 
   /** Tear down all pages + this document */
   dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+
     // 1️⃣ release all pages (with their TTL or immediate)
     this.pageCache.forceReleaseAll();
 

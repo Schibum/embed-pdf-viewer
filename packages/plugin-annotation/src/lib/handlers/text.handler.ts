@@ -1,5 +1,5 @@
 import {
-  PdfAnnotationIcon,
+  PdfAnnotationName,
   PdfAnnotationSubtype,
   PdfTextAnnoObject,
   Rect,
@@ -29,7 +29,7 @@ export const textHandlerFactory: HandlerFactory<PdfTextAnnoObject> = {
           ...tool.defaults,
           rect,
           type: PdfAnnotationSubtype.TEXT,
-          icon: tool.defaults.icon ?? PdfAnnotationIcon.Comment,
+          name: tool.defaults.name ?? PdfAnnotationName.Comment,
           contents: tool.defaults.contents ?? '',
           flags: tool.defaults.flags ?? ['print', 'noRotate', 'noZoom'],
           pageIndex: context.pageIndex,

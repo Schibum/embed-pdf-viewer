@@ -39,6 +39,7 @@
     "@embedpdf/plugin-rotate": "workspace:*",
     "@embedpdf/plugin-scroll": "workspace:*",
     "@embedpdf/plugin-selection": "workspace:*",
+    "@embedpdf/plugin-stamp": "workspace:*",
     "@embedpdf/plugin-spread": "workspace:*",
     "@embedpdf/plugin-thumbnail": "workspace:*",
     "@embedpdf/plugin-tiling": "workspace:*",

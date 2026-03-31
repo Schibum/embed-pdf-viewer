@@ -1,6 +1,7 @@
 import {
   PdfAnnotationSubtype,
   PdfBlendMode,
+  blendModeToCss,
   PdfInkAnnoObject,
   PdfSquareAnnoObject,
   PdfCircleAnnoObject,
@@ -17,11 +18,27 @@ import {
   PdfCaretAnnoObject,
   PdfTextAnnoObject,
 } from '@embedpdf/models';
-import type { LinkPreviewData } from '@embedpdf/plugin-annotation';
+import type {
+  LinkPreviewData,
+  InkPreviewData,
+  CirclePreviewData,
+  SquarePreviewData,
+  LinePreviewData,
+  PolylinePreviewData,
+  PolygonPreviewData,
+  FreeTextPreviewData,
+} from '@embedpdf/plugin-annotation';
 import type { BoxedAnnotationRenderer } from '../context';
 import { createRenderer } from '../context/renderer-registry';
 import LinkLockedMode from './annotations/link-locked.vue';
 import LinkPreview from './annotations/link-preview.vue';
+import InkPreview from './annotations/ink-preview.vue';
+import SquarePreview from './annotations/square-preview.vue';
+import CirclePreview from './annotations/circle-preview.vue';
+import LinePreview from './annotations/line-preview.vue';
+import PolylinePreview from './annotations/polyline-preview.vue';
+import PolygonPreview from './annotations/polygon-preview.vue';
+import FreeTextPreview from './annotations/free-text-preview.vue';
 
 import InkRenderer from './renderers/ink-renderer.vue';
 import SquareRenderer from './renderers/square-renderer.vue';
@@ -40,31 +57,42 @@ import CaretRenderer from './renderers/caret-renderer.vue';
 import TextRenderer from './renderers/text-renderer.vue';
 
 export const builtInRenderers: BoxedAnnotationRenderer[] = [
-  createRenderer<PdfInkAnnoObject>({
+  createRenderer<PdfInkAnnoObject, InkPreviewData>({
     id: 'ink',
     matches: (a): a is PdfInkAnnoObject => a.type === PdfAnnotationSubtype.INK,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.INK,
     component: InkRenderer,
+    renderPreview: InkPreview,
+    previewContainerStyle: ({ data }) => ({
+      mixBlendMode: blendModeToCss(data.blendMode ?? PdfBlendMode.Normal),
+    }),
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
   }),
 
-  createRenderer<PdfSquareAnnoObject>({
+  createRenderer<PdfSquareAnnoObject, SquarePreviewData>({
     id: 'square',
     matches: (a): a is PdfSquareAnnoObject => a.type === PdfAnnotationSubtype.SQUARE,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.SQUARE,
     component: SquareRenderer,
+    renderPreview: SquarePreview,
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
   }),
 
-  createRenderer<PdfCircleAnnoObject>({
+  createRenderer<PdfCircleAnnoObject, CirclePreviewData>({
     id: 'circle',
     matches: (a): a is PdfCircleAnnoObject => a.type === PdfAnnotationSubtype.CIRCLE,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.CIRCLE,
     component: CircleRenderer,
+    renderPreview: CirclePreview,
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
   }),
 
-  createRenderer<PdfLineAnnoObject>({
+  createRenderer<PdfLineAnnoObject, LinePreviewData>({
     id: 'line',
     matches: (a): a is PdfLineAnnoObject => a.type === PdfAnnotationSubtype.LINE,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.LINE,
     component: LineRenderer,
+    renderPreview: LinePreview,
     vertexConfig: {
       extractVertices: (a) => [a.linePoints.start, a.linePoints.end],
       transformAnnotation: (a, v) => ({
@@ -75,10 +103,12 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     interactionDefaults: { isDraggable: true, isResizable: false, isRotatable: true },
   }),
 
-  createRenderer<PdfPolylineAnnoObject>({
+  createRenderer<PdfPolylineAnnoObject, PolylinePreviewData>({
     id: 'polyline',
     matches: (a): a is PdfPolylineAnnoObject => a.type === PdfAnnotationSubtype.POLYLINE,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.POLYLINE,
     component: PolylineRenderer,
+    renderPreview: PolylinePreview,
     vertexConfig: {
       extractVertices: (a) => a.vertices,
       transformAnnotation: (a, vertices) => ({ ...a, vertices }),
@@ -86,10 +116,12 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     interactionDefaults: { isDraggable: true, isResizable: false, isRotatable: true },
   }),
 
-  createRenderer<PdfPolygonAnnoObject>({
+  createRenderer<PdfPolygonAnnoObject, PolygonPreviewData>({
     id: 'polygon',
     matches: (a): a is PdfPolygonAnnoObject => a.type === PdfAnnotationSubtype.POLYGON,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.POLYGON,
     component: PolygonRenderer,
+    renderPreview: PolygonPreview,
     vertexConfig: {
       extractVertices: (a) => a.vertices,
       transformAnnotation: (a, vertices) => ({ ...a, vertices }),
@@ -144,10 +176,12 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     interactionDefaults: { isDraggable: false, isResizable: false, isRotatable: false },
   }),
 
-  createRenderer<PdfFreeTextAnnoObject>({
+  createRenderer<PdfFreeTextAnnoObject, FreeTextPreviewData>({
     id: 'freeText',
     matches: (a): a is PdfFreeTextAnnoObject => a.type === PdfAnnotationSubtype.FREETEXT,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.FREETEXT,
     component: FreeTextRenderer,
+    renderPreview: FreeTextPreview,
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
     isDraggable: (toolDraggable, { isEditing }) => toolDraggable && !isEditing,
     onDoubleClick: (id, setEditingId) => setEditingId(id),
@@ -164,6 +198,7 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
   createRenderer<PdfLinkAnnoObject, LinkPreviewData>({
     id: 'link',
     matches: (a): a is PdfLinkAnnoObject => a.type === PdfAnnotationSubtype.LINK,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.LINK,
     component: LinkRenderer,
     renderPreview: LinkPreview,
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: false },

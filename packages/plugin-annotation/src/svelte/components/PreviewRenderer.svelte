@@ -1,13 +1,7 @@
 <script lang="ts">
   import type { PreviewState } from '@embedpdf/plugin-annotation';
-  import { blendModeToCss, PdfAnnotationSubtype, PdfBlendMode } from '@embedpdf/models';
-  import Circle from './annotations/Circle.svelte';
-  import Square from './annotations/Square.svelte';
-  import Polygon from './annotations/Polygon.svelte';
-  import Polyline from './annotations/Polyline.svelte';
-  import Line from './annotations/Line.svelte';
-  import Ink from './annotations/Ink.svelte';
   import { getRendererRegistry } from '../context/renderer-registry.svelte';
+  import { builtInRenderers } from './built-in-renderers';
 
   interface PreviewRendererProps {
     toolId: string;
@@ -27,112 +21,29 @@
     width: bounds.size.width * scale,
     height: bounds.size.height * scale,
   });
+
+  const allRenderers = $derived.by(() => {
+    const external = registry?.getAll() ?? [];
+    const externalIds = new Set(external.map((r) => r.id));
+    return [...external, ...builtInRenderers.filter((r) => !externalIds.has(r.id))];
+  });
+
+  const match = $derived(
+    allRenderers.find((r) => r.matchesPreview?.(preview) && r.renderPreview) ??
+      allRenderers.find((r) => r.id === toolId && r.renderPreview) ??
+      null,
+  );
+
+  const extraStyle = $derived(
+    match?.previewContainerStyle?.({ data: preview.data, bounds: preview.bounds, scale }) ?? '',
+  );
 </script>
 
-{#if preview.type === PdfAnnotationSubtype.CIRCLE}
+{#if match?.renderPreview}
+  {@const PreviewComponent = match.renderPreview}
   <div
-    style:position="absolute"
-    style:left="{style.left}px"
-    style:top="{style.top}px"
-    style:width="{style.width}px"
-    style:height="{style.height}px"
-    style:pointer-events="none"
-    style:z-index="10"
+    style="position:absolute;left:{style.left}px;top:{style.top}px;width:{style.width}px;height:{style.height}px;pointer-events:none;z-index:10;{extraStyle}"
   >
-    <Circle isSelected={false} {scale} {...preview.data} />
+    <PreviewComponent data={preview.data} bounds={preview.bounds} {scale} />
   </div>
-{:else if preview.type === PdfAnnotationSubtype.SQUARE}
-  <div
-    style:position="absolute"
-    style:left="{style.left}px"
-    style:top="{style.top}px"
-    style:width="{style.width}px"
-    style:height="{style.height}px"
-    style:pointer-events="none"
-    style:z-index="10"
-  >
-    <Square isSelected={false} {scale} {...preview.data} />
-  </div>
-{:else if preview.type === PdfAnnotationSubtype.POLYGON}
-  <div
-    style:position="absolute"
-    style:left="{style.left}px"
-    style:top="{style.top}px"
-    style:width="{style.width}px"
-    style:height="{style.height}px"
-    style:pointer-events="none"
-    style:z-index="10"
-  >
-    <Polygon isSelected={false} {scale} {...preview.data} />
-  </div>
-{:else if preview.type === PdfAnnotationSubtype.POLYLINE}
-  <div
-    style:position="absolute"
-    style:left="{style.left}px"
-    style:top="{style.top}px"
-    style:width="{style.width}px"
-    style:height="{style.height}px"
-    style:pointer-events="none"
-    style:z-index="10"
-  >
-    <Polyline isSelected={false} {scale} {...preview.data} />
-  </div>
-{:else if preview.type === PdfAnnotationSubtype.LINE}
-  <div
-    style:position="absolute"
-    style:left="{style.left}px"
-    style:top="{style.top}px"
-    style:width="{style.width}px"
-    style:height="{style.height}px"
-    style:pointer-events="none"
-    style:z-index="10"
-  >
-    <Line isSelected={false} {scale} {...preview.data} />
-  </div>
-{:else if preview.type === PdfAnnotationSubtype.INK}
-  <div
-    style:position="absolute"
-    style:left="{style.left}px"
-    style:top="{style.top}px"
-    style:width="{style.width}px"
-    style:height="{style.height}px"
-    style:pointer-events="none"
-    style:z-index="10"
-    style:mix-blend-mode={blendModeToCss(preview.data.blendMode ?? PdfBlendMode.Normal)}
-  >
-    <Ink isSelected={false} {scale} {...preview.data} />
-  </div>
-{:else if preview.type === PdfAnnotationSubtype.FREETEXT}
-  <div
-    style:position="absolute"
-    style:left="{style.left}px"
-    style:top="{style.top}px"
-    style:width="{style.width}px"
-    style:height="{style.height}px"
-    style:pointer-events="none"
-    style:z-index="10"
-  >
-    <div
-      style:width="100%"
-      style:height="100%"
-      style:border="1px dashed {preview.data.fontColor || '#000000'}"
-      style:background-color="transparent"
-    ></div>
-  </div>
-{:else}
-  {@const match = registry?.getAll().find((r) => r.id === toolId && r.renderPreview)}
-  {#if match?.renderPreview}
-    {@const PreviewComponent = match.renderPreview}
-    <div
-      style:position="absolute"
-      style:left="{style.left}px"
-      style:top="{style.top}px"
-      style:width="{style.width}px"
-      style:height="{style.height}px"
-      style:pointer-events="none"
-      style:z-index="10"
-    >
-      <PreviewComponent data={preview.data} bounds={preview.bounds} {scale} />
-    </div>
-  {/if}
 {/if}

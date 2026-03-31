@@ -1,5 +1,5 @@
 import { PdfAnnotationObject, PdfBlendMode, Rect } from '@embedpdf/models';
-import { TrackedAnnotation } from '@embedpdf/plugin-annotation';
+import { TrackedAnnotation, PreviewState } from '@embedpdf/plugin-annotation';
 import {
   HandleElementProps,
   SelectionMenuPropsBase,
@@ -173,14 +173,20 @@ export interface AnnotationRendererEntry<
   /** Unique identifier for this renderer (usually matches tool id) */
   id: string;
 
-  /** Returns true if this renderer should handle the annotation */
-  matches: (annotation: PdfAnnotationObject) => annotation is T;
+  /** Returns true if this renderer should handle the annotation. Optional for preview-only renderers. */
+  matches?: (annotation: PdfAnnotationObject) => annotation is T;
 
-  /** The component to render the annotation */
-  render: (props: AnnotationRendererProps<T>) => JSX.Element;
+  /** The component to render the annotation. Optional for preview-only renderers. */
+  render?: (props: AnnotationRendererProps<T>) => JSX.Element;
+
+  /** Returns true if this renderer should handle the given preview state */
+  matchesPreview?: (preview: PreviewState) => boolean;
 
   /** Render a preview during drag-to-create. P is the preview data type. */
   renderPreview?: (props: { data: P; bounds: Rect; scale: number }) => JSX.Element;
+
+  /** Extra styles merged onto the preview container div (e.g. mixBlendMode for ink). */
+  previewContainerStyle?: (props: { data: P; bounds: Rect; scale: number }) => CSSProperties;
 
   /** Vertex configuration for annotations with draggable vertices (line, polyline, polygon) */
   vertexConfig?: VertexConfig<T>;
@@ -236,7 +242,9 @@ export interface BoxedAnnotationRenderer {
   id: string;
   matches: (annotation: PdfAnnotationObject) => boolean;
   render: (props: AnnotationRendererProps) => JSX.Element;
+  matchesPreview?: (preview: PreviewState) => boolean;
   renderPreview?: (props: { data: unknown; bounds: Rect; scale: number }) => JSX.Element;
+  previewContainerStyle?: (props: { data: unknown; bounds: Rect; scale: number }) => CSSProperties;
   vertexConfig?: VertexConfig<PdfAnnotationObject>;
   zIndex?: number;
   defaultBlendMode?: PdfBlendMode;
@@ -270,10 +278,16 @@ export function createRenderer<T extends PdfAnnotationObject, P = never>(
 ): BoxedAnnotationRenderer {
   return {
     id: entry.id,
-    matches: (annotation) => entry.matches(annotation),
-    render: (props) => entry.render(props as AnnotationRendererProps<T>),
+    matches: entry.matches ? (annotation) => entry.matches!(annotation) : () => false,
+    render: entry.render
+      ? (props) => entry.render!(props as AnnotationRendererProps<T>)
+      : () => null as any,
+    matchesPreview: entry.matchesPreview,
     renderPreview: entry.renderPreview
       ? (props) => entry.renderPreview!(props as { data: P; bounds: Rect; scale: number })
+      : undefined,
+    previewContainerStyle: entry.previewContainerStyle
+      ? (props) => entry.previewContainerStyle!(props as { data: P; bounds: Rect; scale: number })
       : undefined,
     vertexConfig: entry.vertexConfig as VertexConfig<PdfAnnotationObject> | undefined,
     zIndex: entry.zIndex,

@@ -6,7 +6,7 @@ import type {
   AnnotationInteractionEvent,
   SelectOverrideHelpers,
 } from './types';
-import type { PdfAnnotationObject } from '@embedpdf/models';
+import type { PdfAnnotationObject, Rect } from '@embedpdf/models';
 import type { VertexConfig } from '../../shared/types';
 import type { Component } from 'svelte';
 
@@ -58,8 +58,12 @@ export function createRenderer<T extends PdfAnnotationObject, P = never>(
 ): BoxedAnnotationRenderer {
   return {
     id: entry.id,
-    matches: entry.matches,
-    component: entry.component as Component<AnnotationRendererProps>,
+    matches: entry.matches ?? (() => false),
+    component: (entry.component ?? (() => null)) as Component<AnnotationRendererProps>,
+    matchesPreview: entry.matchesPreview,
+    previewContainerStyle: entry.previewContainerStyle
+      ? (props) => entry.previewContainerStyle!(props as { data: P; bounds: Rect; scale: number })
+      : undefined,
     vertexConfig: entry.vertexConfig as VertexConfig<PdfAnnotationObject> | undefined,
     zIndex: entry.zIndex,
     defaultBlendMode: entry.defaultBlendMode,

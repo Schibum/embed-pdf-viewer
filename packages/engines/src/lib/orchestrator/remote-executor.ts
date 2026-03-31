@@ -109,11 +109,16 @@ type MessageType =
   | 'regenerateWidgetAppearances'
   | 'flattenPage'
   | 'extractPages'
+  | 'createDocument'
+  | 'importPages'
+  | 'deletePage'
   | 'extractText'
   | 'redactTextInRects'
   | 'applyRedaction'
   | 'applyAllRedactions'
   | 'flattenAnnotation'
+  | 'exportAnnotationAppearanceAsPdf'
+  | 'exportAnnotationsAppearanceAsPdf'
   | 'getTextSlices'
   | 'getPageGlyphs'
   | 'getPageGeometry'
@@ -547,6 +552,28 @@ export class RemoteExecutor implements IPdfiumExecutor {
     return this.send<ArrayBuffer>('extractPages', [doc, pageIndexes]);
   }
 
+  createDocument(id: string): PdfTask<PdfDocumentObject> {
+    return this.send<PdfDocumentObject>('createDocument', [id]);
+  }
+
+  importPages(
+    destDoc: PdfDocumentObject,
+    srcDoc: PdfDocumentObject,
+    srcPageIndices: number[],
+    insertIndex?: number,
+  ): PdfTask<PdfPageObject[]> {
+    return this.send<PdfPageObject[]>('importPages', [
+      destDoc,
+      srcDoc,
+      srcPageIndices,
+      insertIndex,
+    ]);
+  }
+
+  deletePage(doc: PdfDocumentObject, pageIndex: number): PdfTask<boolean> {
+    return this.send<boolean>('deletePage', [doc, pageIndex]);
+  }
+
   extractText(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<string> {
     return this.send<string>('extractText', [doc, pageIndexes]);
   }
@@ -578,6 +605,22 @@ export class RemoteExecutor implements IPdfiumExecutor {
     annotation: PdfAnnotationObject,
   ): PdfTask<boolean> {
     return this.send<boolean>('flattenAnnotation', [doc, page, annotation]);
+  }
+
+  exportAnnotationAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotation: PdfAnnotationObject,
+  ): PdfTask<ArrayBuffer> {
+    return this.send<ArrayBuffer>('exportAnnotationAppearanceAsPdf', [doc, page, annotation]);
+  }
+
+  exportAnnotationsAppearanceAsPdf(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotations: PdfAnnotationObject[],
+  ): PdfTask<ArrayBuffer> {
+    return this.send<ArrayBuffer>('exportAnnotationsAppearanceAsPdf', [doc, page, annotations]);
   }
 
   getTextSlices(doc: PdfDocumentObject, slices: PageTextSlice[]): PdfTask<string[]> {
