@@ -1,5 +1,7 @@
 # @embedpdf/plugin-print
 
+## 2.11.1
+
 ## 2.11.0
 
 ## 2.10.1

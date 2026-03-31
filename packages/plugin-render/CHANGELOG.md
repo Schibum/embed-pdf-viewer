@@ -1,5 +1,17 @@
 # @embedpdf/plugin-render
 
+## 2.11.1
+
+### Patch Changes
+
+- [#557](https://github.com/embedpdf/embed-pdf-viewer/pull/557) by [@jonashaag](https://github.com/jonashaag) – Add BMP encoding support as an optional image format
+
+  BMP encoding bypasses canvas.toBlob() entirely by prepending a 66-byte header to the raw RGBA pixel data. This eliminates the dominant rendering bottleneck — in benchmarks, encoding dropped from ~76ms average (PNG via canvas.toBlob) to <1ms, reducing total tile render time by ~60%.
+
+  The BMP uses BI_BITFIELDS with channel masks matching PDFium's RGBA output byte order, so no per-pixel conversion is needed. Top-down row order avoids row flipping. The result is a valid BMP that all modern browsers decode natively in `<img>` elements.
+
+  Users who want to opt into the faster BMP path can set `defaultImageType: 'image/bmp'` in the render plugin config, while PNG remains the default output format.
+
 ## 2.11.0
 
 ## 2.10.1
