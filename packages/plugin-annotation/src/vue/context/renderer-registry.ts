@@ -16,7 +16,7 @@ import type {
   AnnotationInteractionEvent,
   SelectOverrideHelpers,
 } from './types';
-import type { PdfAnnotationObject } from '@embedpdf/models';
+import type { PdfAnnotationObject, Rect } from '@embedpdf/models';
 import type { VertexConfig } from '../../shared/types';
 
 /**
@@ -87,7 +87,9 @@ export function createRenderer<T extends PdfAnnotationObject, P = never>(
       ? markRaw(entry.component)
       : () => null) as Component<AnnotationRendererProps>,
     matchesPreview: entry.matchesPreview,
-    previewContainerStyle: entry.previewContainerStyle,
+    previewContainerStyle: entry.previewContainerStyle
+      ? (props) => entry.previewContainerStyle!(props as { data: P; bounds: Rect; scale: number })
+      : undefined,
     vertexConfig: entry.vertexConfig as VertexConfig<PdfAnnotationObject> | undefined,
     zIndex: entry.zIndex,
     defaultBlendMode: entry.defaultBlendMode,
