@@ -4250,10 +4250,12 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     const matrixPtr = this.memoryManager.malloc(6 * 4);
-    this.pdfiumModule.pdfium.setValue(matrixPtr, imageData.width, 'float');
+    // Preserve the original bitmap, but author the image object using the
+    // annotation rect so AP resizing works with custom display sizes.
+    this.pdfiumModule.pdfium.setValue(matrixPtr, rect.size.width, 'float');
     this.pdfiumModule.pdfium.setValue(matrixPtr + 4, 0, 'float');
     this.pdfiumModule.pdfium.setValue(matrixPtr + 8, 0, 'float');
-    this.pdfiumModule.pdfium.setValue(matrixPtr + 12, imageData.height, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 12, rect.size.height, 'float');
     this.pdfiumModule.pdfium.setValue(matrixPtr + 16, 0, 'float');
     this.pdfiumModule.pdfium.setValue(matrixPtr + 20, 0, 'float');
     if (!this.pdfiumModule.FPDFPageObj_SetMatrix(imageObjectPtr, matrixPtr)) {
@@ -4267,7 +4269,7 @@ export class PdfiumNative implements IPdfiumExecutor {
 
     const pagePos = this.convertDevicePointToPagePoint(doc, page, {
       x: rect.origin.x,
-      y: rect.origin.y + imageData.height, // shift down by the image height
+      y: rect.origin.y + rect.size.height, // shift down by the authored display height
     });
     this.pdfiumModule.FPDFPageObj_Transform(imageObjectPtr, 1, 0, 0, 1, pagePos.x, pagePos.y);
 
