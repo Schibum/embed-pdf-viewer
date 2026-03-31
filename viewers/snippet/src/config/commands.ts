@@ -1102,6 +1102,9 @@ export const commands: Record<string, Command<State>> = {
     active: ({ state, documentId }) => {
       return isSidebarOpen(state.plugins, documentId, 'left', 'main', 'rubber-stamp-panel');
     },
+    disabled: ({ state, documentId }) => {
+      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
+    },
   },
 
   'insert:add-signature': {
