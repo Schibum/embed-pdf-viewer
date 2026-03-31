@@ -1,5 +1,11 @@
 # @embedpdf/snippet
 
+## 2.11.1
+
+### Patch Changes
+
+- [#566](https://github.com/embedpdf/embed-pdf-viewer/pull/566) by [@bobsingor](https://github.com/bobsingor) – Disable the snippet rubber stamp insert command when the active document does not allow annotation modifications.
+
 ## 2.11.0
 
 ### Minor Changes

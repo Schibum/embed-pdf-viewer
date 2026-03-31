@@ -1,5 +1,11 @@
 # @embedpdf/plugin-annotation
 
+## 2.11.1
+
+### Patch Changes
+
+- [#566](https://github.com/embedpdf/embed-pdf-viewer/pull/566) by [@bobsingor](https://github.com/bobsingor) – Fix Vue and Svelte renderer registration typing so custom preview container styles build correctly.
+
 ## 2.11.0
 
 ### Minor Changes
