@@ -1,5 +1,11 @@
 # @embedpdf/snippet
 
+## 2.12.1
+
+### Patch Changes
+
+- [#571](https://github.com/embedpdf/embed-pdf-viewer/pull/571) by [@bobsingor](https://github.com/bobsingor) – Export missing annotation types from the snippet package: `AnnotationTransferItem`, `ExportAnnotationsOptions`, `GetAnnotationsOptions`, `TrackedAnnotation`, `AnnotationTool`, `PdfAnnotationSubtype`, and `PdfStampAnnoObject`.
+
 ## 2.12.0
 
 ## 2.11.1

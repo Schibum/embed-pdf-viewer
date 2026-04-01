@@ -1,5 +1,7 @@
 # @embedpdf/vue-pdf-viewer
 
+## 2.12.1
+
 ## 2.12.0
 
 ## 2.11.1

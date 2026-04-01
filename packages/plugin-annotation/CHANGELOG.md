@@ -1,5 +1,11 @@
 # @embedpdf/plugin-annotation
 
+## 2.12.1
+
+### Patch Changes
+
+- [#571](https://github.com/embedpdf/embed-pdf-viewer/pull/571) by [@bobsingor](https://github.com/bobsingor) – Add `getAnnotations(options?)` method to retrieve all tracked annotations, optionally filtered by page index. Available on both `AnnotationCapability` and `AnnotationScope`.
+
 ## 2.12.0
 
 ### Minor Changes
