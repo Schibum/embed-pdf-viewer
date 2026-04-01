@@ -8,12 +8,6 @@ import {
   Rotation,
 } from '@embedpdf/models';
 
-export interface StampPreviewData {
-  rect: Rect;
-  ghostUrl: string;
-  pageRotation: Rotation;
-}
-
 export interface RubberStampToolContext {
   appearance: ArrayBuffer;
   ghostUrl: string;

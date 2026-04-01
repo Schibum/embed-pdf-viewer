@@ -227,6 +227,8 @@ export type AnnotationTool<
     editAfterCreate?: boolean;
     /** Override whether this annotation type uses AP rendering before editing (default: true) */
     useAppearanceStream?: boolean;
+    /** Show a ghost image preview following the cursor. Defaults to false. */
+    showGhost?: boolean;
   } & InsertUprightBehaviorFor<T> &
     InkBehaviorFor<T>;
 

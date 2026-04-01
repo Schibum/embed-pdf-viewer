@@ -163,6 +163,14 @@ export const functions = {
     ['number', 'boolean', 'number', 'boolean', 'number', 'boolean', 'number'] as const,
     'number',
   ] as const,
+  EPDFImageObj_SetJpeg: [
+    ['number', 'number', 'number', 'number', 'number'] as const,
+    'boolean',
+  ] as const,
+  EPDFImageObj_SetPng: [
+    ['number', 'number', 'number', 'number', 'number'] as const,
+    'boolean',
+  ] as const,
   EPDFNamedDest_Remove: [['number', 'string'] as const, 'boolean'] as const,
   EPDFNamedDest_SetDest: [['number', 'string', 'number'] as const, 'boolean'] as const,
   EPDFPage_ApplyRedactions: [['number'] as const, 'boolean'] as const,

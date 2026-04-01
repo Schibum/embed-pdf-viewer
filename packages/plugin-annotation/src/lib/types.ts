@@ -1,5 +1,6 @@
 import { BasePluginConfig, EventHook } from '@embedpdf/core';
 import {
+  AnnotationContextMap,
   AnnotationCreateContext,
   AnnotationAppearanceMap,
   PdfAnnotationObject,
@@ -209,10 +210,44 @@ export interface TransformOptions<T extends PdfAnnotationObject = PdfAnnotationO
   };
 }
 
+/**
+ * @deprecated Use `AnnotationTransferItem` instead. This type has a generic
+ * that resolves `ctx` to `undefined` for the base `PdfAnnotationObject` union,
+ * making it impossible to pass stamp context at the base type level.
+ */
 export type ImportAnnotationItem<T extends PdfAnnotationObject = PdfAnnotationObject> = {
   annotation: T;
   ctx?: AnnotationCreateContext<T>;
 };
+
+/**
+ * A portable annotation item used for both import and export.
+ * `exportAnnotations()` produces this type, `importAnnotations()` consumes it.
+ *
+ * For stamps, `ctx` carries the binary data needed for round-tripping:
+ * - `{ data: ArrayBuffer, mimeType?: ImageMimeType }` — the preferred shape.
+ *   Export always includes `mimeType` (typically `'application/pdf'`).
+ *   On import, `mimeType` is optional; the engine detects format from magic bytes.
+ *   Supported formats: PNG, JPEG, PDF appearance.
+ * - `{ imageData: ImageData }` — raw bitmap for programmatic stamp creation.
+ *
+ * Legacy shape `{ appearance }` is still accepted on
+ * import but is deprecated; prefer `{ data }` instead.
+ *
+ * Non-stamp annotations need no `ctx`.
+ */
+export interface AnnotationTransferItem {
+  annotation: PdfAnnotationObject;
+  ctx?: AnnotationContextMap[keyof AnnotationContextMap];
+}
+
+/** @deprecated Use `AnnotationTransferItem` instead. */
+export type ExportedAnnotation = AnnotationTransferItem;
+
+export interface ExportAnnotationsOptions {
+  /** Export only annotations on a specific page. Omit to export all pages. */
+  pageIndex?: number;
+}
 
 export interface AnnotationStateChangeEvent {
   documentId: string;
@@ -283,7 +318,10 @@ export interface AnnotationScope<TTools extends AnnotationToolMap = AnnotationTo
   ): void;
   setActiveTool(toolId: string | null, context?: Record<string, unknown>): void;
   findToolForAnnotation(annotation: PdfAnnotationObject): ToolUnion<TTools> | null;
-  importAnnotations(items: ImportAnnotationItem<PdfAnnotationObject>[]): void;
+  importAnnotations(items: AnnotationTransferItem[]): void;
+  exportAnnotations(
+    options?: ExportAnnotationsOptions,
+  ): Task<AnnotationTransferItem[], PdfErrorReason>;
   createAnnotation<A extends PdfAnnotationObject>(
     pageIndex: number,
     annotation: A,
@@ -308,6 +346,8 @@ export interface AnnotationScope<TTools extends AnnotationToolMap = AnnotationTo
   deleteAnnotation(pageIndex: number, annotationId: string): void;
   /** Delete multiple annotations in batch */
   deleteAnnotations(annotations: Array<{ pageIndex: number; id: string }>): void;
+  /** Delete all annotations from the document */
+  deleteAllAnnotations(): void;
   /** Remove an annotation from state without calling the engine (no PDF modification) */
   purgeAnnotation(pageIndex: number, annotationId: string): void;
   renderAnnotation(options: RenderAnnotationOptions): Task<Blob, PdfErrorReason>;
@@ -389,7 +429,11 @@ export interface AnnotationCapability<TTools extends AnnotationToolMap = Annotat
   setSelection: (ids: string[]) => void;
   /** Clear all selection */
   deselectAnnotation: () => void;
-  importAnnotations: (items: ImportAnnotationItem<PdfAnnotationObject>[]) => void;
+  importAnnotations: (items: AnnotationTransferItem[]) => void;
+  exportAnnotations: (
+    options?: ExportAnnotationsOptions,
+    documentId?: string,
+  ) => Task<AnnotationTransferItem[], PdfErrorReason>;
   createAnnotation: <A extends PdfAnnotationObject>(
     pageIndex: number,
     annotation: A,
@@ -418,6 +462,8 @@ export interface AnnotationCapability<TTools extends AnnotationToolMap = Annotat
     annotations: Array<{ pageIndex: number; id: string }>,
     documentId?: string,
   ) => void;
+  /** Delete all annotations from the document */
+  deleteAllAnnotations: (documentId?: string) => void;
   /** Remove an annotation from state without calling the engine (no PDF modification) */
   purgeAnnotation: (pageIndex: number, annotationId: string, documentId?: string) => void;
   renderAnnotation: (options: RenderAnnotationOptions) => Task<Blob, PdfErrorReason>;

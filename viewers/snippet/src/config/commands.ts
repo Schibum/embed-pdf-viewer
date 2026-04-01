@@ -1981,6 +1981,12 @@ export const commands: Record<string, Command<State>> = {
       ];
       return !excluded.includes(type);
     },
+    disabled: ({ state, documentId }) => {
+      return (
+        lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations) ||
+        lacksPermission(state, documentId, PdfPermissionFlag.CopyContents)
+      );
+    },
   },
 
   'stamp:create-from-group': {
@@ -2037,6 +2043,12 @@ export const commands: Record<string, Command<State>> = {
         PdfAnnotationSubtype.WIDGET,
       ];
       return selected.every((ta) => !excluded.includes(ta.object.type));
+    },
+    disabled: ({ state, documentId }) => {
+      return (
+        lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations) ||
+        lacksPermission(state, documentId, PdfPermissionFlag.CopyContents)
+      );
     },
   },
 

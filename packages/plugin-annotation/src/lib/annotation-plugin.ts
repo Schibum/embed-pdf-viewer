@@ -41,7 +41,8 @@ import {
   AnnotationToolsChangeEvent,
   CommitBatch,
   GetPageAnnotationsOptions,
-  ImportAnnotationItem,
+  AnnotationTransferItem,
+  ExportAnnotationsOptions,
   RenderAnnotationOptions,
   TrackedAnnotation,
   TransformOptions,
@@ -181,7 +182,7 @@ export class AnnotationPlugin extends BasePlugin<
   // Per-document state
   private pendingContexts = new Map<string, Map<string, unknown>>();
   private isInitialLoadComplete = new Map<string, boolean>();
-  private importQueue = new Map<string, ImportAnnotationItem<PdfAnnotationObject>[]>();
+  private importQueue = new Map<string, AnnotationTransferItem[]>();
   private commitInProgress = new Map<string, boolean>(); // Guard against concurrent commits
 
   private readonly activeTool$ = createScopedEmitter<
@@ -418,6 +419,7 @@ export class AnnotationPlugin extends BasePlugin<
       setSelection: (ids) => this.setSelectionMethod(ids),
       deselectAnnotation: () => this.deselectAnnotation(),
       importAnnotations: (items) => this.importAnnotations(items),
+      exportAnnotations: (options, documentId) => this.exportAnnotationsMethod(options, documentId),
       createAnnotation: (pageIndex, anno, ctx) => this.createAnnotation(pageIndex, anno, ctx),
       updateAnnotation: (pageIndex, id, patch) => this.updateAnnotation(pageIndex, id, patch),
       updateAnnotations: (patches) => this.updateAnnotationsMethod(patches),
@@ -426,6 +428,7 @@ export class AnnotationPlugin extends BasePlugin<
       deleteAnnotation: (pageIndex, id) => this.deleteAnnotation(pageIndex, id),
       deleteAnnotations: (annotations, documentId) =>
         this.deleteAnnotationsMethod(annotations, documentId),
+      deleteAllAnnotations: (documentId) => this.deleteAllAnnotationsMethod(documentId),
       purgeAnnotation: (pageIndex, id, documentId) =>
         this.purgeAnnotationMethod(pageIndex, id, documentId),
       renderAnnotation: (options) => this.renderAnnotation(options),
@@ -512,6 +515,7 @@ export class AnnotationPlugin extends BasePlugin<
         this.setActiveTool(toolId, documentId, context),
       findToolForAnnotation: (anno) => this.findToolForAnnotation(anno),
       importAnnotations: (items) => this.importAnnotations(items, documentId),
+      exportAnnotations: (options) => this.exportAnnotationsMethod(options, documentId),
       createAnnotation: (pageIndex, anno, ctx) =>
         this.createAnnotation(pageIndex, anno, ctx, documentId),
       updateAnnotation: (pageIndex, id, patch) =>
@@ -521,6 +525,7 @@ export class AnnotationPlugin extends BasePlugin<
         this.moveAnnotationMethod(pageIndex, id, position, mode, documentId),
       deleteAnnotation: (pageIndex, id) => this.deleteAnnotation(pageIndex, id, documentId),
       deleteAnnotations: (annotations) => this.deleteAnnotationsMethod(annotations, documentId),
+      deleteAllAnnotations: () => this.deleteAllAnnotationsMethod(documentId),
       purgeAnnotation: (pageIndex, id) => this.purgeAnnotationMethod(pageIndex, id, documentId),
       renderAnnotation: (options) => this.renderAnnotation(options, documentId),
       getPageAppearances: (pageIndex, options) =>
@@ -832,10 +837,100 @@ export class AnnotationPlugin extends BasePlugin<
     delete pageMap[annotId];
   }
 
-  private importAnnotations(
-    items: ImportAnnotationItem<PdfAnnotationObject>[],
+  private exportAnnotationsMethod(
+    options?: ExportAnnotationsOptions,
     documentId?: string,
-  ) {
+  ): Task<AnnotationTransferItem[], PdfErrorReason> {
+    const id = documentId ?? this.getActiveDocumentId();
+    const docState = this.getDocumentState(id);
+    const coreDoc = this.getCoreDocument(id);
+    const doc = coreDoc?.document;
+
+    if (!doc) {
+      return PdfTaskHelper.reject({ code: PdfErrorCode.NotFound, message: 'Document not found' });
+    }
+
+    const pageIndices =
+      options?.pageIndex !== undefined
+        ? [options.pageIndex]
+        : Object.keys(docState.pages).map(Number);
+
+    const entries: Array<{
+      annotation: PdfAnnotationObject;
+      pageIndex: number;
+      isStamp: boolean;
+    }> = [];
+
+    for (const pi of pageIndices) {
+      const uids = docState.pages[pi] ?? [];
+      for (const uid of uids) {
+        const ta = docState.byUid[uid];
+        if (!ta || ta.commitState === 'deleted') continue;
+        entries.push({
+          annotation: ta.object,
+          pageIndex: pi,
+          isStamp: ta.object.type === PdfAnnotationSubtype.STAMP,
+        });
+      }
+    }
+
+    const stampEntries = entries.filter((e) => e.isStamp);
+
+    if (stampEntries.length === 0) {
+      return PdfTaskHelper.resolve(entries.map((e) => ({ annotation: e.annotation })));
+    }
+
+    const resultTask = PdfTaskHelper.create<AnnotationTransferItem[]>();
+    const appearances = new Map<string, ArrayBuffer>();
+    let pending = stampEntries.length;
+    let failed = false;
+
+    for (const entry of stampEntries) {
+      const page = doc.pages.find((p: any) => p.index === entry.pageIndex);
+      if (!page) {
+        pending--;
+        continue;
+      }
+
+      const exportTask = this.engine.exportAnnotationAppearanceAsPdf(doc, page, entry.annotation);
+
+      exportTask.wait(
+        (buffer) => {
+          if (failed) return;
+          appearances.set(entry.annotation.id, buffer);
+          pending--;
+          if (pending === 0) {
+            resultTask.resolve(
+              entries.map((e) => ({
+                annotation: e.annotation,
+                ...(appearances.has(e.annotation.id)
+                  ? {
+                      ctx: {
+                        data: appearances.get(e.annotation.id)!,
+                        mimeType: 'application/pdf' as const,
+                      },
+                    }
+                  : {}),
+              })),
+            );
+          }
+        },
+        (error) => {
+          if (failed) return;
+          failed = true;
+          resultTask.reject(error.reason);
+        },
+      );
+    }
+
+    if (pending === 0) {
+      resultTask.resolve(entries.map((e) => ({ annotation: e.annotation })));
+    }
+
+    return resultTask;
+  }
+
+  private importAnnotations(items: AnnotationTransferItem[], documentId?: string) {
     const id = documentId ?? this.getActiveDocumentId();
 
     // If initial load hasn't completed, queue the items
@@ -859,10 +954,7 @@ export class AnnotationPlugin extends BasePlugin<
     this.processImportItems(documentId, items);
   }
 
-  private processImportItems(
-    documentId: string,
-    items: ImportAnnotationItem<PdfAnnotationObject>[],
-  ) {
+  private processImportItems(documentId: string, items: AnnotationTransferItem[]) {
     const contexts = this.pendingContexts.get(documentId);
     if (!contexts) return;
 
@@ -1111,6 +1203,21 @@ export class AnnotationPlugin extends BasePlugin<
   ): void {
     for (const { pageIndex, id } of annotations) {
       this.deleteAnnotation(pageIndex, id, documentId);
+    }
+  }
+
+  private deleteAllAnnotationsMethod(documentId?: string): void {
+    const docId = documentId ?? this.getActiveDocumentId();
+    const docState = this.getDocumentState(docId);
+    const toDelete: Array<{ pageIndex: number; id: string }> = [];
+    for (const [pageIdx, uids] of Object.entries(docState.pages)) {
+      for (const uid of uids) {
+        const ta = docState.byUid[uid];
+        if (ta) toDelete.push({ pageIndex: Number(pageIdx), id: ta.object.id });
+      }
+    }
+    if (toDelete.length > 0) {
+      this.deleteAnnotationsMethod(toDelete, docId);
     }
   }
 

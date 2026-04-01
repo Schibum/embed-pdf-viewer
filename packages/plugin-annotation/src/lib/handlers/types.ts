@@ -95,6 +95,12 @@ export interface LinkPreviewData {
   strokeDashArray: number[];
 }
 
+export interface StampPreviewData {
+  rect: Rect;
+  ghostUrl: string;
+  pageRotation: Rotation;
+}
+
 /**
  * Map types to their preview data
  */
@@ -107,6 +113,7 @@ export interface PreviewDataMap {
   [PdfAnnotationSubtype.INK]: InkPreviewData;
   [PdfAnnotationSubtype.FREETEXT]: FreeTextPreviewData;
   [PdfAnnotationSubtype.LINK]: LinkPreviewData;
+  [PdfAnnotationSubtype.STAMP]: StampPreviewData;
 }
 
 /**
@@ -140,13 +147,6 @@ export interface PreviewState<T extends PdfAnnotationSubtype = PdfAnnotationSubt
  */
 export interface HandlerServices {
   requestFile(options: { accept: string; onFile: (file: File) => void }): void;
-
-  processImage(options: {
-    source: string | File;
-    maxWidth?: number;
-    maxHeight?: number;
-    onComplete: (result: { imageData: ImageData; width: number; height: number }) => void;
-  }): void;
 }
 
 /**

@@ -46,6 +46,7 @@ import {
   PolylinePreviewData,
   PolygonPreviewData,
   FreeTextPreviewData,
+  StampPreviewData,
 } from '@embedpdf/plugin-annotation';
 
 export const builtInRenderers: BoxedAnnotationRenderer[] = [
@@ -323,9 +324,10 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
 
   // --- Stamp ---
 
-  createRenderer<PdfStampAnnoObject>({
+  createRenderer<PdfStampAnnoObject, StampPreviewData>({
     id: 'stamp',
     matches: (a): a is PdfStampAnnoObject => a.type === PdfAnnotationSubtype.STAMP,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.STAMP,
     render: ({ annotation, isSelected, documentId, pageIndex, scale, onClick }) => (
       <Stamp
         isSelected={isSelected}
@@ -336,6 +338,23 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
         onClick={onClick}
       />
     ),
+    renderPreview: ({ data }) => {
+      const rotationDeg = ((4 - data.pageRotation) % 4) * 90;
+      return (
+        <img
+          src={data.ghostUrl}
+          style={{
+            width: '100%',
+            height: '100%',
+            opacity: 0.6,
+            objectFit: 'contain' as const,
+            pointerEvents: 'none' as const,
+            transform: rotationDeg ? `rotate(${rotationDeg}deg)` : undefined,
+          }}
+          alt=""
+        />
+      );
+    },
     useAppearanceStream: false,
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
   }),

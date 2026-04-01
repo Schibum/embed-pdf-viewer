@@ -139,6 +139,8 @@ var createPdfium = (() => {
       '_EPDFDest_CreateRemoteXYZ',
       '_EPDFDest_CreateView',
       '_EPDFDest_CreateXYZ',
+      '_EPDFImageObj_SetJpeg',
+      '_EPDFImageObj_SetPng',
       '_EPDFNamedDest_Remove',
       '_EPDFNamedDest_SetDest',
       '_EPDFPage_ApplyRedactions',
@@ -5789,6 +5791,10 @@ var createPdfium = (() => {
       /** @export */
       invoke_iiiii,
       /** @export */
+      invoke_v,
+      /** @export */
+      invoke_vi,
+      /** @export */
       invoke_vii,
       /** @export */
       invoke_viii,
@@ -6661,6 +6667,14 @@ var createPdfium = (() => {
       createExportWrapper('FPDFImageObj_GetImagePixelSize', 3));
     var _FPDFImageObj_GetIccProfileDataDecoded = (Module['_FPDFImageObj_GetIccProfileDataDecoded'] =
       createExportWrapper('FPDFImageObj_GetIccProfileDataDecoded', 5));
+    var _EPDFImageObj_SetPng = (Module['_EPDFImageObj_SetPng'] = createExportWrapper(
+      'EPDFImageObj_SetPng',
+      5,
+    ));
+    var _EPDFImageObj_SetJpeg = (Module['_EPDFImageObj_SetJpeg'] = createExportWrapper(
+      'EPDFImageObj_SetJpeg',
+      5,
+    ));
     var _FPDF_CreateNewDocument = (Module['_FPDF_CreateNewDocument'] = createExportWrapper(
       'FPDF_CreateNewDocument',
       0,
@@ -7754,9 +7768,9 @@ var createPdfium = (() => {
       'FPDF_GetTrailerEnds',
       3,
     ));
+    var _strerror = createExportWrapper('strerror', 1);
     var _fflush = createExportWrapper('fflush', 1);
     var _emscripten_builtin_memalign = createExportWrapper('emscripten_builtin_memalign', 2);
-    var _strerror = createExportWrapper('strerror', 1);
     var _setThrew = createExportWrapper('setThrew', 2);
     var __emscripten_tempret_set = createExportWrapper('_emscripten_tempret_set', 1);
     var _emscripten_stack_init = () =>
@@ -7835,17 +7849,6 @@ var createPdfium = (() => {
       }
     }
 
-    function invoke_viiii(index, a1, a2, a3, a4) {
-      var sp = stackSave();
-      try {
-        getWasmTableEntry(index)(a1, a2, a3, a4);
-      } catch (e) {
-        stackRestore(sp);
-        if (e !== e + 0) throw e;
-        _setThrew(1, 0);
-      }
-    }
-
     function invoke_iiiii(index, a1, a2, a3, a4) {
       var sp = stackSave();
       try {
@@ -7861,6 +7864,39 @@ var createPdfium = (() => {
       var sp = stackSave();
       try {
         getWasmTableEntry(index)(a1, a2);
+      } catch (e) {
+        stackRestore(sp);
+        if (e !== e + 0) throw e;
+        _setThrew(1, 0);
+      }
+    }
+
+    function invoke_vi(index, a1) {
+      var sp = stackSave();
+      try {
+        getWasmTableEntry(index)(a1);
+      } catch (e) {
+        stackRestore(sp);
+        if (e !== e + 0) throw e;
+        _setThrew(1, 0);
+      }
+    }
+
+    function invoke_v(index) {
+      var sp = stackSave();
+      try {
+        getWasmTableEntry(index)();
+      } catch (e) {
+        stackRestore(sp);
+        if (e !== e + 0) throw e;
+        _setThrew(1, 0);
+      }
+    }
+
+    function invoke_viiii(index, a1, a2, a3, a4) {
+      var sp = stackSave();
+      try {
+        getWasmTableEntry(index)(a1, a2, a3, a4);
       } catch (e) {
         stackRestore(sp);
         if (e !== e + 0) throw e;

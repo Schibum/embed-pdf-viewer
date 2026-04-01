@@ -105,6 +105,7 @@ import {
   PdfTextAlignment,
   PdfVerticalAlignment,
   AnnotationCreateContext,
+  getImageMetadata,
   isUuidV4,
   uuidV4,
   PdfAnnotationName,
@@ -4120,9 +4121,48 @@ export class PdfiumNative implements IPdfiumExecutor {
       return false;
     }
 
-    if (context && 'appearance' in context && context.appearance) {
-      if (!this.setAppearanceFromPdf(docPtr, annotationPtr, context.appearance)) {
-        return false;
+    if (context && 'data' in context && context.data) {
+      const meta = getImageMetadata(context.data);
+      if (!meta) return false;
+
+      if (meta.mimeType === 'application/pdf') {
+        if (!this.setAppearanceFromPdf(docPtr, annotationPtr, context.data)) {
+          return false;
+        }
+      } else {
+        for (let i = this.pdfiumModule.FPDFAnnot_GetObjectCount(annotationPtr) - 1; i >= 0; i--) {
+          this.pdfiumModule.FPDFAnnot_RemoveObject(annotationPtr, i);
+        }
+
+        if (meta.mimeType === 'image/png') {
+          if (
+            !this.addPngImageObject(
+              doc,
+              docPtr,
+              page,
+              pagePtr,
+              annotationPtr,
+              annotation.rect,
+              context.data,
+            )
+          ) {
+            return false;
+          }
+        } else if (meta.mimeType === 'image/jpeg') {
+          if (
+            !this.addJpegImageObject(
+              doc,
+              docPtr,
+              page,
+              pagePtr,
+              annotationPtr,
+              annotation.rect,
+              context.data,
+            )
+          ) {
+            return false;
+          }
+        }
       }
     } else if (context && 'imageData' in context && context.imageData) {
       for (let i = this.pdfiumModule.FPDFAnnot_GetObjectCount(annotationPtr) - 1; i >= 0; i--) {
@@ -4140,6 +4180,11 @@ export class PdfiumNative implements IPdfiumExecutor {
           context.imageData,
         )
       ) {
+        return false;
+      }
+    } else if (context && 'appearance' in context && context.appearance) {
+      /** @deprecated Use { data } instead */
+      if (!this.setAppearanceFromPdf(docPtr, annotationPtr, context.appearance)) {
         return false;
       }
     }
@@ -4282,6 +4327,150 @@ export class PdfiumNative implements IPdfiumExecutor {
 
     this.pdfiumModule.FPDFBitmap_Destroy(bitmapPtr);
     this.memoryManager.free(bitmapBufferPtr);
+
+    return true;
+  }
+
+  /**
+   * Add PNG image object to annotation using native PNG import.
+   * Passes raw PNG bytes to PDFium which decodes and stores them with
+   * FlateDecode + PNG prediction filters for optimal compression.
+   *
+   * @private
+   */
+  addPngImageObject(
+    doc: PdfDocumentObject,
+    docPtr: number,
+    page: PdfPageObject,
+    pagePtr: number,
+    annotationPtr: number,
+    rect: Rect,
+    pngData: ArrayBuffer,
+  ) {
+    const imageObjectPtr = this.pdfiumModule.FPDFPageObj_NewImageObj(docPtr);
+    if (!imageObjectPtr) {
+      return false;
+    }
+
+    const pngBytes = new Uint8Array(pngData);
+    const pngPtr = this.memoryManager.malloc(pngBytes.byteLength);
+    if (!pngPtr) {
+      this.pdfiumModule.FPDFPageObj_Destroy(imageObjectPtr);
+      return false;
+    }
+    this.pdfiumModule.pdfium.HEAPU8.set(pngBytes, pngPtr);
+
+    if (
+      !this.pdfiumModule.EPDFImageObj_SetPng(
+        pagePtr,
+        0,
+        imageObjectPtr,
+        pngPtr,
+        pngBytes.byteLength,
+      )
+    ) {
+      this.memoryManager.free(pngPtr);
+      this.pdfiumModule.FPDFPageObj_Destroy(imageObjectPtr);
+      return false;
+    }
+    this.memoryManager.free(pngPtr);
+
+    const matrixPtr = this.memoryManager.malloc(6 * 4);
+    this.pdfiumModule.pdfium.setValue(matrixPtr, rect.size.width, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 4, 0, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 8, 0, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 12, rect.size.height, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 16, 0, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 20, 0, 'float');
+    if (!this.pdfiumModule.FPDFPageObj_SetMatrix(imageObjectPtr, matrixPtr)) {
+      this.memoryManager.free(matrixPtr);
+      this.pdfiumModule.FPDFPageObj_Destroy(imageObjectPtr);
+      return false;
+    }
+    this.memoryManager.free(matrixPtr);
+
+    const pagePos = this.convertDevicePointToPagePoint(doc, page, {
+      x: rect.origin.x,
+      y: rect.origin.y + rect.size.height,
+    });
+    this.pdfiumModule.FPDFPageObj_Transform(imageObjectPtr, 1, 0, 0, 1, pagePos.x, pagePos.y);
+
+    if (!this.pdfiumModule.FPDFAnnot_AppendObject(annotationPtr, imageObjectPtr)) {
+      this.pdfiumModule.FPDFPageObj_Destroy(imageObjectPtr);
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Add JPEG image object to annotation using native JPEG pass-through.
+   * Passes raw JPEG bytes to PDFium which embeds them as a DCTDecode
+   * stream — no decode/re-encode roundtrip.
+   *
+   * @private
+   */
+  addJpegImageObject(
+    doc: PdfDocumentObject,
+    docPtr: number,
+    page: PdfPageObject,
+    pagePtr: number,
+    annotationPtr: number,
+    rect: Rect,
+    jpegData: ArrayBuffer,
+  ) {
+    const imageObjectPtr = this.pdfiumModule.FPDFPageObj_NewImageObj(docPtr);
+    if (!imageObjectPtr) {
+      return false;
+    }
+
+    const jpegBytes = new Uint8Array(jpegData);
+    const jpegPtr = this.memoryManager.malloc(jpegBytes.byteLength);
+    if (!jpegPtr) {
+      this.pdfiumModule.FPDFPageObj_Destroy(imageObjectPtr);
+      return false;
+    }
+    this.pdfiumModule.pdfium.HEAPU8.set(jpegBytes, jpegPtr);
+
+    if (
+      !this.pdfiumModule.EPDFImageObj_SetJpeg(
+        pagePtr,
+        0,
+        imageObjectPtr,
+        jpegPtr,
+        jpegBytes.byteLength,
+      )
+    ) {
+      this.memoryManager.free(jpegPtr);
+      this.pdfiumModule.FPDFPageObj_Destroy(imageObjectPtr);
+      return false;
+    }
+    this.memoryManager.free(jpegPtr);
+
+    const matrixPtr = this.memoryManager.malloc(6 * 4);
+    this.pdfiumModule.pdfium.setValue(matrixPtr, rect.size.width, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 4, 0, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 8, 0, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 12, rect.size.height, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 16, 0, 'float');
+    this.pdfiumModule.pdfium.setValue(matrixPtr + 20, 0, 'float');
+    if (!this.pdfiumModule.FPDFPageObj_SetMatrix(imageObjectPtr, matrixPtr)) {
+      this.memoryManager.free(matrixPtr);
+      this.pdfiumModule.FPDFPageObj_Destroy(imageObjectPtr);
+      return false;
+    }
+    this.memoryManager.free(matrixPtr);
+
+    const pagePos = this.convertDevicePointToPagePoint(doc, page, {
+      x: rect.origin.x,
+      y: rect.origin.y + rect.size.height,
+    });
+    this.pdfiumModule.FPDFPageObj_Transform(imageObjectPtr, 1, 0, 0, 1, pagePos.x, pagePos.y);
+
+    if (!this.pdfiumModule.FPDFAnnot_AppendObject(annotationPtr, imageObjectPtr)) {
+      this.pdfiumModule.FPDFPageObj_Destroy(imageObjectPtr);
+      return false;
+    }
 
     return true;
   }

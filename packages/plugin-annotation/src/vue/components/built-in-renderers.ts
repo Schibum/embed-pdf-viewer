@@ -27,6 +27,7 @@ import type {
   PolylinePreviewData,
   PolygonPreviewData,
   FreeTextPreviewData,
+  StampPreviewData,
 } from '@embedpdf/plugin-annotation';
 import type { BoxedAnnotationRenderer } from '../context';
 import { createRenderer } from '../context/renderer-registry';
@@ -39,6 +40,7 @@ import LinePreview from './annotations/line-preview.vue';
 import PolylinePreview from './annotations/polyline-preview.vue';
 import PolygonPreview from './annotations/polygon-preview.vue';
 import FreeTextPreview from './annotations/free-text-preview.vue';
+import StampPreview from './annotations/stamp-preview.vue';
 
 import InkRenderer from './renderers/ink-renderer.vue';
 import SquareRenderer from './renderers/square-renderer.vue';
@@ -187,10 +189,12 @@ export const builtInRenderers: BoxedAnnotationRenderer[] = [
     onDoubleClick: (id, setEditingId) => setEditingId(id),
   }),
 
-  createRenderer<PdfStampAnnoObject>({
+  createRenderer<PdfStampAnnoObject, StampPreviewData>({
     id: 'stamp',
     matches: (a): a is PdfStampAnnoObject => a.type === PdfAnnotationSubtype.STAMP,
+    matchesPreview: (p) => p.type === PdfAnnotationSubtype.STAMP,
     component: StampRenderer,
+    renderPreview: StampPreview,
     useAppearanceStream: false,
     interactionDefaults: { isDraggable: true, isResizable: true, isRotatable: true },
   }),

@@ -121,9 +121,9 @@ export const annotationConfigs: Record<SidebarSubtype, AnnotationConfig> = {
   [PdfAnnotationSubtype.STAMP]: {
     label: 'Stamp',
     labelKey: 'annotation.stamp',
-    icon: 'deviceFloppy',
+    icon: 'rubberStamp',
     iconProps: () => ({
-      primaryColor: '#dc2626',
+      primaryColor: '#000000',
     }),
   },
   [PdfAnnotationSubtype.CARET]: {

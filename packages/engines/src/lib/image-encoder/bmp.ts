@@ -37,5 +37,8 @@ export function rgbaToBmpBlob(rgba: Uint8ClampedArray, width: number, height: nu
     0, 0, 0xFF, 0,                  // B channel mask
   ]);
 
-  return new Blob([header, rgba], { type: 'image/bmp' });
+  return new Blob(
+    [header, new Uint8Array(rgba.buffer as ArrayBuffer, rgba.byteOffset, rgba.byteLength)],
+    { type: 'image/bmp' },
+  );
 }

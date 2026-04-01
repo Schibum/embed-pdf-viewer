@@ -77,7 +77,7 @@
   const annotationCapability = useAnnotationCapability();
   const selectionCapability = useSelectionCapability();
   const pointerHandlers = usePointerHandlers({
-    documentId: annotationsProps.documentId,
+    documentId: () => annotationsProps.documentId,
     pageIndex: annotationsProps.pageIndex,
   });
 

@@ -721,8 +721,15 @@ export const PdfAnnotationSubtypeName: Record<PdfAnnotationSubtype, string> = {
  */
 export interface AnnotationContextMap {
   [PdfAnnotationSubtype.STAMP]:
-    | { imageData: ImageData; appearance?: never }
-    | { imageData?: never; appearance: ArrayBuffer };
+    | {
+        data: ArrayBuffer;
+        mimeType?: import('./image-metadata').ImageMimeType;
+        imageData?: never;
+        appearance?: never;
+      }
+    | { imageData: ImageData; data?: never; mimeType?: never; appearance?: never }
+    /** @deprecated Use `{ data: ArrayBuffer }` instead. */
+    | { appearance: ArrayBuffer; imageData?: never; data?: never; mimeType?: never };
 }
 
 /**
