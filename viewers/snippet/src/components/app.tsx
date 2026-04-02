@@ -105,6 +105,11 @@ import {
 } from '@embedpdf/plugin-attachment/preact';
 import { FormPluginPackage, FormPluginConfig } from '@embedpdf/plugin-form/preact';
 import { StampPluginPackage, StampPluginConfig } from '@embedpdf/plugin-stamp/preact';
+import {
+  SignaturePluginPackage,
+  SignaturePluginConfig,
+  SignatureMode,
+} from '@embedpdf/plugin-signature/preact';
 
 import { SchemaToolbar } from '@/ui/schema-toolbar';
 import { SchemaSidebar } from '@/ui/schema-sidebar';
@@ -122,6 +127,7 @@ import { RedactionSidebar } from '@/components/redaction-sidebar';
 import { WidgetEditSidebar } from '@/components/widget-edit-sidebar';
 import { RubberStampSidebar } from '@/components/rubber-stamp-sidebar';
 import { SignatureSidebar } from '@/components/signature-sidebar';
+import { SignatureCreateModal } from '@/components/signature-create-modal';
 import { SchemaSelectionMenu } from '@/ui/schema-selection-menu';
 import { SchemaOverlay } from '@/ui/schema-overlay';
 import { PrintModal } from '@/components/print-modal';
@@ -285,6 +291,10 @@ export interface PDFViewerConfig {
   /** Stamp options (libraries) */
   stamp?: Partial<StampPluginConfig>;
 
+  // Signatures
+  /** Signature options (mode, default size) */
+  signature?: Partial<SignaturePluginConfig>;
+
   // Infrastructure
   /** History/undo options */
   history?: Partial<HistoryPluginConfig>;
@@ -345,6 +355,9 @@ const DEFAULTS = {
 
   // Stamps
   stamp: {} as StampPluginConfig,
+
+  // Signatures
+  signature: { mode: SignatureMode.SignatureAndInitials } as SignaturePluginConfig,
 
   // Infrastructure
   history: {} as HistoryPluginConfig,
@@ -508,6 +521,7 @@ export function PDFViewer({ config, onRegistryReady }: PDFViewerProps) {
       'widget-edit-sidebar': WidgetEditSidebar,
       'print-modal': PrintModal,
       'link-modal': LinkModal,
+      'signature-create-modal': SignatureCreateModal,
       'protect-modal': ProtectModal,
       'unlock-owner-overlay': UnlockOwnerOverlay,
       'page-controls': PageControls,
@@ -646,6 +660,12 @@ export function PDFViewer({ config, onRegistryReady }: PDFViewerProps) {
 
           // Stamps
           createPluginRegistration(StampPluginPackage, { ...DEFAULTS.stamp, ...config.stamp }),
+
+          // Signatures
+          createPluginRegistration(SignaturePluginPackage, {
+            ...DEFAULTS.signature,
+            ...config.signature,
+          }),
         ]}
       >
         {({ pluginsReady, activeDocumentId }) => (

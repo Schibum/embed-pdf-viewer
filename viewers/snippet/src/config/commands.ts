@@ -1127,6 +1127,18 @@ export const commands: Record<string, Command<State>> = {
     },
   },
 
+  'signature:create': {
+    id: 'signature:create',
+    label: 'Create Signature',
+    icon: 'signature',
+    categories: ['insert', 'insert-signature'],
+    action: ({ registry, documentId }) => {
+      const ui = registry.getPlugin<UIPlugin>(UI_PLUGIN_ID)?.provides();
+      if (!ui) return;
+      ui.forDocument(documentId).openModal('signature-create-modal');
+    },
+  },
+
   'insert:add-attachment': {
     id: 'insert:add-attachment',
     label: 'Attachment',
