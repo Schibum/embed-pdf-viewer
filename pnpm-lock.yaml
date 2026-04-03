@@ -2690,6 +2690,9 @@ importers:
       '@embedpdf/plugin-selection':
         specifier: workspace:*
         version: link:../packages/plugin-selection
+      '@embedpdf/plugin-signature':
+        specifier: workspace:*
+        version: link:../packages/plugin-signature
       '@embedpdf/plugin-spread':
         specifier: workspace:*
         version: link:../packages/plugin-spread
