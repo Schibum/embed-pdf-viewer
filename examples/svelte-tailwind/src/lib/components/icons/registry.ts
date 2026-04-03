@@ -74,6 +74,7 @@ import FormSelectIcon from './FormSelectIcon.svelte';
 import FormListboxIcon from './FormListboxIcon.svelte';
 import WidgetEditIcon from './WidgetEditIcon.svelte';
 import RubberStampIcon from './RubberStampIcon.svelte';
+import SignatureIcon from './SignatureIcon.svelte';
 
 // Define the standard Prop type for your icons for consistency
 export interface IconProps extends SVGAttributes<SVGSVGElement> {
@@ -154,6 +155,7 @@ export const iconRegistry = {
   'form-listbox': FormListboxIcon,
   'widget-edit': WidgetEditIcon,
   'rubber-stamp': RubberStampIcon,
+  signature: SignatureIcon,
 } as const;
 
 // Extract valid keys for Type Safety

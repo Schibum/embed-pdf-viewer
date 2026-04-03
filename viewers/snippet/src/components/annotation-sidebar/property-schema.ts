@@ -162,6 +162,7 @@ export const TOOL_PROPERTIES: Record<string, string[]> = {
   // Ink (distinct from inkHighlighter which adds blendMode)
   ink: ['strokeColor', 'opacity', 'strokeWidth', 'rotation'],
   inkHighlighter: ['strokeColor', 'opacity', 'strokeWidth', 'blendMode', 'rotation'],
+  signatureInk: ['strokeColor', 'opacity', 'strokeWidth', 'rotation'],
 
   // Shapes
   circle: ['color', 'opacity', 'strokeColor', 'strokeStyleWithCloudy', 'strokeWidth', 'rotation'],

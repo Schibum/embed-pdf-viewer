@@ -252,6 +252,18 @@ export {
   type InteractionManagerCapability,
   type InteractionManagerScope,
 } from '@embedpdf/plugin-interaction-manager/preact';
+export {
+  SignaturePlugin,
+  SignatureMode,
+  type SignaturePluginConfig,
+  type SignatureCapability,
+  type SignatureEntry,
+  type SignatureFieldDefinition,
+  type SignatureFieldKind,
+  serializeEntries,
+  deserializeEntries,
+  type SerializedSignatureEntry,
+} from '@embedpdf/plugin-signature/preact';
 
 // Re-export from models
 export { Rotation, ignore, PdfAnnotationSubtype, type PdfStampAnnoObject } from '@embedpdf/models';

@@ -69,3 +69,4 @@ export { default as FormSelectIcon } from './FormSelectIcon.vue';
 export { default as FormListboxIcon } from './FormListboxIcon.vue';
 export { default as WidgetEditIcon } from './WidgetEditIcon.vue';
 export { default as RubberStampIcon } from './RubberStampIcon.vue';
+export { default as SignatureIcon } from './SignatureIcon.vue';

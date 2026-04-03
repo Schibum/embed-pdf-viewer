@@ -44,6 +44,7 @@ export { default as PolylineIcon } from './PolylineIcon.svelte';
 export { default as ItalicIcon } from './ItalicIcon.svelte';
 export { default as SquaresIcon } from './SquaresIcon.svelte';
 export { default as TrashIcon } from './TrashIcon.svelte';
+export { default as SignatureIcon } from './SignatureIcon.svelte';
 export { default as UndoIcon } from './UndoIcon.svelte';
 export { default as RedoIcon } from './RedoIcon.svelte';
 export { default as RedactTextIcon } from './RedactTextIcon.svelte';

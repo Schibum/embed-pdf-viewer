@@ -1109,7 +1109,7 @@ export const commands: Record<string, Command<State>> = {
 
   'insert:add-signature': {
     id: 'insert:add-signature',
-    label: 'Signature',
+    labelKey: 'signature.title',
     icon: 'signature',
     categories: ['insert', 'insert-signature'],
     action: ({ registry, documentId }) => {
@@ -1124,6 +1124,21 @@ export const commands: Record<string, Command<State>> = {
     },
     active: ({ state, documentId }) => {
       return isSidebarOpen(state.plugins, documentId, 'left', 'main', 'signature-panel');
+    },
+    disabled: ({ state, documentId }) => {
+      return lacksPermission(state, documentId, PdfPermissionFlag.ModifyAnnotations);
+    },
+  },
+
+  'signature:create': {
+    id: 'signature:create',
+    labelKey: 'signature.create.title',
+    icon: 'signature',
+    categories: ['insert', 'insert-signature'],
+    action: ({ registry, documentId }) => {
+      const ui = registry.getPlugin<UIPlugin>(UI_PLUGIN_ID)?.provides();
+      if (!ui) return;
+      ui.forDocument(documentId).openModal('signature-create-modal');
     },
   },
 

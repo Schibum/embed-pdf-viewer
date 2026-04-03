@@ -449,6 +449,12 @@ export const viewerUISchema: UISchema = {
             },
             {
               type: 'command-button',
+              id: 'add-signature',
+              commandId: 'insert:add-signature',
+              variant: 'icon',
+            },
+            {
+              type: 'command-button',
               id: 'add-image',
               commandId: 'insert:add-image',
               variant: 'icon',
@@ -976,6 +982,16 @@ export const viewerUISchema: UISchema = {
       closeOnClickOutside: true,
       closeOnEscape: true,
     },
+    'signature-create-modal': {
+      id: 'signature-create-modal',
+      content: {
+        type: 'component',
+        componentId: 'signature-create-modal',
+      },
+      maxWidth: '40rem',
+      closeOnClickOutside: true,
+      closeOnEscape: true,
+    },
   },
   // ─────────────────────────────────────────────────────────
   // Panels (Sidebars)
@@ -1054,6 +1070,22 @@ export const viewerUISchema: UISchema = {
         componentId: 'rubber-stamp-sidebar',
       },
       width: '250px',
+      collapsible: true,
+      defaultOpen: false,
+    },
+
+    'signature-panel': {
+      id: 'signature-panel',
+      position: {
+        placement: 'left',
+        slot: 'main',
+        order: 0,
+      },
+      content: {
+        type: 'component',
+        componentId: 'signature-sidebar',
+      },
+      width: '280px',
       collapsible: true,
       defaultOpen: false,
     },

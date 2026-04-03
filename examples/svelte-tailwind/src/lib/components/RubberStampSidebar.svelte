@@ -22,16 +22,14 @@
 
   const { translate } = useTranslations(() => documentId);
   const stampCapability = useStampCapability();
-  const { libraries } = $derived(useStampLibraries());
+  const stampLibraries = useStampLibraries();
   let internalLibraryId = $state<string | null>(null);
   const selectedLibraryId = $derived(internalLibraryId ?? propLibraryId ?? 'all');
-  const { stamps } = $derived(
-    useStampsByLibrary(
-      () => selectedLibraryId,
-      () => 'sidebar',
-    ),
+  const stampsByLibrary = useStampsByLibrary(
+    () => selectedLibraryId,
+    () => 'sidebar',
   );
-  const { activeStamp } = $derived(useActiveStamp(() => documentId));
+  const activeStampState = useActiveStamp(() => documentId);
 
   const handleStampClick = (libraryId: string, stamp: StampDefinition) => {
     if (!stampCapability.provides) return;
@@ -46,7 +44,7 @@
 
   const handleExport = () => {
     if (!stampCapability.provides) return;
-    const libraryIds = [...new Set(stamps.map((s) => s.library.id))];
+    const libraryIds = [...new Set(stampsByLibrary.stamps.map((s) => s.library.id))];
     for (const id of libraryIds) {
       stampCapability.provides.exportLibrary(id).wait((exported) => {
         const blob = new Blob([exported.pdf], { type: 'application/pdf' });
@@ -70,7 +68,7 @@
       <h2 class="text-md font-medium text-gray-900">
         {translate('stamp.title', { fallback: 'Rubber Stamps' })}
       </h2>
-      {#if stamps.length > 0}
+      {#if stampsByLibrary.stamps.length > 0}
         <button
           class="rounded p-1 text-gray-400 transition-colors hover:text-gray-600"
           onclick={handleExport}
@@ -81,7 +79,7 @@
       {/if}
     </div>
 
-    {#if libraries.length > 1}
+    {#if stampLibraries.libraries.length > 1}
       <select
         class="mt-4 w-full rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         value={selectedLibraryId}
@@ -90,7 +88,7 @@
         <option value="all">
           {translate('stamp.allStamps', { fallback: 'All Stamps' })}
         </option>
-        {#each libraries as lib (lib.id)}
+        {#each stampLibraries.libraries as lib (lib.id)}
           <option value={lib.id}>
             {resolveLibraryName(lib)}
           </option>
@@ -99,15 +97,16 @@
     {/if}
   </div>
 
-  {#if stamps.length > 0}
+  {#if stampsByLibrary.stamps.length > 0}
     <div class="flex-1 overflow-y-auto p-4">
       <div class="grid grid-cols-2 gap-3">
-        {#each stamps as { library, stamp } (`${library.id}-${stamp.id}`)}
+        {#each stampsByLibrary.stamps as { library, stamp } (`${library.id}-${stamp.id}`)}
           <!-- svelte-ignore a11y_click_events_have_key_events -->
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
-            class="group relative flex cursor-pointer items-center justify-center overflow-hidden rounded-md border transition-colors {activeStamp?.libraryId ===
-              library.id && activeStamp?.stamp.id === stamp.id
+            class="group relative flex cursor-pointer items-center justify-center overflow-hidden rounded-md border transition-colors {activeStampState
+              .activeStamp?.libraryId === library.id &&
+            activeStampState.activeStamp?.stamp.id === stamp.id
               ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500'
               : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'}"
             style="aspect-ratio: 1"

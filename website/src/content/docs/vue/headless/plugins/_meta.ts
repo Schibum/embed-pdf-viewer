@@ -13,6 +13,7 @@ export default {
   'plugin-rotate': 'Rotate',
   'plugin-print': 'Print',
   'plugin-export': 'Export',
+  'plugin-signature': 'Signature',
   'plugin-spread': 'Spread',
   'plugin-pan': 'Pan',
   'plugin-capture': 'Capture',

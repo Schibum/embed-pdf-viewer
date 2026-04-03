@@ -1716,6 +1716,38 @@ export const commands: Record<string, Command<State>> = {
     },
   },
 
+  'insert:add-signature': {
+    id: 'insert:add-signature',
+    labelKey: 'signature.title',
+    icon: 'Signature',
+    categories: ['insert'],
+    action: ({ registry, documentId }) => {
+      const uiPlugin = registry.getPlugin<UIPlugin>(UI_PLUGIN_ID);
+      if (!uiPlugin || !uiPlugin.provides) return;
+
+      const uiCapability = uiPlugin.provides();
+      if (!uiCapability) return;
+
+      const scope = uiCapability.forDocument(documentId);
+      scope.toggleSidebar('left', 'main', 'signature-panel');
+    },
+    active: ({ state, documentId }) => {
+      return isSidebarOpen(state.plugins, documentId, 'left', 'main', 'signature-panel');
+    },
+  },
+
+  'signature:create': {
+    id: 'signature:create',
+    labelKey: 'signature.create.title',
+    icon: 'Signature',
+    categories: ['insert'],
+    action: ({ registry, documentId }) => {
+      const ui = registry.getPlugin<UIPlugin>(UI_PLUGIN_ID)?.provides();
+      if (!ui) return;
+      ui.forDocument(documentId).openModal('signature-create-modal');
+    },
+  },
+
   'insert:add-image': {
     id: 'insert:add-image',
     labelKey: 'insert.image',

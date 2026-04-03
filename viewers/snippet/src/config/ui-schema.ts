@@ -788,7 +788,6 @@ export const viewerUISchema: UISchema = {
               variant: 'icon',
               categories: ['insert', 'insert-rubber-stamp'],
             },
-            /*
             {
               type: 'command-button',
               id: 'add-signature',
@@ -796,6 +795,7 @@ export const viewerUISchema: UISchema = {
               variant: 'icon',
               categories: ['insert', 'insert-signature'],
             },
+            /*
             {
               type: 'command-button',
               id: 'add-attachment',
@@ -1690,6 +1690,17 @@ export const viewerUISchema: UISchema = {
       maxWidth: '28rem',
       closeOnClickOutside: true,
       closeOnEscape: true,
+    },
+    'signature-create-modal': {
+      id: 'signature-create-modal',
+      content: {
+        type: 'component',
+        componentId: 'signature-create-modal',
+      },
+      maxWidth: '32rem',
+      closeOnClickOutside: false,
+      closeOnEscape: true,
+      categories: ['insert', 'insert-signature'],
     },
   },
 
