@@ -27,6 +27,7 @@
       "@embedpdf/plugin-scroll",
       "@embedpdf/plugin-search",
       "@embedpdf/plugin-selection",
+      "@embedpdf/plugin-signature",
       "@embedpdf/plugin-spread",
       "@embedpdf/plugin-stamp",
       "@embedpdf/plugin-thumbnail",
