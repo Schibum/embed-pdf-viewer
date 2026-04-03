@@ -51,14 +51,12 @@ export const signatureStampHandlerFactory: HandlerFactory<
           size: { width, height },
         };
 
-        const subject = ctx.kind === SignatureFieldKind.Initials ? 'Initials' : 'Signature';
-
         let anno: PdfStampAnnoObject = {
           ...tool.defaults,
           rect,
           type: PdfAnnotationSubtype.STAMP,
           name: PdfAnnotationName.Custom,
-          subject,
+          subject: 'Signature',
           flags: tool.defaults.flags ?? ['print'],
           pageIndex: context.pageIndex,
           id: uuidV4(),

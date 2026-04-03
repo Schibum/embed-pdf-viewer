@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from '@framework';
-import { SignatureFieldDefinition, SignatureCreationType } from '@embedpdf/plugin-signature';
+import { SignatureInkFieldDefinition, SignatureCreationType } from '@embedpdf/plugin-signature';
 import { cropCanvas } from './crop-canvas';
 
 export interface SignatureDrawPadHandle {
@@ -7,7 +7,7 @@ export interface SignatureDrawPadHandle {
 }
 
 export interface SignatureDrawPadProps {
-  onResult: (result: SignatureFieldDefinition | null) => void;
+  onResult: (result: SignatureInkFieldDefinition | null) => void;
   padRef?: (handle: SignatureDrawPadHandle | null) => void;
   strokeColor?: string;
   strokeWidth?: number;
@@ -95,7 +95,7 @@ export function SignatureDrawPad({
       const croppedWidth = Math.round(cropped.bounds.width / dpr);
       const croppedHeight = Math.round(cropped.bounds.height / dpr);
 
-      const result: SignatureFieldDefinition = {
+      const result: SignatureInkFieldDefinition = {
         creationType: SignatureCreationType.Draw,
         inkData: {
           inkList: currentStrokes

@@ -237,7 +237,15 @@ export function SignatureCreateModal({
                   })}
                 />
               )}
-              {activeTab === 'upload' && <UploadZone upload={sigUpload} height={padHeight} />}
+              {activeTab === 'upload' && (
+                <UploadZone
+                  upload={sigUpload}
+                  height={padHeight}
+                  placeholder={translate('signature.create.uploadPlaceholder', {
+                    fallback: 'Click or drag an image here',
+                  })}
+                />
+              )}
             </div>
           </div>
 
@@ -285,7 +293,15 @@ export function SignatureCreateModal({
                     })}
                   />
                 )}
-                {activeTab === 'upload' && <UploadZone upload={iniUpload} height={padHeight} />}
+                {activeTab === 'upload' && (
+                  <UploadZone
+                    upload={iniUpload}
+                    height={padHeight}
+                    placeholder={translate('signature.create.uploadPlaceholder', {
+                      fallback: 'Click or drag an image here',
+                    })}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -362,9 +378,11 @@ export function SignatureCreateModal({
 function UploadZone({
   upload,
   height,
+  placeholder,
 }: {
   upload: ReturnType<typeof useSignatureUpload>;
   height: number;
+  placeholder: string;
 }) {
   return (
     <Fragment>
@@ -391,7 +409,7 @@ function UploadZone({
             style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }}
           />
         ) : (
-          <span class="text-fg-muted px-4 text-center text-xs">Click or drag an image here</span>
+          <span class="text-fg-muted px-4 text-center text-xs">{placeholder}</span>
         )}
       </div>
     </Fragment>

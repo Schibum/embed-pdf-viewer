@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from '@framework';
-import { SignatureFieldDefinition, SignatureCreationType } from '@embedpdf/plugin-signature';
+import { SignatureStampFieldDefinition, SignatureCreationType } from '@embedpdf/plugin-signature';
 import { cropCanvas } from './crop-canvas';
 
 export interface SignatureTypePadHandle {
@@ -7,7 +7,7 @@ export interface SignatureTypePadHandle {
 }
 
 export interface SignatureTypePadProps {
-  onResult: (result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null) => void;
+  onResult: (result: (SignatureStampFieldDefinition & { imageData?: ArrayBuffer }) | null) => void;
   padRef?: (handle: SignatureTypePadHandle | null) => void;
   fontFamily?: string;
   fontSize?: number;
@@ -72,7 +72,7 @@ export function SignatureTypePad({
       cropped.canvas.toBlob((blob) => {
         if (!blob) return;
         blob.arrayBuffer().then((imageData) => {
-          const result: SignatureFieldDefinition & { imageData?: ArrayBuffer } = {
+          const result: SignatureStampFieldDefinition & { imageData?: ArrayBuffer } = {
             creationType: SignatureCreationType.Type,
             label: currentText,
             imageMimeType: 'image/png',

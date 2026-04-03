@@ -1,9 +1,9 @@
 import { useRef, useState, useCallback } from '@framework';
-import { SignatureFieldDefinition, SignatureCreationType } from '@embedpdf/plugin-signature';
+import { SignatureStampFieldDefinition, SignatureCreationType } from '@embedpdf/plugin-signature';
 
 export interface UseSignatureUploadOptions {
   accept?: string;
-  onResult: (result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null) => void;
+  onResult: (result: (SignatureStampFieldDefinition & { imageData?: ArrayBuffer }) | null) => void;
 }
 
 export interface UseSignatureUploadReturn {
@@ -51,7 +51,7 @@ export function useSignatureUpload({
             ctx.drawImage(img, 0, 0);
           }
 
-          const result: SignatureFieldDefinition & { imageData?: ArrayBuffer } = {
+          const result: SignatureStampFieldDefinition & { imageData?: ArrayBuffer } = {
             creationType: SignatureCreationType.Upload,
             imageMimeType: file.type,
             imageSize: { width: img.width, height: img.height },

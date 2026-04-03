@@ -24,7 +24,7 @@ function translateAndScaleInk(
     })),
   }));
 
-  return { inkList, strokeWidth: inkData.strokeWidth * scale };
+  return { inkList, strokeWidth: Math.round(inkData.strokeWidth * scale * 10) / 10 };
 }
 
 export const signatureInkHandlerFactory: HandlerFactory<
@@ -100,8 +100,6 @@ export const signatureInkHandlerFactory: HandlerFactory<
           strokeWidth / 2,
         );
 
-        const subject = ctx.kind === SignatureFieldKind.Initials ? 'Initials' : 'Signature';
-
         let anno: PdfInkAnnoObject = {
           ...tool.defaults,
           inkList,
@@ -110,14 +108,25 @@ export const signatureInkHandlerFactory: HandlerFactory<
           strokeColor: ctx.inkData.strokeColor,
           opacity: 1,
           type: PdfAnnotationSubtype.INK,
-          subject,
+          subject: 'Signature',
           flags: tool.defaults.flags ?? ['print'],
           pageIndex: context.pageIndex,
           id: uuidV4(),
           created: new Date(),
         };
 
+        const unclamped = anno.rect;
         anno = clampAnnotationToPage(anno, pageSize);
+        const dx = anno.rect.origin.x - unclamped.origin.x;
+        const dy = anno.rect.origin.y - unclamped.origin.y;
+        if (dx !== 0 || dy !== 0) {
+          anno = {
+            ...anno,
+            inkList: anno.inkList.map((s) => ({
+              points: s.points.map((p) => ({ x: p.x + dx, y: p.y + dy })),
+            })),
+          };
+        }
 
         onCommit(anno);
         onPreview(null);

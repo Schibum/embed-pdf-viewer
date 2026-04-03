@@ -31,14 +31,23 @@ export interface SignatureInkData {
   size: { width: number; height: number };
 }
 
-export interface SignatureFieldDefinition {
-  creationType: SignatureCreationType;
+interface SignatureFieldBase {
   label?: string;
-  inkData?: SignatureInkData;
-  imageMimeType?: string;
-  imageSize?: { width: number; height: number };
   previewDataUrl: string;
 }
+
+export interface SignatureInkFieldDefinition extends SignatureFieldBase {
+  creationType: SignatureCreationType.Draw;
+  inkData: SignatureInkData;
+}
+
+export interface SignatureStampFieldDefinition extends SignatureFieldBase {
+  creationType: SignatureCreationType.Type | SignatureCreationType.Upload;
+  imageMimeType?: string;
+  imageSize?: { width: number; height: number };
+}
+
+export type SignatureFieldDefinition = SignatureInkFieldDefinition | SignatureStampFieldDefinition;
 
 export interface SignatureEntry {
   id: string;
@@ -54,9 +63,9 @@ export interface ExportableSignatureEntry {
   initials?: ExportableSignatureFieldDefinition;
 }
 
-export interface ExportableSignatureFieldDefinition extends SignatureFieldDefinition {
+export type ExportableSignatureFieldDefinition = SignatureFieldDefinition & {
   imageData?: ArrayBuffer;
-}
+};
 
 // ---------------------------------------------------------------------------
 // Plugin config

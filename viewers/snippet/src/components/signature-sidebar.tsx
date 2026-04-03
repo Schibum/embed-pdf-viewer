@@ -68,7 +68,7 @@ export function SignatureSidebar({ documentId }: SignatureSidebarProps) {
           class="bg-accent hover:bg-accent-hover text-fg-on-accent mt-3 w-full rounded-md px-3 py-2 text-sm font-medium transition-colors"
           onClick={handleCreate}
         >
-          {translate('signature.createNew', {
+          {translate(showInitials ? 'signature.createNewWithInitials' : 'signature.createNew', {
             fallback: showInitials ? 'Create Signature & Initials' : 'Create New Signature',
           })}
         </button>
@@ -80,23 +80,40 @@ export function SignatureSidebar({ documentId }: SignatureSidebarProps) {
             {entries.map((entry: SignatureEntry) => (
               <div
                 key={entry.id}
-                class="border-border-subtle bg-bg-surface group relative flex flex-col gap-3 rounded-lg border p-4 shadow-sm transition-shadow hover:shadow-md"
+                class="border-border-subtle bg-bg-surface hover:border-fg-muted/30 flex flex-col gap-2 rounded-lg border p-3 shadow-sm transition-all hover:shadow-md"
               >
-                <button
-                  class="border-border-default bg-bg-surface text-fg-muted hover:text-fg-primary absolute right-2 top-2 flex rounded-full border p-1 opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
-                  onClick={(e: Event) => handleRemove(e, entry.id)}
-                  title={translate('signature.remove', { fallback: 'Remove signature' })}
-                >
-                  <Icon icon="x" className="h-3.5 w-3.5" />
-                </button>
+                <div class="flex items-start justify-between">
+                  {/* Title area */}
+                  <div class="flex flex-1 items-center gap-2 pl-0.5 pt-0.5">
+                    <span class="text-fg-muted text-[10px] font-semibold uppercase tracking-widest">
+                      {translate('signature.placeSignature', { fallback: 'Signature' })}
+                    </span>
+                    {showInitials && entry.initials && (
+                      <span class="text-border-default text-[10px]">•</span>
+                    )}
+                    {showInitials && entry.initials && (
+                      <span class="text-fg-muted text-[10px] font-semibold uppercase tracking-widest">
+                        {translate('signature.placeInitials', { fallback: 'Initials' })}
+                      </span>
+                    )}
+                  </div>
 
-                {/* Signature field */}
-                <div class="flex flex-col gap-1.5">
-                  <span class="text-fg-muted text-xs font-medium uppercase tracking-wider">
-                    {translate('signature.placeSignature', { fallback: 'Signature' })}
-                  </span>
+                  {/* Action area */}
+                  <button
+                    class="text-fg-muted hover:text-fg-danger hover:bg-danger/10 -mr-1 -mt-1 flex rounded p-1.5 transition-colors"
+                    onClick={(e: Event) => handleRemove(e, entry.id)}
+                    title={translate('signature.remove', { fallback: 'Remove signature' })}
+                  >
+                    <Icon icon="trash" className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                <div class="flex gap-3">
+                  {/* Signature field */}
                   <div
-                    class={`flex h-20 cursor-pointer items-center justify-center rounded-md border border-dashed transition-all ${
+                    class={`flex h-16 cursor-pointer items-center justify-center rounded-md border border-dashed transition-all ${
+                      showInitials && entry.initials ? 'flex-[2]' : 'flex-1'
+                    } ${
                       isActive(entry.id, SignatureFieldKind.Signature)
                         ? 'border-accent bg-accent/5 ring-accent ring-2 ring-offset-1'
                         : 'border-border-default hover:border-fg-muted hover:bg-interactive-hover'
@@ -105,20 +122,15 @@ export function SignatureSidebar({ documentId }: SignatureSidebarProps) {
                   >
                     <img
                       src={entry.signature.previewDataUrl}
-                      class="h-14 max-w-[90%] object-contain"
+                      class="h-12 max-w-[90%] object-contain"
                       alt="Signature"
                     />
                   </div>
-                </div>
 
-                {/* Initials field */}
-                {showInitials && entry.initials && (
-                  <div class="border-border-subtle flex flex-col gap-1.5 border-t pt-3">
-                    <span class="text-fg-muted text-xs font-medium uppercase tracking-wider">
-                      {translate('signature.placeInitials', { fallback: 'Initials' })}
-                    </span>
+                  {/* Initials field */}
+                  {showInitials && entry.initials && (
                     <div
-                      class={`flex h-16 cursor-pointer items-center justify-center rounded-md border border-dashed transition-all ${
+                      class={`flex h-16 flex-1 cursor-pointer items-center justify-center rounded-md border border-dashed transition-all ${
                         isActive(entry.id, SignatureFieldKind.Initials)
                           ? 'border-accent bg-accent/5 ring-accent ring-2 ring-offset-1'
                           : 'border-border-default hover:border-fg-muted hover:bg-interactive-hover'
@@ -131,8 +143,8 @@ export function SignatureSidebar({ documentId }: SignatureSidebarProps) {
                         alt="Initials"
                       />
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ))}
           </div>

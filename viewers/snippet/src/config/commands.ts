@@ -1109,7 +1109,7 @@ export const commands: Record<string, Command<State>> = {
 
   'insert:add-signature': {
     id: 'insert:add-signature',
-    label: 'Signature',
+    labelKey: 'signature.title',
     icon: 'signature',
     categories: ['insert', 'insert-signature'],
     action: ({ registry, documentId }) => {
@@ -1129,7 +1129,7 @@ export const commands: Record<string, Command<State>> = {
 
   'signature:create': {
     id: 'signature:create',
-    label: 'Create Signature',
+    labelKey: 'signature.create.title',
     icon: 'signature',
     categories: ['insert', 'insert-signature'],
     action: ({ registry, documentId }) => {

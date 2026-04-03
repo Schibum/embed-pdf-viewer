@@ -184,11 +184,13 @@ export class SignaturePlugin extends BasePlugin<
 
     this.revokeGhostUrl();
 
-    if (field.creationType === SignatureCreationType.Draw && field.inkData) {
+    if (field.creationType === SignatureCreationType.Draw) {
+      if (entry.signature.creationType !== SignatureCreationType.Draw) return;
       const defaultSize = this.config.defaultSize ?? { width: 150, height: 50 };
+      const referenceSize = entry.signature.inkData.size;
       const scale = Math.min(
-        defaultSize.width / field.inkData.size.width,
-        defaultSize.height / field.inkData.size.height,
+        defaultSize.width / referenceSize.width,
+        defaultSize.height / referenceSize.height,
       );
       const targetSize = {
         width: field.inkData.size.width * scale,
@@ -213,9 +215,13 @@ export class SignaturePlugin extends BasePlugin<
       const defaultSize = this.config.defaultSize ?? { width: 150, height: 50 };
       let targetSize = defaultSize;
       if (field.imageSize) {
+        const referenceSize =
+          entry.signature.creationType !== SignatureCreationType.Draw
+            ? (entry.signature.imageSize ?? field.imageSize)
+            : field.imageSize;
         const scale = Math.min(
-          defaultSize.width / field.imageSize.width,
-          defaultSize.height / field.imageSize.height,
+          defaultSize.width / referenceSize.width,
+          defaultSize.height / referenceSize.height,
         );
         targetSize = {
           width: field.imageSize.width * scale,

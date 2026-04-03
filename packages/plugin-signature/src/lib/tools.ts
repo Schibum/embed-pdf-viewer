@@ -1,5 +1,5 @@
 import { PdfAnnotationSubtype } from '@embedpdf/models';
-import { defineAnnotationTool } from '@embedpdf/plugin-annotation';
+import { defineAnnotationTool, patching } from '@embedpdf/plugin-annotation';
 import { signatureStampHandlerFactory } from './handlers/signature-stamp.handler';
 import { signatureInkHandlerFactory } from './handlers/signature-ink.handler';
 
@@ -40,7 +40,7 @@ export const signatureInkTool = defineAnnotationTool({
   name: 'Signature Ink',
   labelKey: 'signature.ink',
   categories: ['annotation', 'signature', 'insert'],
-  matchScore: () => 0,
+  matchScore: (a) => (a.type === PdfAnnotationSubtype.INK && a.subject === 'Signature' ? 20 : 0),
   interaction: {
     exclusive: true,
     cursor: 'copy',
@@ -59,6 +59,7 @@ export const signatureInkTool = defineAnnotationTool({
     deactivateToolAfterCreate: true,
     selectAfterCreate: true,
   },
+  transform: patching.patchInk,
   pointerHandler: signatureInkHandlerFactory,
 });
 
