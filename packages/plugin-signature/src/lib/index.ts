@@ -23,3 +23,4 @@ export * from './manifest';
 export * from './actions';
 export * from './reducer';
 export { SIGNATURE_STAMP_TOOL_ID, SIGNATURE_INK_TOOL_ID } from './tools';
+export * from './serialization';

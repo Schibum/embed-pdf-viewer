@@ -7,7 +7,7 @@ export interface SignatureTypePadHandle {
 }
 
 export interface SignatureTypePadProps {
-  onResult: (result: (SignatureStampFieldDefinition & { imageData?: ArrayBuffer }) | null) => void;
+  onResult: (result: SignatureStampFieldDefinition | null) => void;
   padRef?: (handle: SignatureTypePadHandle | null) => void;
   fontFamily?: string;
   fontSize?: number;
@@ -72,7 +72,7 @@ export function SignatureTypePad({
       cropped.canvas.toBlob((blob) => {
         if (!blob) return;
         blob.arrayBuffer().then((imageData) => {
-          const result: SignatureStampFieldDefinition & { imageData?: ArrayBuffer } = {
+          const result: SignatureStampFieldDefinition = {
             creationType: SignatureCreationType.Type,
             label: currentText,
             imageMimeType: 'image/png',

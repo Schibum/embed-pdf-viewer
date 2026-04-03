@@ -8,7 +8,7 @@ import {
   SignatureTypePad,
   SignatureMode,
 } from '@embedpdf/plugin-signature/vue';
-import type { SignatureFieldDefinition, SignatureBinaryData } from '@embedpdf/plugin-signature/vue';
+import type { SignatureFieldDefinition } from '@embedpdf/plugin-signature/vue';
 import Dialog from './ui/Dialog.vue';
 
 const SIGNATURE_FONTS_URL =
@@ -26,7 +26,6 @@ type CreationTab = 'draw' | 'type' | 'upload';
 
 interface FieldResult {
   field: SignatureFieldDefinition;
-  imageData?: ArrayBuffer;
 }
 
 const FONTS = [
@@ -80,22 +79,12 @@ watch(
   },
 );
 
-function handleSigResult(result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null) {
-  if (!result) {
-    sigResult.value = null;
-    return;
-  }
-  const { imageData, ...field } = result;
-  sigResult.value = { field, imageData };
+function handleSigResult(result: SignatureFieldDefinition | null) {
+  sigResult.value = result ? { field: result } : null;
 }
 
-function handleIniResult(result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null) {
-  if (!result) {
-    iniResult.value = null;
-    return;
-  }
-  const { imageData, ...field } = result;
-  iniResult.value = { field, imageData };
+function handleIniResult(result: SignatureFieldDefinition | null) {
+  iniResult.value = result ? { field: result } : null;
 }
 
 const sigUpload = useSignatureUpload({ onResult: handleSigResult });
@@ -134,17 +123,10 @@ function handleTabChange(tab: CreationTab) {
 function handleSave() {
   if (!sigResult.value || !signatureCapability.value) return;
 
-  const binaryData: SignatureBinaryData = {};
-  if (sigResult.value.imageData) binaryData.signatureImageData = sigResult.value.imageData;
-  if (iniResult.value?.imageData) binaryData.initialsImageData = iniResult.value.imageData;
-
-  signatureCapability.value.addEntry(
-    {
-      signature: sigResult.value.field,
-      ...(iniResult.value && { initials: iniResult.value.field }),
-    },
-    binaryData,
-  );
+  signatureCapability.value.addEntry({
+    signature: sigResult.value.field,
+    ...(iniResult.value && { initials: iniResult.value.field }),
+  });
 
   resetState();
   props.onClose?.();

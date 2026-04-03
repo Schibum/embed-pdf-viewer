@@ -45,6 +45,7 @@ export interface SignatureStampFieldDefinition extends SignatureFieldBase {
   creationType: SignatureCreationType.Type | SignatureCreationType.Upload;
   imageMimeType?: string;
   imageSize?: { width: number; height: number };
+  imageData?: ArrayBuffer;
 }
 
 export type SignatureFieldDefinition = SignatureInkFieldDefinition | SignatureStampFieldDefinition;
@@ -55,17 +56,6 @@ export interface SignatureEntry {
   signature: SignatureFieldDefinition;
   initials?: SignatureFieldDefinition;
 }
-
-export interface ExportableSignatureEntry {
-  id: string;
-  createdAt: number;
-  signature: ExportableSignatureFieldDefinition;
-  initials?: ExportableSignatureFieldDefinition;
-}
-
-export type ExportableSignatureFieldDefinition = SignatureFieldDefinition & {
-  imageData?: ArrayBuffer;
-};
 
 // ---------------------------------------------------------------------------
 // Plugin config
@@ -135,19 +125,11 @@ export interface SignatureScope {
 export interface SignatureCapability {
   readonly mode: SignatureMode;
   getEntries(): SignatureEntry[];
-  addEntry(
-    entry: Omit<SignatureEntry, 'id' | 'createdAt'>,
-    binaryData?: SignatureBinaryData,
-  ): string;
+  addEntry(entry: Omit<SignatureEntry, 'id' | 'createdAt'>): string;
   removeEntry(id: string): void;
-  loadEntries(entries: SignatureEntry[], binaryData?: Map<string, ArrayBuffer>): void;
-  exportEntries(): ExportableSignatureEntry[];
+  loadEntries(entries: SignatureEntry[]): void;
+  exportEntries(): SignatureEntry[];
   onEntriesChange: EventHook<SignatureEntry[]>;
   forDocument(documentId: string): SignatureScope;
   onActivePlacementChange: EventHook<ActivePlacementChangeEvent>;
-}
-
-export interface SignatureBinaryData {
-  signatureImageData?: ArrayBuffer;
-  initialsImageData?: ArrayBuffer;
 }

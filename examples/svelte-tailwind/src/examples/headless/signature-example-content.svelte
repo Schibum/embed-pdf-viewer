@@ -27,25 +27,19 @@
   const activePlacementState = useActivePlacement(() => documentId);
 
   let creationMode = $state<'draw' | 'type' | null>(null);
-  let tempSignature = $state<(SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null>(null);
+  let tempSignature = $state<SignatureFieldDefinition | null>(null);
 
   const upload = useSignatureUpload({
     onResult: (result) => {
       if (result && signatureCapability.provides) {
-        signatureCapability.provides.addEntry(
-          { signature: result },
-          result.imageData ? { signatureImageData: result.imageData } : undefined,
-        );
+        signatureCapability.provides.addEntry({ signature: result });
       }
     },
   });
 
   const handleSaveTemp = () => {
     if (tempSignature && signatureCapability.provides) {
-      signatureCapability.provides.addEntry(
-        { signature: tempSignature },
-        tempSignature.imageData ? { signatureImageData: tempSignature.imageData } : undefined,
-      );
+      signatureCapability.provides.addEntry({ signature: tempSignature });
       creationMode = null;
       tempSignature = null;
     }

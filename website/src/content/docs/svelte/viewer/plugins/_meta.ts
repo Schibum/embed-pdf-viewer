@@ -11,4 +11,5 @@ export default {
   'plugin-print': 'Printing',
   'plugin-i18n': 'Internationalization',
   'plugin-export': 'Export & Save',
+  'plugin-signature': 'Signatures',
 }

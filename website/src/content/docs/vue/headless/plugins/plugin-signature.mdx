@@ -5,6 +5,7 @@ searchable: true
 ---
 
 import { Callout } from '@/components/callout'
+import { CodeExample } from '@/components/code-example'
 
 # Signature Plugin
 
@@ -156,10 +157,7 @@ const { provides: signatureCapability } = useSignatureCapability();
 const activePlacement = useActivePlacement(() => props.documentId);
 
 const handleSaveNew = (result) => {
-  signatureCapability.value?.addEntry(
-    { signature: result },
-    result.imageData ? { signatureImageData: result.imageData } : undefined
-  );
+  signatureCapability.value?.addEntry({ signature: result });
 }
 </script>
 <template>
@@ -175,6 +173,43 @@ const handleSaveNew = (result) => {
     </div>
   </div>
 </template>
+```
+
+### 5. Persisting Signatures (localStorage / Backend)
+
+The plugin ships with `serializeEntries` and `deserializeEntries` utilities that convert entries to and from a JSON-safe format, and an `onEntriesChange` event hook that fires whenever entries are added, removed, or loaded. Together they make auto-persisting signatures trivial.
+
+```vue
+<script setup>
+import { watchEffect, onUnmounted } from 'vue'
+import {
+  useSignatureCapability,
+  serializeEntries,
+  deserializeEntries,
+} from '@embedpdf/plugin-signature/vue'
+
+const STORAGE_KEY = 'my-signatures'
+const { provides: signatureCapability } = useSignatureCapability()
+
+let unsubscribe
+
+watchEffect(() => {
+  if (!signatureCapability.value) return
+
+  // Load previously saved entries on mount
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (raw) {
+    signatureCapability.value.loadEntries(deserializeEntries(JSON.parse(raw)))
+  }
+
+  // Auto-save whenever entries change
+  unsubscribe = signatureCapability.value.onEntriesChange((entries) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializeEntries(entries)))
+  })
+})
+
+onUnmounted(() => unsubscribe?.())
+</script>
 ```
 
 ## Live Example
@@ -210,10 +245,11 @@ Returns the global plugin API.
 | Method | Description |
 | :--- | :--- |
 | **`getEntries()`** | Returns all saved `SignatureEntry` objects. |
-| **`addEntry(entry, binaryData?)`** | Saves a new signature entry and stores its raw binary data in memory for placement. Returns the generated UUID. |
+| **`addEntry(entry)`** | Saves a new signature entry. Returns the generated UUID. |
 | **`removeEntry(id)`** | Deletes a signature entry. |
-| **`exportEntries()`** | Returns all entries with their raw `ArrayBuffer` data, useful for saving to a backend database. |
-| **`loadEntries(entries, binaryData)`** | Hydrates the plugin with previously exported entries. |
+| **`exportEntries()`** | Returns all `SignatureEntry` objects including their binary data. Use with `serializeEntries()` for persistence. |
+| **`loadEntries(entries)`** | Hydrates the plugin with previously exported entries. Use with `deserializeEntries()` when loading from JSON. |
+| **`onEntriesChange`** | Event hook that fires whenever entries are added, removed, or loaded. Subscribe with `onEntriesChange((entries) => { ... })` — returns an unsubscribe function. |
 | **`forDocument(documentId)`** | Returns a `SignatureScope` scoped to the current document for placement actions. |
 
 ### Hook: `useSignatureEntries()`

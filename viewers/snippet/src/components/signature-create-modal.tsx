@@ -10,7 +10,6 @@ import {
   useSignatureUpload,
   SignatureFieldDefinition,
   SignatureMode,
-  SignatureBinaryData,
 } from '@embedpdf/plugin-signature/preact';
 import { Dialog } from './ui/dialog';
 
@@ -36,7 +35,6 @@ type CreationTab = 'draw' | 'type' | 'upload';
 
 interface FieldResult {
   field: SignatureFieldDefinition;
-  imageData?: ArrayBuffer;
 }
 
 const FONTS = [
@@ -79,29 +77,13 @@ export function SignatureCreateModal({
     if (isOpen) ensureSignatureFonts();
   }, [isOpen]);
 
-  const handleSigResult = useCallback(
-    (result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null) => {
-      if (!result) {
-        setSigResult(null);
-        return;
-      }
-      const { imageData, ...field } = result;
-      setSigResult({ field, imageData });
-    },
-    [],
-  );
+  const handleSigResult = useCallback((result: SignatureFieldDefinition | null) => {
+    setSigResult(result ? { field: result } : null);
+  }, []);
 
-  const handleIniResult = useCallback(
-    (result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null) => {
-      if (!result) {
-        setIniResult(null);
-        return;
-      }
-      const { imageData, ...field } = result;
-      setIniResult({ field, imageData });
-    },
-    [],
-  );
+  const handleIniResult = useCallback((result: SignatureFieldDefinition | null) => {
+    setIniResult(result ? { field: result } : null);
+  }, []);
 
   const sigUpload = useSignatureUpload({ onResult: handleSigResult });
   const iniUpload = useSignatureUpload({ onResult: handleIniResult });
@@ -135,17 +117,10 @@ export function SignatureCreateModal({
   const handleSave = useCallback(() => {
     if (!sigResult || !signatureCapability) return;
 
-    const binaryData: SignatureBinaryData = {};
-    if (sigResult.imageData) binaryData.signatureImageData = sigResult.imageData;
-    if (iniResult?.imageData) binaryData.initialsImageData = iniResult.imageData;
-
-    signatureCapability.addEntry(
-      {
-        signature: sigResult.field,
-        ...(iniResult && { initials: iniResult.field }),
-      },
-      binaryData,
-    );
+    signatureCapability.addEntry({
+      signature: sigResult.field,
+      ...(iniResult && { initials: iniResult.field }),
+    });
 
     resetState();
     onClose?.();

@@ -7,10 +7,7 @@
     SignatureTypePad,
     SignatureMode,
   } from '@embedpdf/plugin-signature/svelte';
-  import type {
-    SignatureFieldDefinition,
-    SignatureBinaryData,
-  } from '@embedpdf/plugin-signature/svelte';
+  import type { SignatureFieldDefinition } from '@embedpdf/plugin-signature/svelte';
   import Dialog from './ui/Dialog.svelte';
 
   const SIGNATURE_FONTS_URL =
@@ -35,7 +32,6 @@
 
   interface FieldResult {
     field: SignatureFieldDefinition;
-    imageData?: ArrayBuffer;
   }
 
   const FONTS = [
@@ -74,26 +70,12 @@
     if (isOpen) ensureSignatureFonts();
   });
 
-  function handleSigResult(
-    result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null,
-  ) {
-    if (!result) {
-      sigResult = null;
-      return;
-    }
-    const { imageData, ...field } = result;
-    sigResult = { field, imageData };
+  function handleSigResult(result: SignatureFieldDefinition | null) {
+    sigResult = result ? { field: result } : null;
   }
 
-  function handleIniResult(
-    result: (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null,
-  ) {
-    if (!result) {
-      iniResult = null;
-      return;
-    }
-    const { imageData, ...field } = result;
-    iniResult = { field, imageData };
+  function handleIniResult(result: SignatureFieldDefinition | null) {
+    iniResult = result ? { field: result } : null;
   }
 
   const sigUpload = useSignatureUpload({ onResult: handleSigResult });
@@ -125,17 +107,10 @@
   function handleSave() {
     if (!sigResult || !signatureCapability.provides) return;
 
-    const binaryData: SignatureBinaryData = {};
-    if (sigResult.imageData) binaryData.signatureImageData = sigResult.imageData;
-    if (iniResult?.imageData) binaryData.initialsImageData = iniResult.imageData;
-
-    signatureCapability.provides.addEntry(
-      {
-        signature: sigResult.field,
-        ...(iniResult && { initials: iniResult.field }),
-      },
-      binaryData,
-    );
+    signatureCapability.provides.addEntry({
+      signature: sigResult.field,
+      ...(iniResult && { initials: iniResult.field }),
+    });
 
     resetState();
     onClose?.();

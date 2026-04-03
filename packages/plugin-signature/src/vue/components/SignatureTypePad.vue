@@ -5,9 +5,7 @@ import { cropCanvas } from '../../shared/components/crop-canvas';
 
 const props = withDefaults(
   defineProps<{
-    onResult: (
-      result: (SignatureStampFieldDefinition & { imageData?: ArrayBuffer }) | null,
-    ) => void;
+    onResult: (result: SignatureStampFieldDefinition | null) => void;
     fontFamily?: string;
     fontSize?: number;
     color?: string;
@@ -84,7 +82,7 @@ function renderText(currentText: string) {
   cropped.canvas.toBlob((blob) => {
     if (!blob) return;
     blob.arrayBuffer().then((imageData) => {
-      const result: SignatureStampFieldDefinition & { imageData?: ArrayBuffer } = {
+      const result: SignatureStampFieldDefinition = {
         creationType: SignatureCreationType.Type,
         label: currentText,
         imageMimeType: 'image/png',

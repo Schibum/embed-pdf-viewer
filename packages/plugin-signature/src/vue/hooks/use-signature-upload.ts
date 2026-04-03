@@ -3,7 +3,7 @@ import { SignatureStampFieldDefinition, SignatureCreationType } from '@embedpdf/
 
 export interface UseSignatureUploadOptions {
   accept?: string;
-  onResult: (result: (SignatureStampFieldDefinition & { imageData?: ArrayBuffer }) | null) => void;
+  onResult: (result: SignatureStampFieldDefinition | null) => void;
 }
 
 export interface UseSignatureUploadReturn {
@@ -48,7 +48,7 @@ export function useSignatureUpload({
           ctx.drawImage(img, 0, 0);
         }
 
-        const result: SignatureStampFieldDefinition & { imageData?: ArrayBuffer } = {
+        const result: SignatureStampFieldDefinition = {
           creationType: SignatureCreationType.Upload,
           imageMimeType: file.type,
           imageSize: { width: img.width, height: img.height },

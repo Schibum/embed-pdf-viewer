@@ -66,33 +66,22 @@ function SignatureSidebar({ documentId }: { documentId: string }) {
   const [creationMode, setCreationMode] = useState<'draw' | 'type' | null>(null)
 
   // Hold the temporary result from the pads
-  const [tempSignature, setTempSignature] = useState<
-    (SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null
-  >(null)
+  const [tempSignature, setTempSignature] =
+    useState<SignatureFieldDefinition | null>(null)
 
   // Upload Hook
   const { openFilePicker, inputRef, handleFileInputChange } =
     useSignatureUpload({
       onResult: (result) => {
         if (result && signatureCapability) {
-          signatureCapability.addEntry(
-            { signature: result },
-            result.imageData
-              ? { signatureImageData: result.imageData }
-              : undefined,
-          )
+          signatureCapability.addEntry({ signature: result })
         }
       },
     })
 
   const handleSaveTemp = () => {
     if (tempSignature && signatureCapability) {
-      signatureCapability.addEntry(
-        { signature: tempSignature },
-        tempSignature.imageData
-          ? { signatureImageData: tempSignature.imageData }
-          : undefined,
-      )
+      signatureCapability.addEntry({ signature: tempSignature })
       setCreationMode(null)
       setTempSignature(null)
     }

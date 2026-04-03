@@ -5,16 +5,12 @@ import {
   SignatureCapability,
   SignatureScope,
   SignatureEntry,
-  SignatureFieldDefinition,
   SignatureFieldKind,
   SignatureCreationType,
   SignaturePluginConfig,
   SignatureState,
-  SignatureBinaryData,
   ActivePlacementInfo,
   ActivePlacementChangeEvent,
-  ExportableSignatureEntry,
-  ExportableSignatureFieldDefinition,
 } from './types';
 import { addSignatureEntry, removeSignatureEntry, SignatureAction } from './actions';
 import { SIGNATURE_PLUGIN_ID } from './manifest';
@@ -29,7 +25,6 @@ export class SignaturePlugin extends BasePlugin<
   static readonly id = SIGNATURE_PLUGIN_ID;
 
   private readonly entries = new Map<string, SignatureEntry>();
-  private readonly binaryCache = new Map<string, ArrayBuffer>();
   private readonly entriesChange$ = createEmitter<SignatureEntry[]>();
   private readonly activePlacement$ = createScopedEmitter<
     ActivePlacementInfo | null,
@@ -68,9 +63,9 @@ export class SignaturePlugin extends BasePlugin<
     return {
       mode: this.config.mode,
       getEntries: () => this.getEntries(),
-      addEntry: (entry, binaryData) => this.addEntry(entry, binaryData),
+      addEntry: (entry) => this.addEntry(entry),
       removeEntry: (id) => this.removeEntry(id),
-      loadEntries: (entries, binaryData) => this.loadEntries(entries, binaryData),
+      loadEntries: (entries) => this.loadEntries(entries),
       exportEntries: () => this.exportEntries(),
       onEntriesChange: this.entriesChange$.on,
       forDocument: (documentId) => this.createSignatureScope(documentId),
@@ -82,10 +77,7 @@ export class SignaturePlugin extends BasePlugin<
     return Array.from(this.entries.values());
   }
 
-  addEntry(
-    entry: Omit<SignatureEntry, 'id' | 'createdAt'>,
-    binaryData?: SignatureBinaryData,
-  ): string {
+  addEntry(entry: Omit<SignatureEntry, 'id' | 'createdAt'>): string {
     const id = uuidV4();
     const fullEntry: SignatureEntry = {
       ...entry,
@@ -94,14 +86,6 @@ export class SignaturePlugin extends BasePlugin<
     };
 
     this.entries.set(id, fullEntry);
-
-    if (binaryData?.signatureImageData) {
-      this.binaryCache.set(`${id}:${SignatureFieldKind.Signature}`, binaryData.signatureImageData);
-    }
-    if (binaryData?.initialsImageData) {
-      this.binaryCache.set(`${id}:${SignatureFieldKind.Initials}`, binaryData.initialsImageData);
-    }
-
     this.dispatch(addSignatureEntry(id));
     this.emitEntriesChange();
 
@@ -112,55 +96,21 @@ export class SignaturePlugin extends BasePlugin<
     if (!this.entries.has(id)) return;
 
     this.entries.delete(id);
-    this.binaryCache.delete(`${id}:${SignatureFieldKind.Signature}`);
-    this.binaryCache.delete(`${id}:${SignatureFieldKind.Initials}`);
-
     this.dispatch(removeSignatureEntry(id));
     this.emitEntriesChange();
   }
 
-  loadEntries(entries: SignatureEntry[], binaryData?: Map<string, ArrayBuffer>): void {
+  loadEntries(entries: SignatureEntry[]): void {
     for (const entry of entries) {
       this.entries.set(entry.id, entry);
       this.dispatch(addSignatureEntry(entry.id));
     }
 
-    if (binaryData) {
-      for (const [key, value] of binaryData) {
-        this.binaryCache.set(key, value);
-      }
-    }
-
     this.emitEntriesChange();
   }
 
-  exportEntries(): ExportableSignatureEntry[] {
-    return this.getEntries().map((entry) => {
-      const exportEntry: ExportableSignatureEntry = {
-        id: entry.id,
-        createdAt: entry.createdAt,
-        signature: this.exportField(entry.id, SignatureFieldKind.Signature, entry.signature),
-      };
-
-      if (entry.initials) {
-        exportEntry.initials = this.exportField(
-          entry.id,
-          SignatureFieldKind.Initials,
-          entry.initials,
-        );
-      }
-
-      return exportEntry;
-    });
-  }
-
-  private exportField(
-    entryId: string,
-    kind: SignatureFieldKind,
-    field: SignatureFieldDefinition,
-  ): ExportableSignatureFieldDefinition {
-    const imageData = this.binaryCache.get(`${entryId}:${kind}`);
-    return { ...field, imageData };
+  exportEntries(): SignatureEntry[] {
+    return this.getEntries();
   }
 
   private createSignatureScope(documentId: string): SignatureScope {
@@ -204,11 +154,10 @@ export class SignaturePlugin extends BasePlugin<
         kind,
       });
     } else {
-      const imageData = this.binaryCache.get(`${entryId}:${kind}`);
-      if (!imageData) return;
+      if (!field.imageData) return;
 
       const ghostUrl = URL.createObjectURL(
-        new Blob([imageData], { type: field.imageMimeType ?? 'image/png' }),
+        new Blob([field.imageData], { type: field.imageMimeType ?? 'image/png' }),
       );
       this.currentGhostUrl = ghostUrl;
 
@@ -230,7 +179,7 @@ export class SignaturePlugin extends BasePlugin<
       }
 
       this.annotation.setActiveTool(SIGNATURE_STAMP_TOOL_ID, {
-        imageData,
+        imageData: field.imageData,
         ghostUrl,
         targetSize,
         entryId,
@@ -263,6 +212,5 @@ export class SignaturePlugin extends BasePlugin<
     this.revokeGhostUrl();
     this.toolChangeUnsubscribe?.();
     this.entries.clear();
-    this.binaryCache.clear();
   }
 }

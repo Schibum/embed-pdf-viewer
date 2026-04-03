@@ -26,27 +26,19 @@ const { provides: signatureCapability } = useSignatureCapability();
 const activePlacement = useActivePlacement(() => props.documentId);
 
 const creationMode = ref<'draw' | 'type' | null>(null);
-const tempSignature = ref<(SignatureFieldDefinition & { imageData?: ArrayBuffer }) | null>(null);
+const tempSignature = ref<SignatureFieldDefinition | null>(null);
 
 const { openFilePicker, inputRef, handleFileInputChange } = useSignatureUpload({
   onResult: (result) => {
     if (result && signatureCapability.value) {
-      signatureCapability.value.addEntry(
-        { signature: result },
-        result.imageData ? { signatureImageData: result.imageData } : undefined,
-      );
+      signatureCapability.value.addEntry({ signature: result });
     }
   },
 });
 
 const handleSaveTemp = () => {
   if (tempSignature.value && signatureCapability.value) {
-    signatureCapability.value.addEntry(
-      { signature: tempSignature.value },
-      tempSignature.value.imageData
-        ? { signatureImageData: tempSignature.value.imageData }
-        : undefined,
-    );
+    signatureCapability.value.addEntry({ signature: tempSignature.value });
     creationMode.value = null;
     tempSignature.value = null;
   }
