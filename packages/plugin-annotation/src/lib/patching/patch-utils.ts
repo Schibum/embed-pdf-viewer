@@ -253,6 +253,12 @@ export function computeCalloutConnectionPoint(knee: Position, textBox: Rect): Po
 /**
  * Compute the overall bounding rect for a callout FreeText, encompassing
  * the text box, callout line, and line ending geometry.
+ *
+ * The text box border grows inward (stroke outer edge = textBox boundary),
+ * so no outward padding is added for the text box. The callout line and
+ * arrow stroke extend outward and miter joins at the knee can protrude
+ * further, so they get strokeWidth padding (half for stroke + half for
+ * miter/join clearance).
  */
 export function computeCalloutOverallRect(
   textBox: Rect,
@@ -260,13 +266,8 @@ export function computeCalloutOverallRect(
   lineEnding: PdfAnnotationLineEnding | undefined,
   strokeWidth: number,
 ): Rect {
-  const textBoxCorners: Position[] = [
-    { x: textBox.origin.x, y: textBox.origin.y },
-    { x: textBox.origin.x + textBox.size.width, y: textBox.origin.y + textBox.size.height },
-  ];
-  const allPoints = [...textBoxCorners, ...calloutLine];
+  const linePoints = [...calloutLine];
 
-  // Include line ending geometry at the arrow tip (first point of callout line)
   if (lineEnding && calloutLine.length >= 2) {
     const handler = LINE_ENDING_HANDLERS[lineEnding];
     if (handler) {
@@ -279,11 +280,24 @@ export function computeCalloutOverallRect(
       const transformed = localPts.map((p) =>
         rotateAndTranslatePoint(p, rotationAngle, calloutLine[0]),
       );
-      allPoints.push(...transformed);
+      linePoints.push(...transformed);
     }
   }
 
-  const baseRect = rectFromPoints(allPoints);
-  const pad = strokeWidth / 2 + EXTRA_PADDING * strokeWidth;
-  return expandRect(baseRect, pad);
+  const lineBbox = expandRect(rectFromPoints(linePoints), strokeWidth);
+
+  const tbRight = textBox.origin.x + textBox.size.width;
+  const tbBottom = textBox.origin.y + textBox.size.height;
+  const lnRight = lineBbox.origin.x + lineBbox.size.width;
+  const lnBottom = lineBbox.origin.y + lineBbox.size.height;
+
+  const minX = Math.min(textBox.origin.x, lineBbox.origin.x);
+  const minY = Math.min(textBox.origin.y, lineBbox.origin.y);
+  const maxX = Math.max(tbRight, lnRight);
+  const maxY = Math.max(tbBottom, lnBottom);
+
+  return {
+    origin: { x: minX, y: minY },
+    size: { width: maxX - minX, height: maxY - minY },
+  };
 }

@@ -55,12 +55,12 @@ export function CalloutFreeText({
   // Text box position relative to the annotation rect (for CSS positioning)
   const textBoxRelative = useMemo(
     () => ({
-      left: (textBox.origin.x - rect.origin.x) * scale,
-      top: (textBox.origin.y - rect.origin.y) * scale,
-      width: textBox.size.width * scale,
-      height: textBox.size.height * scale,
+      left: (textBox.origin.x - rect.origin.x + strokeWidth / 2) * scale,
+      top: (textBox.origin.y - rect.origin.y + strokeWidth / 2) * scale,
+      width: (textBox.size.width - strokeWidth) * scale,
+      height: (textBox.size.height - strokeWidth) * scale,
     }),
-    [textBox, rect, scale],
+    [textBox, rect, scale, strokeWidth],
   );
 
   // Callout line segments in SVG viewBox coords (relative to rect origin)
@@ -84,6 +84,22 @@ export function CalloutFreeText({
       lineCoords[0].y,
     );
   }, [lineCoords, obj.lineEnding, strokeWidth]);
+
+  const visualLineCoords = useMemo(() => {
+    if (!lineCoords || lineCoords.length < 2) return lineCoords;
+    const pts = lineCoords.map((p) => ({ ...p }));
+    const last = pts.length - 1;
+    const prev = last - 1;
+    const dx = pts[last].x - pts[prev].x;
+    const dy = pts[last].y - pts[prev].y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 0) {
+      const halfBw = strokeWidth / 2;
+      pts[last].x += (dx / len) * halfBw;
+      pts[last].y += (dy / len) * halfBw;
+    }
+    return pts;
+  }, [lineCoords, strokeWidth]);
 
   const { adjustedFontPx, wrapperStyle } = useIOSZoomPrevention(obj.fontSize * scale, isEditing);
 
@@ -189,10 +205,10 @@ export function CalloutFreeText({
         {/* Visual callout line + text box rect */}
         {!appearanceActive && (
           <>
-            {lineCoords && (
+            {visualLineCoords && (
               <>
                 <polyline
-                  points={lineCoords.map((p) => `${p.x},${p.y}`).join(' ')}
+                  points={visualLineCoords.map((p) => `${p.x},${p.y}`).join(' ')}
                   fill="none"
                   stroke={strokeColor}
                   strokeWidth={strokeWidth}
@@ -213,10 +229,10 @@ export function CalloutFreeText({
               </>
             )}
             <rect
-              x={textBox.origin.x - rect.origin.x}
-              y={textBox.origin.y - rect.origin.y}
-              width={textBox.size.width}
-              height={textBox.size.height}
+              x={textBox.origin.x - rect.origin.x + strokeWidth / 2}
+              y={textBox.origin.y - rect.origin.y + strokeWidth / 2}
+              width={textBox.size.width - strokeWidth}
+              height={textBox.size.height - strokeWidth}
               fill={obj.color ?? obj.backgroundColor ?? 'transparent'}
               stroke={strokeColor}
               strokeWidth={strokeWidth}
@@ -227,15 +243,15 @@ export function CalloutFreeText({
         )}
       </svg>
 
-      {/* Text box hit area */}
+      {/* Text box hit area (covers full textBox including border) */}
       <div
         onPointerDown={onClick ? (e) => onClick(e) : undefined}
         style={{
           position: 'absolute',
-          left: textBoxRelative.left,
-          top: textBoxRelative.top,
-          width: textBoxRelative.width,
-          height: textBoxRelative.height,
+          left: (textBox.origin.x - rect.origin.x) * scale,
+          top: (textBox.origin.y - rect.origin.y) * scale,
+          width: textBox.size.width * scale,
+          height: textBox.size.height * scale,
           cursor: isSelected && !isEditing ? 'move' : onClick ? 'pointer' : 'default',
           pointerEvents: !onClick ? 'none' : isSelected && !isEditing ? 'none' : 'auto',
         }}

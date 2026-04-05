@@ -56,6 +56,11 @@ export const PROPERTY_CONFIGS: Record<string, PropertyConfig> = {
     type: 'colorWithTransparent',
     labelKey: 'annotation.strokeColor',
   },
+  strokeColorWithoutTransparent: {
+    key: 'strokeColor',
+    type: 'color',
+    labelKey: 'annotation.strokeColor',
+  },
 
   // Common properties
   opacity: {
@@ -209,6 +214,17 @@ export const TOOL_PROPERTIES: Record<string, string[]> = {
     'opacity',
     'color',
     'rotation',
+  ],
+  freeTextCallout: [
+    'fontFamily',
+    'fontSize',
+    'fontColor',
+    'textAlign',
+    'verticalAlign',
+    'opacity',
+    'color',
+    'strokeColorWithoutTransparent',
+    'strokeWidth',
   ],
 
   // Stamp
