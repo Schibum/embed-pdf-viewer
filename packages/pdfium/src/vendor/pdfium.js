@@ -69,6 +69,8 @@ var createPdfium = (() => {
       '_EPDFAnnot_GetBorderEffect',
       '_EPDFAnnot_GetBorderStyle',
       '_EPDFAnnot_GetButtonExportValue',
+      '_EPDFAnnot_GetCalloutLine',
+      '_EPDFAnnot_GetCalloutLineCount',
       '_EPDFAnnot_GetColor',
       '_EPDFAnnot_GetDefaultAppearance',
       '_EPDFAnnot_GetExtendedRotation',
@@ -96,6 +98,7 @@ var createPdfium = (() => {
       '_EPDFAnnot_SetBorderDashPattern',
       '_EPDFAnnot_SetBorderEffect',
       '_EPDFAnnot_SetBorderStyle',
+      '_EPDFAnnot_SetCalloutLine',
       '_EPDFAnnot_SetColor',
       '_EPDFAnnot_SetDefaultAppearance',
       '_EPDFAnnot_SetExtendedRotation',
@@ -6397,6 +6400,16 @@ var createPdfium = (() => {
       createExportWrapper('EPDFAnnot_GetFormFieldObjectNumber', 2));
     var _EPDFAnnot_ShareFormField = (Module['_EPDFAnnot_ShareFormField'] = createExportWrapper(
       'EPDFAnnot_ShareFormField',
+      3,
+    ));
+    var _EPDFAnnot_GetCalloutLineCount = (Module['_EPDFAnnot_GetCalloutLineCount'] =
+      createExportWrapper('EPDFAnnot_GetCalloutLineCount', 1));
+    var _EPDFAnnot_GetCalloutLine = (Module['_EPDFAnnot_GetCalloutLine'] = createExportWrapper(
+      'EPDFAnnot_GetCalloutLine',
+      3,
+    ));
+    var _EPDFAnnot_SetCalloutLine = (Module['_EPDFAnnot_SetCalloutLine'] = createExportWrapper(
+      'EPDFAnnot_SetCalloutLine',
       3,
     ));
     var _EPDFAnnot_SetFormFieldOptions = (Module['_EPDFAnnot_SetFormFieldOptions'] =

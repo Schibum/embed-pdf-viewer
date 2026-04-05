@@ -20,6 +20,7 @@ import {
   polygonHandlerFactory,
   textHandlerFactory,
   freeTextHandlerFactory,
+  calloutFreeTextHandlerFactory,
   stampHandlerFactory,
   linkHandlerFactory,
 } from '../handlers';
@@ -31,6 +32,7 @@ import {
   patchCircle,
   patchSquare,
   patchFreeText,
+  patchCalloutFreeText,
   patchStamp,
 } from '../patching/patches';
 
@@ -497,7 +499,8 @@ const freeTextTools = [
     name: 'Free Text',
     labelKey: 'annotation.freeText',
     categories: ['annotation', 'markup'],
-    matchScore: (a) => (a.type === PdfAnnotationSubtype.FREETEXT ? 1 : 0),
+    matchScore: (a) =>
+      a.type === PdfAnnotationSubtype.FREETEXT && a.intent !== 'FreeTextCallout' ? 1 : 0,
     interaction: {
       exclusive: false,
       cursor: 'crosshair',
@@ -534,6 +537,47 @@ const freeTextTools = [
     },
     transform: patchFreeText,
     pointerHandler: freeTextHandlerFactory,
+  },
+] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.FREETEXT>>[];
+
+const calloutFreeTextTools = [
+  {
+    id: 'freeTextCallout' as const,
+    name: 'Callout',
+    labelKey: 'annotation.callout',
+    categories: ['annotation', 'markup'],
+    matchScore: (a) =>
+      a.type === PdfAnnotationSubtype.FREETEXT && a.intent === 'FreeTextCallout' ? 10 : 0,
+    interaction: {
+      exclusive: false,
+      cursor: 'crosshair',
+      isDraggable: true,
+      isResizable: false,
+      isRotatable: false,
+    },
+    defaults: {
+      type: PdfAnnotationSubtype.FREETEXT,
+      intent: 'FreeTextCallout',
+      contents: 'Insert text',
+      fontSize: 14,
+      fontColor: '#E44234',
+      fontFamily: PdfStandardFont.Helvetica,
+      textAlign: PdfTextAlignment.Left,
+      verticalAlign: PdfVerticalAlignment.Top,
+      color: '#FFFFFF',
+      backgroundColor: '#FFFFFF',
+      opacity: 1,
+      lineEnding: PdfAnnotationLineEnding.OpenArrow,
+      strokeColor: '#E44234',
+      strokeWidth: 1,
+    },
+    behavior: {
+      insertUpright: true,
+      editAfterCreate: true,
+      selectAfterCreate: true,
+    },
+    transform: patchCalloutFreeText,
+    pointerHandler: calloutFreeTextHandlerFactory,
   },
 ] satisfies readonly AnnotationTool<AnnoOf<PdfAnnotationSubtype.FREETEXT>>[];
 
@@ -605,6 +649,7 @@ export const defaultTools = [
   ...polygonTools,
   ...textCommentTools,
   ...freeTextTools,
+  ...calloutFreeTextTools,
   ...stampTools,
   ...linkTools,
 ];

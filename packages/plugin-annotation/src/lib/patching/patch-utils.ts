@@ -3,6 +3,7 @@ import {
   Position,
   LineEndings,
   PdfAnnotationLineEnding,
+  PdfRectDifferences,
   rotateAndTranslatePoint,
   rectFromPoints,
   expandRect,
@@ -193,4 +194,96 @@ export function compensateRotatedVertexEdit(
   if (Math.abs(qx) < 1e-8 && Math.abs(qy) < 1e-8) return vertices;
 
   return vertices.map((v) => ({ x: v.x + qx, y: v.y + qy }));
+}
+
+// ---------------------------------------------------------------------------
+// Callout FreeText helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive the text box rect from the annotation's overall rect and RD inset.
+ */
+export function computeTextBoxFromRD(rect: Rect, rd: PdfRectDifferences | undefined): Rect {
+  if (!rd) return rect;
+  return {
+    origin: { x: rect.origin.x + rd.left, y: rect.origin.y + rd.top },
+    size: {
+      width: Math.max(0, rect.size.width - rd.left - rd.right),
+      height: Math.max(0, rect.size.height - rd.top - rd.bottom),
+    },
+  };
+}
+
+/**
+ * Compute the RD inset from the overall rect to the text box.
+ */
+export function computeRDFromTextBox(overallRect: Rect, textBox: Rect): PdfRectDifferences {
+  return {
+    left: textBox.origin.x - overallRect.origin.x,
+    top: textBox.origin.y - overallRect.origin.y,
+    right: overallRect.origin.x + overallRect.size.width - (textBox.origin.x + textBox.size.width),
+    bottom:
+      overallRect.origin.y + overallRect.size.height - (textBox.origin.y + textBox.size.height),
+  };
+}
+
+/**
+ * Auto-compute the callout connection point on the text box edge.
+ * Uses the knee's position relative to the text box center, scaled by aspect ratio,
+ * to choose the nearest edge midpoint (top, right, bottom, left).
+ */
+export function computeCalloutConnectionPoint(knee: Position, textBox: Rect): Position {
+  const cx = textBox.origin.x + textBox.size.width / 2;
+  const cy = textBox.origin.y + textBox.size.height / 2;
+  const dx = knee.x - cx;
+  const dy = knee.y - cy;
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    // Horizontally dominant → left or right
+    return dx > 0
+      ? { x: textBox.origin.x + textBox.size.width, y: cy }
+      : { x: textBox.origin.x, y: cy };
+  }
+  // Vertically dominant → top or bottom
+  return dy > 0
+    ? { x: cx, y: textBox.origin.y + textBox.size.height }
+    : { x: cx, y: textBox.origin.y };
+}
+
+/**
+ * Compute the overall bounding rect for a callout FreeText, encompassing
+ * the text box, callout line, and line ending geometry.
+ */
+export function computeCalloutOverallRect(
+  textBox: Rect,
+  calloutLine: Position[],
+  lineEnding: PdfAnnotationLineEnding | undefined,
+  strokeWidth: number,
+): Rect {
+  const textBoxCorners: Position[] = [
+    { x: textBox.origin.x, y: textBox.origin.y },
+    { x: textBox.origin.x + textBox.size.width, y: textBox.origin.y + textBox.size.height },
+  ];
+  const allPoints = [...textBoxCorners, ...calloutLine];
+
+  // Include line ending geometry at the arrow tip (first point of callout line)
+  if (lineEnding && calloutLine.length >= 2) {
+    const handler = LINE_ENDING_HANDLERS[lineEnding];
+    if (handler) {
+      const angle = Math.atan2(
+        calloutLine[1].y - calloutLine[0].y,
+        calloutLine[1].x - calloutLine[0].x,
+      );
+      const localPts = handler.getLocalPoints(strokeWidth);
+      const rotationAngle = handler.getRotation(angle + Math.PI);
+      const transformed = localPts.map((p) =>
+        rotateAndTranslatePoint(p, rotationAngle, calloutLine[0]),
+      );
+      allPoints.push(...transformed);
+    }
+  }
+
+  const baseRect = rectFromPoints(allPoints);
+  const pad = strokeWidth / 2 + EXTRA_PADDING * strokeWidth;
+  return expandRect(baseRect, pad);
 }

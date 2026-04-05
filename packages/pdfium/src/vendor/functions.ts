@@ -54,6 +54,8 @@ export const functions = {
   EPDFAnnot_GetBorderEffect: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_GetBorderStyle: [['number', 'number'] as const, 'number'] as const,
   EPDFAnnot_GetButtonExportValue: [['number', 'number', 'number'] as const, 'number'] as const,
+  EPDFAnnot_GetCalloutLine: [['number', 'number', 'number'] as const, 'number'] as const,
+  EPDFAnnot_GetCalloutLineCount: [['number'] as const, 'number'] as const,
   EPDFAnnot_GetColor: [
     ['number', 'number', 'number', 'number', 'number'] as const,
     'boolean',
@@ -96,6 +98,7 @@ export const functions = {
   EPDFAnnot_SetBorderDashPattern: [['number', 'number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetBorderEffect: [['number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetBorderStyle: [['number', 'number', 'number'] as const, 'boolean'] as const,
+  EPDFAnnot_SetCalloutLine: [['number', 'number', 'number'] as const, 'boolean'] as const,
   EPDFAnnot_SetColor: [
     ['number', 'number', 'number', 'number', 'number'] as const,
     'boolean',

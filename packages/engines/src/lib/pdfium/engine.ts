@@ -3349,7 +3349,13 @@ export class PdfiumNative implements IPdfiumExecutor {
     annotation: PdfFreeTextAnnoObject,
   ) {
     // Type-specific properties
-    if (!this.setBorderStyle(annotationPtr, PdfAnnotationBorderStyle.SOLID, 0)) {
+    if (
+      !this.setBorderStyle(
+        annotationPtr,
+        PdfAnnotationBorderStyle.SOLID,
+        annotation.strokeWidth ?? 0,
+      )
+    ) {
       return false;
     }
     if (!this.setAnnotationOpacity(annotationPtr, annotation.opacity ?? 1)) {
@@ -3361,6 +3367,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     if (!this.setAnnotationVerticalAlignment(annotationPtr, annotation.verticalAlign)) {
       return false;
     }
+    const daColor = annotation.strokeColor ?? annotation.fontColor;
     if (
       !this.setAnnotationDefaultAppearance(
         annotationPtr,
@@ -3368,12 +3375,32 @@ export class PdfiumNative implements IPdfiumExecutor {
           ? PdfStandardFont.Helvetica
           : annotation.fontFamily,
         annotation.fontSize,
-        annotation.fontColor,
+        daColor,
       )
     ) {
       return false;
     }
+    if (annotation.strokeColor && annotation.strokeColor !== annotation.fontColor) {
+      this.setAnnotationColor(
+        annotationPtr,
+        annotation.fontColor,
+        PdfAnnotationColorType.TextColor,
+      );
+    }
     if (annotation.intent && !this.setAnnotIntent(annotationPtr, annotation.intent)) {
+      return false;
+    }
+    if (
+      annotation.calloutLine &&
+      annotation.calloutLine.length >= 2 &&
+      !this.setCalloutLine(doc, page, annotationPtr, annotation.calloutLine)
+    ) {
+      return false;
+    }
+    if (
+      annotation.lineEnding !== undefined &&
+      !this.setLineEndings(annotationPtr, PdfAnnotationLineEnding.None, annotation.lineEnding)
+    ) {
       return false;
     }
     // Prefer color, fall back to deprecated backgroundColor
@@ -6463,6 +6490,9 @@ export class PdfiumNative implements IPdfiumExecutor {
    * @returns `{ ok, left, top, right, bottom }`
    *          • `ok`     – `true` when the annotation *has* an /RD entry
    *          • the four floats are 0 when `ok` is false
+   *
+   * Native PDFium exposes /RD as [left, bottom, right, top]. We remap it here
+   * to the model's stable { left, top, right, bottom } shape.
    */
   private getRectangleDifferences(annotationPtr: number): {
     ok: boolean;
@@ -6473,29 +6503,29 @@ export class PdfiumNative implements IPdfiumExecutor {
   } {
     /* tmp storage ─────────────────────────────────────────── */
     const lPtr = this.memoryManager.malloc(4);
-    const tPtr = this.memoryManager.malloc(4);
-    const rPtr = this.memoryManager.malloc(4);
     const bPtr = this.memoryManager.malloc(4);
+    const rPtr = this.memoryManager.malloc(4);
+    const tPtr = this.memoryManager.malloc(4);
 
     const ok = !!this.pdfiumModule.EPDFAnnot_GetRectangleDifferences(
       annotationPtr,
       lPtr,
-      tPtr,
-      rPtr,
       bPtr,
+      rPtr,
+      tPtr,
     );
 
     const pdf = this.pdfiumModule.pdfium;
     const left = pdf.getValue(lPtr, 'float');
-    const top = pdf.getValue(tPtr, 'float');
-    const right = pdf.getValue(rPtr, 'float');
     const bottom = pdf.getValue(bPtr, 'float');
+    const right = pdf.getValue(rPtr, 'float');
+    const top = pdf.getValue(tPtr, 'float');
 
     /* cleanup ─────────────────────────────────────────────── */
     this.memoryManager.free(lPtr);
-    this.memoryManager.free(tPtr);
-    this.memoryManager.free(rPtr);
     this.memoryManager.free(bPtr);
+    this.memoryManager.free(rPtr);
+    this.memoryManager.free(tPtr);
 
     return { ok, left, top, right, bottom };
   }
@@ -6517,9 +6547,9 @@ export class PdfiumNative implements IPdfiumExecutor {
     return this.pdfiumModule.EPDFAnnot_SetRectangleDifferences(
       annotationPtr,
       rd.left,
-      rd.top,
-      rd.right,
       rd.bottom,
+      rd.right,
+      rd.top,
     );
   }
 
@@ -7503,11 +7533,16 @@ export class PdfiumNative implements IPdfiumExecutor {
     const defaultStyle = this.getAnnotString(annotationPtr, 'DS');
     const da = this.getAnnotationDefaultAppearance(annotationPtr);
     const bgColor = this.getAnnotationColor(annotationPtr);
+    const textColor = this.getAnnotationColor(annotationPtr, PdfAnnotationColorType.TextColor);
+    const borderStyle = this.getBorderStyle(annotationPtr);
     const textAlign = this.getAnnotationTextAlignment(annotationPtr);
     const verticalAlign = this.getAnnotationVerticalAlignment(annotationPtr);
     const opacity = this.getAnnotationOpacity(annotationPtr);
     const richContent = this.getAnnotRichContent(annotationPtr);
     const rd = this.getRectangleDifferences(annotationPtr);
+    const intent = this.getAnnotIntent(annotationPtr);
+    const calloutLine = this.getCalloutLine(doc, page, annotationPtr);
+    const lineEndings = this.getLineEndings(annotationPtr);
 
     return {
       pageIndex: page.index,
@@ -7516,10 +7551,10 @@ export class PdfiumNative implements IPdfiumExecutor {
       rect,
       fontFamily: da?.fontFamily ?? PdfStandardFont.Unknown,
       fontSize: da?.fontSize ?? 12,
-      fontColor: da?.fontColor ?? '#000000',
+      fontColor: textColor ?? da?.fontColor ?? '#000000',
       verticalAlign,
-      color: bgColor, // fill color (matches shape convention)
-      backgroundColor: bgColor, // deprecated alias
+      color: bgColor,
+      backgroundColor: bgColor,
       opacity,
       textAlign,
       defaultStyle,
@@ -7532,6 +7567,14 @@ export class PdfiumNative implements IPdfiumExecutor {
           bottom: rd.bottom,
         },
       }),
+      ...(intent && { intent }),
+      ...(calloutLine && { calloutLine }),
+      ...(lineEndings && { lineEnding: lineEndings.end }),
+      ...(borderStyle.width > 0
+        ? { strokeWidth: borderStyle.width, strokeColor: da?.fontColor ?? '#000000' }
+        : intent === 'FreeTextCallout'
+          ? { strokeWidth: 1, strokeColor: da?.fontColor ?? '#000000' }
+          : {}),
       ...this.readBaseAnnotationProperties(doc, page, annotationPtr),
     };
   }
@@ -9174,6 +9217,67 @@ export class PdfiumNative implements IPdfiumExecutor {
     });
 
     const ok = this.pdfiumModule.EPDFAnnot_SetVertices(annotPtr, buf, vertices.length);
+    this.memoryManager.free(buf);
+    return ok;
+  }
+
+  /**
+   * Read the callout line points (/CL) from a FreeText annotation.
+   * Returns an array of 2 or 3 Position points in device coords, or undefined.
+   *
+   * @private
+   */
+  private getCalloutLine(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotationPtr: number,
+  ): Position[] | undefined {
+    const count = this.pdfiumModule.EPDFAnnot_GetCalloutLineCount(annotationPtr);
+    if (count === 0) {
+      return undefined;
+    }
+
+    const FS_POINTF_SIZE = 8;
+    const pointsPtr = this.memoryManager.malloc(count * FS_POINTF_SIZE);
+    const result = this.pdfiumModule.EPDFAnnot_GetCalloutLine(annotationPtr, pointsPtr, count);
+    if (result === 0) {
+      this.memoryManager.free(pointsPtr);
+      return undefined;
+    }
+
+    const points: Position[] = [];
+    for (let i = 0; i < count; i++) {
+      const px = this.pdfiumModule.pdfium.getValue(pointsPtr + i * FS_POINTF_SIZE, 'float');
+      const py = this.pdfiumModule.pdfium.getValue(pointsPtr + i * FS_POINTF_SIZE + 4, 'float');
+      points.push(this.convertPagePointToDevicePoint(doc, page, { x: px, y: py }));
+    }
+    this.memoryManager.free(pointsPtr);
+    return points;
+  }
+
+  /**
+   * Set the callout line points (/CL) on a FreeText annotation.
+   * Converts from device coords to page coords before writing.
+   *
+   * @private
+   */
+  private setCalloutLine(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    annotPtr: number,
+    points: Position[],
+  ): boolean {
+    const pdf = this.pdfiumModule.pdfium;
+    const FS_POINTF_SIZE = 8;
+
+    const buf = this.memoryManager.malloc(FS_POINTF_SIZE * points.length);
+    points.forEach((v, i) => {
+      const pagePt = this.convertDevicePointToPagePoint(doc, page, v);
+      pdf.setValue(buf + i * FS_POINTF_SIZE + 0, pagePt.x, 'float');
+      pdf.setValue(buf + i * FS_POINTF_SIZE + 4, pagePt.y, 'float');
+    });
+
+    const ok = this.pdfiumModule.EPDFAnnot_SetCalloutLine(annotPtr, buf, points.length);
     this.memoryManager.free(buf);
     return ok;
   }

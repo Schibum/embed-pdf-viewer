@@ -1243,6 +1243,7 @@ export enum PdfAnnotationColorType {
   Color = 0,
   InteriorColor = 1,
   OverlayColor = 2,
+  TextColor = 3,
 }
 
 /**
@@ -2314,6 +2315,26 @@ export interface PdfFreeTextAnnoObject extends PdfAnnotationObjectBase {
    * Rectangle Differences (/RD) - inset padding from Rect to the drawn area.
    */
   rectangleDifferences?: PdfRectDifferences;
+  /**
+   * Callout line points (PDF /CL array).
+   * 2 points for a simple leader line, 3 points for a knee-jointed leader line.
+   * Points are in device coordinates (same as rect/vertices).
+   * Present only when intent is 'FreeTextCallout'.
+   */
+  calloutLine?: Position[];
+  /**
+   * Line ending style for the callout leader line (PDF /LE).
+   * Only meaningful when calloutLine is present.
+   */
+  lineEnding?: PdfAnnotationLineEnding;
+  /**
+   * Border / callout line stroke width (from /BS -> W).
+   */
+  strokeWidth?: number;
+  /**
+   * Border / callout line stroke color (from /DA rg color).
+   */
+  strokeColor?: string;
 }
 
 /**
