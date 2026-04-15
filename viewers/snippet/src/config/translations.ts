@@ -3222,7 +3222,7 @@ export const traditionalChineseTranslations: Locale = {
       close: '關閉檔案',
     },
     panel: {
-      sidebar: '大綱與書籤',
+      sidebar: '側邊欄',
       search: '搜尋',
       comment: '註解',
       thumbnails: '縮圖',
