@@ -3507,7 +3507,7 @@ export const traditionalChineseTranslations: Locale = {
       title: '印章',
       allStamps: '所有印章',
       export: '匯出印章',
-      emptyState: '所選的庫中沒有找到印章。',
+      emptyState: '沒有找到印章。',
       createFromSelected: '建立印章',
       createFromGroup: '從群組建立印章',
       library: {
