@@ -8,21 +8,17 @@ import {
 import {
   getAnnotationsByPageIndex,
   getSelectedAnnotationIds,
+  hasNoViewFlag,
+  hasHiddenFlag,
   TrackedAnnotation,
+  LockMode,
+  LockModeType,
   resolveInteractionProp,
 } from '@embedpdf/plugin-annotation';
 import { PointerEventHandlers, EmbedPdfPointerEvent } from '@embedpdf/plugin-interaction-manager';
 import { usePointerHandlers } from '@embedpdf/plugin-interaction-manager/@framework';
 import { useSelectionCapability } from '@embedpdf/plugin-selection/@framework';
-import {
-  useMemo,
-  useState,
-  useEffect,
-  useCallback,
-  MouseEvent,
-  TouchEvent,
-  useRef,
-} from '@framework';
+import { useMemo, useState, useEffect, useCallback, MouseEvent, useRef } from '@framework';
 
 import { useAnnotationCapability } from '../hooks';
 import { AnnotationContainer } from './annotation-container';
@@ -69,6 +65,10 @@ export function Annotations(annotationsProps: AnnotationsProps) {
   const [allSelectedIds, setAllSelectedIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [appearanceMap, setAppearanceMap] = useState<AnnotationAppearanceMap<Blob>>({});
+  // Locked mode is tracked to force re-renders when it changes; the predicates on
+  // `annotationProvides` (isAnnotationInteractive/StructurallyLocked/ContentLocked)
+  // read document state internally.
+  const [, setLockedMode] = useState<LockMode>({ type: LockModeType.None });
   const prevScaleRef = useRef<number>(scale);
 
   const annotationProvides = useMemo(
@@ -83,13 +83,24 @@ export function Annotations(annotationsProps: AnnotationsProps) {
       const currentState = annotationProvides.getState();
       setAnnotations(getAnnotationsByPageIndex(currentState, pageIndex));
       setAllSelectedIds(getSelectedAnnotationIds(currentState));
+      setLockedMode(currentState.locked);
 
       return annotationProvides.onStateChange((state) => {
         setAnnotations(getAnnotationsByPageIndex(state, pageIndex));
         setAllSelectedIds(getSelectedAnnotationIds(state));
+        setLockedMode(state.locked);
       });
     }
   }, [annotationProvides, pageIndex]);
+
+  useEffect(() => {
+    if (!annotationProvides) return;
+    return annotationProvides.onAnnotationEvent((event) => {
+      if (event.type === 'create' && event.editAfterCreate) {
+        setEditingId(event.annotation.id);
+      }
+    });
+  }, [annotationProvides]);
 
   useEffect(() => {
     if (!annotationProvides) return;
@@ -113,16 +124,19 @@ export function Annotations(annotationsProps: AnnotationsProps) {
     (): PointerEventHandlers<EmbedPdfPointerEvent<MouseEvent>> => ({
       onPointerDown: (_, pe) => {
         if (pe.target === pe.currentTarget && annotationProvides) {
+          if (editingId && annotations.some((a) => a.object.id === editingId)) {
+            pe.stopImmediatePropagation();
+          }
           annotationProvides.deselectAnnotation();
           setEditingId(null);
         }
       },
     }),
-    [annotationProvides],
+    [annotationProvides, editingId, annotations],
   );
 
   const handleClick = useCallback(
-    (e: MouseEvent | TouchEvent, annotation: TrackedAnnotation) => {
+    (e: MouseEvent, annotation: TrackedAnnotation) => {
       e.stopPropagation();
       if (annotationProvides && selectionProvides) {
         selectionProvides.clear();
@@ -277,9 +291,30 @@ export function Annotations(annotationsProps: AnnotationsProps) {
         const renderer = resolveRenderer(annotation);
         if (!renderer) return null;
 
-        const tool = annotationProvides?.findToolForAnnotation(annotation.object);
-        const isSelected = allSelectedIds.includes(annotation.object.id);
-        const isEditing = editingId === annotation.object.id;
+        // noView (PDF 1.3): do not render on screen and do not allow user interaction.
+        // Skipping the container removes both the visual layer and the interaction layer.
+        if (hasNoViewFlag(annotation.object)) return null;
+        // hidden (PDF 1.1): do not render, do not interact, do not print.
+        // Print suppression lives in the engine render pipeline; here we only skip UI.
+        if (hasHiddenFlag(annotation.object)) return null;
+
+        const tool = annotationProvides?.findToolForAnnotation(annotation.object) ?? null;
+        const nonInteractive = annotationProvides
+          ? !annotationProvides.isAnnotationInteractive(annotation.object)
+          : false;
+        const structurallyLocked = annotationProvides
+          ? annotationProvides.isAnnotationStructurallyLocked(annotation.object)
+          : false;
+        const contentLocked = annotationProvides
+          ? annotationProvides.isAnnotationContentLocked(annotation.object)
+          : false;
+        // Hidden when locked = skip entirely (e.g., form widgets defer to form-filling layer)
+        if (nonInteractive && renderer.hiddenWhenLocked) return null;
+
+        const hasRenderLocked = nonInteractive && !!renderer.renderLocked;
+
+        const isSelected = nonInteractive ? false : allSelectedIds.includes(annotation.object.id);
+        const isEditing = nonInteractive ? false : editingId === annotation.object.id;
         const defaults = renderer.interactionDefaults;
 
         const resolvedDraggable = resolveInteractionProp(
@@ -287,16 +322,28 @@ export function Annotations(annotationsProps: AnnotationsProps) {
           annotation.object,
           defaults?.isDraggable ?? true,
         );
-        const finalDraggable = renderer.isDraggable
-          ? renderer.isDraggable(resolvedDraggable, { isEditing })
-          : resolvedDraggable;
+        const finalDraggable = structurallyLocked
+          ? false
+          : renderer.isDraggable
+            ? renderer.isDraggable(resolvedDraggable, { isEditing })
+            : resolvedDraggable;
 
         const useAP = tool?.behavior?.useAppearanceStream ?? renderer.useAppearanceStream ?? true;
+        const appearance = hasRenderLocked
+          ? undefined
+          : useAP
+            ? getAppearanceForAnnotation(annotation)
+            : undefined;
 
-        const onSelect = renderer.selectOverride
-          ? (e: AnnotationInteractionEvent) =>
-              renderer.selectOverride!(e, annotation, selectHelpers)
-          : (e: AnnotationInteractionEvent) => handleClick(e, annotation);
+        const noopSelect = (e: AnnotationInteractionEvent) => {
+          e.stopPropagation();
+        };
+        const onSelect = nonInteractive
+          ? noopSelect
+          : renderer.selectOverride
+            ? (e: AnnotationInteractionEvent) =>
+                renderer.selectOverride!(e, annotation, selectHelpers)
+            : (e: AnnotationInteractionEvent) => handleClick(e, annotation);
 
         return (
           <AnnotationContainer
@@ -304,47 +351,75 @@ export function Annotations(annotationsProps: AnnotationsProps) {
             trackedAnnotation={annotation}
             isSelected={isSelected}
             isEditing={isEditing}
-            isMultiSelected={isMultiSelected}
+            isMultiSelected={nonInteractive ? false : isMultiSelected}
             isDraggable={finalDraggable}
-            isResizable={resolveInteractionProp(
-              tool?.interaction.isResizable,
-              annotation.object,
-              defaults?.isResizable ?? false,
-            )}
+            isResizable={
+              structurallyLocked
+                ? false
+                : resolveInteractionProp(
+                    tool?.interaction.isResizable,
+                    annotation.object,
+                    defaults?.isResizable ?? false,
+                  )
+            }
             lockAspectRatio={resolveInteractionProp(
               tool?.interaction.lockAspectRatio,
               annotation.object,
               defaults?.lockAspectRatio ?? false,
             )}
-            isRotatable={resolveInteractionProp(
-              tool?.interaction.isRotatable,
-              annotation.object,
-              defaults?.isRotatable ?? false,
-            )}
-            vertexConfig={renderer.vertexConfig}
-            selectionMenu={
-              renderer.hideSelectionMenu?.(annotation.object) ? undefined : selectionMenu
+            isRotatable={
+              structurallyLocked
+                ? false
+                : resolveInteractionProp(
+                    tool?.interaction.isRotatable,
+                    annotation.object,
+                    defaults?.isRotatable ?? false,
+                  )
             }
+            vertexConfig={structurallyLocked ? undefined : renderer.vertexConfig}
+            selectionMenu={
+              nonInteractive
+                ? undefined
+                : renderer.hideSelectionMenu?.(annotation.object)
+                  ? undefined
+                  : selectionMenu
+            }
+            structurallyLocked={structurallyLocked}
+            contentLocked={contentLocked}
             onSelect={onSelect}
             onDoubleClick={
-              renderer.onDoubleClick
-                ? (e: AnnotationInteractionEvent) => {
-                    e.stopPropagation();
-                    renderer.onDoubleClick!(annotation.object.id, setEditingId);
-                  }
-                : undefined
+              nonInteractive || contentLocked
+                ? undefined
+                : renderer.onDoubleClick
+                  ? (e: AnnotationInteractionEvent) => {
+                      e.stopPropagation();
+                      renderer.onDoubleClick!(annotation.object.id, setEditingId);
+                    }
+                  : undefined
             }
             zIndex={renderer.zIndex}
-            style={
-              renderer.containerStyle?.(annotation.object) ?? {
-                mixBlendMode: blendModeToCss(annotation.object.blendMode ?? PdfBlendMode.Normal),
-              }
-            }
-            appearance={useAP ? getAppearanceForAnnotation(annotation) : undefined}
+            blendMode={blendModeToCss(
+              annotation.object.blendMode ?? renderer.defaultBlendMode ?? PdfBlendMode.Normal,
+            )}
+            style={renderer.containerStyle?.(annotation.object)}
+            appearance={appearance}
             {...annotationsProps}
           >
-            {(currentObject, { appearanceActive }) =>
-              renderer.render({
+            {(currentObject, { appearanceActive }) => {
+              if (hasRenderLocked) {
+                return renderer.renderLocked!({
+                  annotation,
+                  currentObject,
+                  isSelected: false,
+                  isEditing: false,
+                  scale,
+                  pageIndex,
+                  documentId,
+                  onClick: undefined,
+                  appearanceActive,
+                });
+              }
+              return renderer.render({
                 annotation,
                 currentObject,
                 isSelected,
@@ -352,10 +427,10 @@ export function Annotations(annotationsProps: AnnotationsProps) {
                 scale,
                 pageIndex,
                 documentId,
-                onClick: onSelect,
+                onClick: nonInteractive ? undefined : onSelect,
                 appearanceActive,
-              })
-            }
+              });
+            }}
           </AnnotationContainer>
         );
       })}

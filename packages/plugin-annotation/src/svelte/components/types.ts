@@ -10,7 +10,7 @@ import {
   GroupSelectionMenuRenderFn,
 } from '../types';
 import { VertexConfig } from '../../shared/types';
-import { PdfAnnotationObject, AnnotationAppearances } from '@embedpdf/models';
+import { PdfAnnotationObject, AnnotationAppearances, CssBlendMode } from '@embedpdf/models';
 import { TrackedAnnotation } from '@embedpdf/plugin-annotation';
 import type { BoxedAnnotationRenderer } from '../context';
 
@@ -34,9 +34,22 @@ export interface AnnotationContainerProps<T extends PdfAnnotationObject> {
   lockAspectRatio?: boolean;
   class?: string;
   style?: string;
+  blendMode?: CssBlendMode;
   vertexConfig?: VertexConfig<T>;
   selectionMenu?: AnnotationSelectionMenuRenderFn;
   selectionMenuSnippet?: Snippet<[AnnotationSelectionMenuProps]>;
+  /**
+   * Derived: PDF `locked` flag is set OR the annotation is non-interactive.
+   * Threaded into the selection menu context so custom menus can disable move/
+   * resize/rotate/delete/property-change items without recomputing flags.
+   */
+  structurallyLocked?: boolean;
+  /**
+   * Derived: PDF `lockedContents` flag is set OR the annotation is non-interactive.
+   * Threaded into the selection menu context so custom menus can disable content
+   * edit items without recomputing flags.
+   */
+  contentLocked?: boolean;
   /** @deprecated Use `selectionOutline.offset` instead */
   outlineOffset?: number;
   onDoubleClick?: (event: any) => void;

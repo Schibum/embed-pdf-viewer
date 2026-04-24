@@ -1,5 +1,39 @@
 # @embedpdf/plugin-ui
 
+## 2.14.1
+
+## 2.14.0
+
+## 2.13.0
+
+## 2.12.1
+
+## 2.12.0
+
+## 2.11.1
+
+## 2.11.0
+
+### Minor Changes
+
+- [#562](https://github.com/embedpdf/embed-pdf-viewer/pull/562) by [@bobsingor](https://github.com/bobsingor) – Enhance sidebar API by allowing custom `props` to be passed via `setActiveSidebar` and `toggleSidebar`, enabling dynamic state injection into sidebar components.
+
+## 2.10.1
+
+## 2.10.0
+
+## 2.9.1
+
+## 2.9.0
+
+## 2.8.0
+
+## 2.7.0
+
+### Patch Changes
+
+- [#467](https://github.com/embedpdf/embed-pdf-viewer/pull/467) by [@bobsingor](https://github.com/bobsingor) – Fix Vue reactivity bugs when switching documents in the schema-driven viewer. `useRegisterAnchor` now accepts `MaybeRefOrGetter<string>` and re-registers anchors when `documentId` changes. `AutoMenuRenderer` now passes a reactive getter to `useUIState` so menu state tracks the active document.
+
 ## 2.6.2
 
 ## 2.6.1

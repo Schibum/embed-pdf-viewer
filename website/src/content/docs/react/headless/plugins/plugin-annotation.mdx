@@ -218,6 +218,83 @@ const AnnotationLogger = ({ documentId }) => {
 };
 ```
 
+## Importing and Exporting Annotations
+
+The annotation plugin provides a symmetric API for round-tripping annotations. Both `exportAnnotations()` and `importAnnotations()` use the same `AnnotationTransferItem` type, so you can export and re-import with zero mapping.
+
+**Why stamps need special handling:** Most annotations (highlights, ink, shapes) are fully described by their object properties and round-trip with no extra data. Stamp annotations, however, contain visual content (a raster image or a vector graphic) that lives in a separate appearance stream. The `exportAnnotations()` method automatically exports each stamp's appearance as a PDF buffer in `ctx.data`.
+
+### Export
+
+```tsx
+const { provides: annotationApi } = useAnnotation(documentId);
+
+annotationApi.exportAnnotations().wait(
+  (exported) => {
+    // exported: AnnotationTransferItem[]
+    // Each entry has: { annotation, ctx? }
+    // Stamps include ctx: { data: ArrayBuffer, mimeType: 'application/pdf' }
+    console.log(`Exported ${exported.length} annotations`);
+  },
+  (error) => console.error('Export failed', error),
+);
+```
+
+You can also export a single page:
+
+```tsx
+annotationApi.exportAnnotations({ pageIndex: 0 }).wait(
+  (exported) => { /* ... */ },
+  (error) => { /* ... */ },
+);
+```
+
+### Import
+
+Pass the exported array directly to `importAnnotations()` — no remapping needed:
+
+```tsx
+annotationApi.importAnnotations(exported);
+```
+
+#### Importing stamps from image files
+
+Stamps can be created directly from PNG or JPEG buffers using `ctx: { data }`. The engine auto-detects the format from magic bytes, so no `mimeType` is needed:
+
+```tsx
+// From a PNG or JPEG file
+const response = await fetch('/my-stamp.png');
+const buffer = await response.arrayBuffer();
+
+annotationApi.importAnnotations([
+  { annotation: myStampAnnotation, ctx: { data: buffer } },
+]);
+```
+
+This works with any supported format — PNG, JPEG, or PDF appearance buffers (as produced by `exportAnnotations()`).
+
+For programmatic stamp creation from raw pixel data, `ctx: { imageData }` is also supported:
+
+```tsx
+annotationApi.importAnnotations([
+  { annotation: myStampAnnotation, ctx: { imageData: myImageData } },
+]);
+```
+
+### Live Example — Import/Export
+
+The example below demonstrates the full round-trip flow. Add some annotations (including stamps), click **Export** to save them to memory, **Clear All** to remove everything, then **Import** to restore them.
+
+import { PDFViewer as ImportExportViewer } from '../../code-examples/headless/annotation-import-export-example';
+
+<CodeExample
+  codePaths={[
+    "content/docs/react/code-examples/headless/annotation-import-export-example.tsx"
+  ]}
+>
+  <ImportExportViewer />
+</CodeExample>
+
 ## Default Annotation Tools
 
 The plugin comes with a set of pre-configured tools. You can activate any of these tools by passing its `id` to the `setActiveTool` method. You can also override their default properties by providing a modified `AnnotationTool` object with a matching `id` in the plugin configuration.
@@ -238,6 +315,69 @@ The plugin comes with a set of pre-configured tools. You can activate any of the
 | **Polygon** | `polygon` | Draws closed, multi-sided shapes. |
 | **Free Text** | `freeText` | Adds a text box annotation. |
 | **Image** | `stamp` | Adds an image stamp. Opens a file picker by default. |
+
+
+## Annotation Flags
+
+Every PDF annotation carries a bitfield of spec-defined flags that control how it
+is displayed and whether the user can interact with it. EmbedPDF exposes them as a
+string array on `annotation.flags` (see `PdfAnnotationFlagName` in `@embedpdf/models`)
+and honors them in the React viewer:
+
+- `hidden` — do not render on screen, do not allow interaction, and do not print.
+- `noView` — do not render on screen and do not allow interaction, but still include
+  in print output.
+- `readOnly` — render the annotation but block all user interaction (no selection,
+  no handles, no menu). Per spec this flag is ignored for widget (form field)
+  annotations, which go through the form-filling layer.
+- `locked` — the annotation remains selectable and the selection menu is shown, but
+  the user cannot move, resize, rotate, or change its properties.
+- `lockedContents` — the annotation can still be moved / resized / rotated, but its
+  content cannot be modified (e.g. double-click-to-edit on a FreeText is disabled).
+
+### Reading and updating flags
+
+Flags live on the annotation object itself as a string array, so you can read
+them directly and drive your own UI from them:
+
+```tsx
+const { provides: annotationApi } = useAnnotation(documentId)
+const annotation = annotationApi?.getAnnotationById(id)?.object
+const isLocked = annotation?.flags?.includes('locked') ?? false
+```
+
+To toggle a flag, pass the full updated array back through `updateAnnotation` —
+the plugin re-renders the layer and wires the new semantics through automatically:
+
+```tsx
+const current = annotation?.flags ?? []
+const next = current.includes('locked')
+  ? current.filter((f) => f !== 'locked')
+  : [...current, 'locked']
+
+annotationApi?.updateAnnotation(pageIndex, id, { flags: next })
+```
+
+Custom selection menus also receive `structurallyLocked` and `contentLocked` on
+the `context` argument so they can disable destructive or content-editing items
+without reading the flags array themselves. The same two booleans are exposed as
+`isAnnotationStructurallyLocked(annotation)` and `isAnnotationContentLocked(annotation)`
+on the annotation capability if you need them outside of a selection menu.
+
+The example below seeds a few annotations and lets you toggle each flag on the
+currently selected annotation to observe the behavior in real time. Use
+**Reset demo** to recover after setting `hidden` or `noView` (both of which
+remove the annotation from the view entirely).
+
+import { PDFViewer as FlagsViewer } from '../../code-examples/headless/annotation-flags-example';
+
+<CodeExample
+  codePaths={[
+    "content/docs/react/code-examples/headless/annotation-flags-example.tsx"
+  ]}
+>
+  <FlagsViewer />
+</CodeExample>
 
 
 ## Live Example
@@ -457,12 +597,34 @@ A selection of key methods available on the `provides` object:
 | **`createAnnotation(..)`** | Programmatically creates a new annotation on a page. |
 | **`updateAnnotation(..)`** | Updates the properties of an existing annotation. |
 | **`deleteAnnotation(..)`** | Deletes an annotation from a page. |
+| **`deleteAllAnnotations()`** | Deletes all annotations from the document. |
 | **`selectAnnotation(..)`** | Programmatically selects an annotation. |
 | **`getSelectedAnnotation()`** | Returns the currently selected `TrackedAnnotation` object, or `null`. |
-| **`importAnnotations(..)`**| Imports an array of annotations into the viewer. |
+| **`importAnnotations(..)`**| Imports an array of `AnnotationTransferItem` into the viewer. |
+| **`exportAnnotations(..)`**| Exports all annotations as `AnnotationTransferItem[]` (stamps include `ctx.appearance`). |
 | **`commit()`** | Manually saves all pending annotation changes to the PDF document. |
 | **`onStateChange(cb)`** | Subscribes to any change in the annotation state. |
 | **`onAnnotationEvent(cb)`**| Subscribes to events like annotation creation, updates, or deletion. |
+
+### `PdfAnnotationFlagName` Values
+
+The `flags` property on every annotation is an array of string identifiers drawn
+from the `PdfAnnotationFlagName` union exported by `@embedpdf/models`. The table
+below lists every supported value and how it affects the React viewer. See the
+[Annotation Flags](#annotation-flags) section above for a live demo.
+
+| Flag | Description | Render | Select | Move / Resize | Content Edit |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| **`hidden`** | Annotation is hidden everywhere including print. | No | No | No | No |
+| **`noView`** | Not drawn on screen, still included in print output. | No | No | No | No |
+| **`readOnly`** | Rendered but fully inert in the UI. Ignored for widgets. | Yes | No | No | No |
+| **`locked`** | Rendered and selectable, but structural edits are blocked. | Yes | Yes | No | Yes |
+| **`lockedContents`** | Rendered, selectable, movable; content editing is blocked. | Yes | Yes | Yes | No |
+| **`print`** | Include the annotation when printing. | — | — | — | — |
+| **`invisible`** | Hide annotations of unknown subtypes. | — | — | — | — |
+| **`noZoom`** | Keep a fixed screen-pixel size regardless of zoom. | — | — | — | — |
+| **`noRotate`** | Keep the annotation upright when the page is rotated. | — | — | — | — |
+| **`toggleNoView`** | Toggle `noView` on hover (used by some viewers). | — | — | — | — |
 
 ### The `AnnotationEvent` Object
 
