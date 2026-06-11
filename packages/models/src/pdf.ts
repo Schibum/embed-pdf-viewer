@@ -1,4 +1,4 @@
-import { Size, Rect, Position, Rotation } from './geometry';
+import { Size, Rect, Position, Quad, Rotation } from './geometry';
 import { Task, TaskError } from './task';
 
 /**
@@ -1835,6 +1835,55 @@ export interface PdfFormObject {
 }
 
 /**
+ * Lightweight, serializable description of a single page content object, used
+ * by the object eraser to hit-test and soft-delete native PDF content.
+ *
+ * All geometry is expressed in the same y-down device/page space the viewer's
+ * `PdfPoint` uses (see {@link PdfEngine.getPageGeometry}), so callers do not
+ * need to know about PDFium's y-up user space or object transform matrices.
+ *
+ * @public
+ */
+export interface PdfPageObjectInfo {
+  /**
+   * Index path locating the object within the page, descending through nested
+   * form XObjects. `[3]` is the 4th top-level object; `[3, 7]` is the 8th child
+   * of the form at top-level index 3. This path is stable while objects are
+   * only toggled active/inactive (no insertion/removal), which is what the
+   * eraser's undo relies on.
+   */
+  id: number[];
+  /**
+   * Type of the underlying page object.
+   */
+  type: PdfPageObjectType;
+  /**
+   * Rotated bounding quadrilateral of the object in device space. Suitable for
+   * a coarse bbox prefilter and for point-in-quad hit-testing of text/image
+   * objects.
+   */
+  quad: Quad;
+  /**
+   * Stroke width in device-space units. Present for stroked path objects.
+   */
+  strokeWidth?: number;
+  /**
+   * Whether the path is stroked.
+   */
+  stroked?: boolean;
+  /**
+   * Whether the path is filled.
+   */
+  filled?: boolean;
+  /**
+   * Flattened path geometry for path objects. Each entry is one sub-path as a
+   * flat array of alternating x/y device-space coordinates
+   * (`[x0, y0, x1, y1, ...]`); bezier segments are sampled into line segments.
+   */
+  polylines?: number[][];
+}
+
+/**
  * Contents type of pdf stamp annotation
  *
  * @public
@@ -3560,6 +3609,33 @@ export interface PdfEngine<T = Blob> {
    * @returns task that resolves to true if owner permissions are unlocked
    */
   isOwnerUnlocked: (doc: PdfDocumentObject) => PdfTask<boolean>;
+  /**
+   * Enumerate a page's content objects (paths, text, images, …) as
+   * serializable {@link PdfPageObjectInfo} records for hit-testing. Recurses
+   * into nested form XObjects and returns the contained leaf objects with an
+   * index-path id, with all geometry in device space.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @returns task contains the page objects
+   */
+  getPageObjects: (doc: PdfDocumentObject, page: PdfPageObject) => PdfTask<PdfPageObjectInfo[]>;
+  /**
+   * Toggle the "active" flag on the page objects identified by their
+   * index-path ids. Inactive objects are excluded from rendering and from
+   * {@link PdfEngine.saveAsCopy}, and can be reactivated to undo the change —
+   * no content-stream regeneration required.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param ids - index-path ids of the objects to toggle
+   * @param active - desired active state
+   * @returns task that resolves true when all ids were resolved and toggled
+   */
+  setPageObjectsActive: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    ids: number[][],
+    active: boolean,
+  ) => PdfTask<boolean>;
 }
 
 /**
@@ -3725,6 +3801,13 @@ export interface IPdfiumExecutor {
   getPageGlyphs(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfGlyphObject[]>;
   getPageGeometry(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfPageGeometry>;
   getPageTextRuns(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfPageTextRuns>;
+  getPageObjects(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfPageObjectInfo[]>;
+  setPageObjectsActive(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    ids: number[][],
+    active: boolean,
+  ): PdfTask<boolean>;
   merge(files: PdfFile[]): PdfTask<PdfFile>;
   mergePages(mergeConfigs: Array<{ docId: string; pageIndices: number[] }>): PdfTask<PdfFile>;
   preparePrintDocument(doc: PdfDocumentObject, options?: PdfPrintOptions): PdfTask<ArrayBuffer>;

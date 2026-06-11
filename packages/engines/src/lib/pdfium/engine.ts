@@ -43,9 +43,11 @@ import {
   PdfUnderlineAnnoObject,
   PdfFile,
   PdfSegmentObject,
+  PdfSegmentObjectType,
   AppearanceMode,
   PdfImageObject,
   PdfPageObjectType,
+  PdfPageObjectInfo,
   PdfPathObject,
   PdfFormObject,
   PdfPolygonAnnoObject,
@@ -3627,6 +3629,354 @@ export class PdfiumNative implements IPdfiumExecutor {
 
     this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
     return PdfTaskHelper.resolve({ runs });
+  }
+
+  /**
+   * Enumerate the page's content objects for the object eraser. Walks the
+   * top-level object list, recurses into nested form XObjects, and returns the
+   * contained leaf objects (path/text/image/shading) as serializable
+   * {@link PdfPageObjectInfo} records with device-space geometry.
+   *
+   * {@inheritDoc @embedpdf/models!PdfEngine.getPageObjects}
+   *
+   * @public
+   */
+  getPageObjects(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfPageObjectInfo[]> {
+    const label = 'getPageObjects';
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'Begin', doc.id);
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    const pageCtx = ctx.acquirePage(page.index);
+
+    const out: PdfPageObjectInfo[] = [];
+    const identity: PdfTransformMatrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+    const count = this.pdfiumModule.FPDFPage_CountObjects(pageCtx.pagePtr);
+    for (let i = 0; i < count; i++) {
+      const objPtr = this.pdfiumModule.FPDFPage_GetObject(pageCtx.pagePtr, i);
+      if (objPtr) {
+        this.collectPageObject(doc, page, objPtr, [i], identity, out);
+      }
+    }
+
+    pageCtx.release();
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
+    return PdfTaskHelper.resolve(out);
+  }
+
+  /**
+   * Toggle the active flag on the page objects identified by their index-path
+   * ids. Used by the eraser to soft-delete content (and to restore it on undo)
+   * without regenerating the page content stream.
+   *
+   * {@inheritDoc @embedpdf/models!PdfEngine.setPageObjectsActive}
+   *
+   * @public
+   */
+  setPageObjectsActive(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    ids: number[][],
+    active: boolean,
+  ): PdfTask<boolean> {
+    const label = 'setPageObjectsActive';
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'Begin', doc.id);
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    const pageCtx = ctx.acquirePage(page.index);
+
+    let ok = true;
+    for (const id of ids) {
+      const objPtr = this.resolvePageObject(pageCtx.pagePtr, id);
+      if (!objPtr) {
+        ok = false;
+        continue;
+      }
+      if (!this.pdfiumModule.FPDFPageObj_SetIsActive(objPtr, active)) {
+        ok = false;
+      }
+    }
+
+    pageCtx.release();
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
+    return PdfTaskHelper.resolve(ok);
+  }
+
+  /**
+   * Walk a single page object: append leaf objects to `out` and recurse into
+   * form XObjects, threading the index-path id and the container→page matrix.
+   *
+   * PDFium's bounds already fold in an object's own matrix relative to its
+   * container, so the rotated-bounds quad is transformed by `parentMatrix`
+   * only, whereas raw path-segment points (object space) are transformed by
+   * `parentMatrix · objMatrix`.
+   *
+   * @private
+   */
+  private collectPageObject(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    objPtr: number,
+    idPath: number[],
+    parentMatrix: PdfTransformMatrix,
+    out: PdfPageObjectInfo[],
+  ): void {
+    const type = this.pdfiumModule.FPDFPageObj_GetType(objPtr) as PdfPageObjectType;
+    const objMatrix = this.readPdfPageObjectTransformMatrix(objPtr);
+
+    if (type === PdfPageObjectType.FORM) {
+      const childParent = this.composeMatrix(parentMatrix, objMatrix);
+      const childCount = this.pdfiumModule.FPDFFormObj_CountObjects(objPtr);
+      for (let i = 0; i < childCount; i++) {
+        const childPtr = this.pdfiumModule.FPDFFormObj_GetObject(objPtr, i);
+        if (childPtr) {
+          this.collectPageObject(doc, page, childPtr, [...idPath, i], childParent, out);
+        }
+      }
+      return;
+    }
+
+    const quad = this.readObjectQuad(doc, page, objPtr, parentMatrix);
+    if (!quad) return;
+
+    const info: PdfPageObjectInfo = { id: idPath, type, quad };
+
+    if (type === PdfPageObjectType.PATH) {
+      const fullMatrix = this.composeMatrix(parentMatrix, objMatrix);
+      info.polylines = this.readPathPolylines(doc, page, objPtr, fullMatrix);
+      const { filled, stroked } = this.readPathDrawMode(objPtr);
+      info.filled = filled;
+      info.stroked = stroked;
+      if (stroked) {
+        info.strokeWidth = this.readDeviceStrokeWidth(objPtr, fullMatrix);
+      }
+    }
+
+    out.push(info);
+  }
+
+  /**
+   * Resolve an index-path id to a native page-object pointer, descending
+   * through nested form XObjects. Returns 0 when any index is out of range.
+   *
+   * @private
+   */
+  private resolvePageObject(pagePtr: number, idPath: number[]): number {
+    if (idPath.length === 0) return 0;
+    let objPtr = this.pdfiumModule.FPDFPage_GetObject(pagePtr, idPath[0]);
+    for (let i = 1; i < idPath.length && objPtr; i++) {
+      objPtr = this.pdfiumModule.FPDFFormObj_GetObject(objPtr, idPath[i]);
+    }
+    return objPtr;
+  }
+
+  /**
+   * Rotated bounding quad of a page object, mapped into device space, or
+   * `null` when PDFium cannot compute it.
+   *
+   * @private
+   */
+  private readObjectQuad(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    objPtr: number,
+    parentMatrix: PdfTransformMatrix,
+  ): Quad | null {
+    const FS_QUADPOINTSF_SIZE = 8 * 4; // four points, eight floats
+    const ptr = this.memoryManager.malloc(FS_QUADPOINTSF_SIZE);
+    const ok = this.pdfiumModule.FPDFPageObj_GetRotatedBounds(objPtr, ptr);
+    if (!ok) {
+      this.memoryManager.free(ptr);
+      return null;
+    }
+
+    const pdf = this.pdfiumModule.pdfium;
+    const pts: Position[] = [];
+    for (let i = 0; i < 4; i++) {
+      const base = ptr + i * 8; // 8 bytes per point (x + y floats)
+      const cx = pdf.getValue(base, 'float');
+      const cy = pdf.getValue(base + 4, 'float');
+      const pagePt = this.applyMatrix(parentMatrix, { x: cx, y: cy });
+      pts.push(this.convertPagePointToDevicePoint(doc, page, pagePt));
+    }
+    this.memoryManager.free(ptr);
+
+    return { p1: pts[0], p2: pts[1], p3: pts[2], p4: pts[3] };
+  }
+
+  /**
+   * Flatten a path object's segments into device-space polylines. Each entry
+   * is one sub-path as a flat `[x0, y0, x1, y1, ...]` array; cubic beziers are
+   * sampled into line segments.
+   *
+   * @private
+   */
+  private readPathPolylines(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    pathPtr: number,
+    fullMatrix: PdfTransformMatrix,
+  ): number[][] {
+    const pdf = this.pdfiumModule.pdfium;
+    const segCount = this.pdfiumModule.FPDFPath_CountSegments(pathPtr);
+
+    const xPtr = this.memoryManager.malloc(4);
+    const yPtr = this.memoryManager.malloc(4);
+
+    const toDevice = (x: number, y: number): Position =>
+      this.convertPagePointToDevicePoint(doc, page, this.applyMatrix(fullMatrix, { x, y }));
+
+    const polylines: number[][] = [];
+    let current: number[] = [];
+    let cursor: Position | null = null;
+    const bezierBuf: Position[] = [];
+
+    const flushCurrent = () => {
+      if (current.length >= 4) polylines.push(current);
+      current = [];
+    };
+
+    for (let i = 0; i < segCount; i++) {
+      const segPtr = this.pdfiumModule.FPDFPath_GetPathSegment(pathPtr, i);
+      if (!segPtr) continue;
+      const segType = this.pdfiumModule.FPDFPathSegment_GetType(segPtr);
+      this.pdfiumModule.FPDFPathSegment_GetPoint(segPtr, xPtr, yPtr);
+      const dev = toDevice(pdf.getValue(xPtr, 'float'), pdf.getValue(yPtr, 'float'));
+
+      if (segType === PdfSegmentObjectType.MOVETO) {
+        flushCurrent();
+        current = [dev.x, dev.y];
+        cursor = dev;
+        bezierBuf.length = 0;
+      } else if (segType === PdfSegmentObjectType.BEZIERTO) {
+        bezierBuf.push(dev);
+        if (bezierBuf.length === 3 && cursor) {
+          this.sampleCubicBezier(cursor, bezierBuf[0], bezierBuf[1], bezierBuf[2], current);
+          cursor = bezierBuf[2];
+          bezierBuf.length = 0;
+        }
+      } else {
+        // LINETO (and any unknown segment) → straight edge to the point
+        if (current.length === 0) current.push(dev.x, dev.y);
+        else current.push(dev.x, dev.y);
+        cursor = dev;
+        bezierBuf.length = 0;
+      }
+    }
+    flushCurrent();
+
+    this.memoryManager.free(xPtr);
+    this.memoryManager.free(yPtr);
+    return polylines;
+  }
+
+  /**
+   * Sample a cubic bezier from `p0` (already emitted) through `p3`, appending
+   * intermediate and end points to `out` as flat x/y pairs.
+   *
+   * @private
+   */
+  private sampleCubicBezier(
+    p0: Position,
+    p1: Position,
+    p2: Position,
+    p3: Position,
+    out: number[],
+    steps = 16,
+  ): void {
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const mt = 1 - t;
+      const a = mt * mt * mt;
+      const b = 3 * mt * mt * t;
+      const c = 3 * mt * t * t;
+      const d = t * t * t;
+      out.push(
+        a * p0.x + b * p1.x + c * p2.x + d * p3.x,
+        a * p0.y + b * p1.y + c * p2.y + d * p3.y,
+      );
+    }
+  }
+
+  /**
+   * Read a path object's fill/stroke draw mode.
+   *
+   * @private
+   */
+  private readPathDrawMode(pathPtr: number): { filled: boolean; stroked: boolean } {
+    const fillPtr = this.memoryManager.malloc(4);
+    const strokePtr = this.memoryManager.malloc(4);
+    let filled = false;
+    let stroked = false;
+    if (this.pdfiumModule.FPDFPath_GetDrawMode(pathPtr, fillPtr, strokePtr)) {
+      filled = this.pdfiumModule.pdfium.getValue(fillPtr, 'i32') !== 0;
+      stroked = this.pdfiumModule.pdfium.getValue(strokePtr, 'i32') !== 0;
+    }
+    this.memoryManager.free(fillPtr);
+    this.memoryManager.free(strokePtr);
+    return { filled, stroked };
+  }
+
+  /**
+   * Stroke width of a path object expressed in device-space units. The raw
+   * width is in object space, so it is scaled by the matrix's linear factor.
+   *
+   * @private
+   */
+  private readDeviceStrokeWidth(objPtr: number, fullMatrix: PdfTransformMatrix): number {
+    const wPtr = this.memoryManager.malloc(4);
+    let width = 0;
+    if (this.pdfiumModule.FPDFPageObj_GetStrokeWidth(objPtr, wPtr)) {
+      width = this.pdfiumModule.pdfium.getValue(wPtr, 'float');
+    }
+    this.memoryManager.free(wPtr);
+    const det = fullMatrix.a * fullMatrix.d - fullMatrix.b * fullMatrix.c;
+    const scale = Math.sqrt(Math.abs(det)) || 1;
+    return width * scale;
+  }
+
+  /**
+   * Compose two PDF transform matrices: returns `m1 · m2`, i.e. the matrix
+   * that applies `m2` first and then `m1`.
+   *
+   * @private
+   */
+  private composeMatrix(m1: PdfTransformMatrix, m2: PdfTransformMatrix): PdfTransformMatrix {
+    return {
+      a: m1.a * m2.a + m1.c * m2.b,
+      b: m1.b * m2.a + m1.d * m2.b,
+      c: m1.a * m2.c + m1.c * m2.d,
+      d: m1.b * m2.c + m1.d * m2.d,
+      e: m1.a * m2.e + m1.c * m2.f + m1.e,
+      f: m1.b * m2.e + m1.d * m2.f + m1.f,
+    };
+  }
+
+  /**
+   * Apply a PDF transform matrix to a point in the matrix's source space.
+   *
+   * @private
+   */
+  private applyMatrix(m: PdfTransformMatrix, p: Position): Position {
+    return {
+      x: m.a * p.x + m.c * p.y + m.e,
+      y: m.b * p.x + m.d * p.y + m.f,
+    };
   }
 
   /**

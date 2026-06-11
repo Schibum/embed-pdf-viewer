@@ -382,6 +382,12 @@ export class EngineRunner {
       case 'getPageGeometry':
         task = engine.getPageGeometry!(...args);
         break;
+      case 'getPageObjects':
+        task = engine.getPageObjects!(...args);
+        break;
+      case 'setPageObjectsActive':
+        task = engine.setPageObjectsActive!(...args);
+        break;
       case 'getPageTextRuns':
         task = engine.getPageTextRuns!(...args);
         break;

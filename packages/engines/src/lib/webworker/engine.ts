@@ -22,6 +22,7 @@ import {
   PdfFileUrl,
   PdfGlyphObject,
   PdfPageGeometry,
+  PdfPageObjectInfo,
   PdfPageTextRuns,
   PageTextSlice,
   AnnotationCreateContext,
@@ -995,6 +996,48 @@ export class WebWorkerEngine implements PdfEngine {
     const task = new WorkerTask<PdfPageGeometry>(this.worker, requestId);
 
     const request: ExecuteRequest = createRequest(requestId, 'getPageGeometry', [doc, page]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.getPageObjects}
+   *
+   * @public
+   */
+  getPageObjects(doc: PdfDocumentObject, page: PdfPageObject) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageObjects', doc, page);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<PdfPageObjectInfo[]>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'getPageObjects', [doc, page]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.setPageObjectsActive}
+   *
+   * @public
+   */
+  setPageObjectsActive(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    ids: number[][],
+    active: boolean,
+  ) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'setPageObjectsActive', doc, page, ids, active);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'setPageObjectsActive', [
+      doc,
+      page,
+      ids,
+      active,
+    ]);
     this.proxy(task, request);
 
     return task;
