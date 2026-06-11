@@ -1044,6 +1044,25 @@ export class WebWorkerEngine implements PdfEngine {
   }
 
   /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.generatePageContent}
+   *
+   * @public
+   */
+  generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'generatePageContent', doc, pageIndexes);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'generatePageContent', [
+      doc,
+      pageIndexes,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
    * {@inheritDoc @embedpdf/models!PdfEngine.getPageTextRuns}
    *
    * @public

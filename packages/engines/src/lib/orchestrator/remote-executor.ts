@@ -111,6 +111,7 @@ type MessageType =
   | 'getPageTextRuns'
   | 'getPageObjects'
   | 'setPageObjectsActive'
+  | 'generatePageContent'
   | 'merge'
   | 'mergePages'
   | 'preparePrintDocument'
@@ -538,6 +539,10 @@ export class RemoteExecutor implements IPdfiumExecutor {
     active: boolean,
   ): PdfTask<boolean> {
     return this.send<boolean>('setPageObjectsActive', [doc, page, ids, active]);
+  }
+
+  generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<boolean> {
+    return this.send<boolean>('generatePageContent', [doc, pageIndexes]);
   }
 
   merge(files: PdfFile[]): PdfTask<PdfFile> {

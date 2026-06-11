@@ -886,6 +886,16 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     );
   }
 
+  generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.generatePageContent(doc, pageIndexes),
+        meta: { docId: doc.id, pageIndex: pageIndexes[0] ?? -1, operation: 'generatePageContent' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
   // ========== Document Operations ==========
 
   merge(files: PdfFile[]): PdfTask<PdfFile> {

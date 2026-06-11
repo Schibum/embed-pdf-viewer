@@ -3636,6 +3636,18 @@ export interface PdfEngine<T = Blob> {
     ids: number[][],
     active: boolean,
   ) => PdfTask<boolean>;
+  /**
+   * Regenerate the content stream of the given pages from their currently
+   * active objects (via `FPDFPage_GenerateContent`). This bakes the result of
+   * {@link PdfEngine.setPageObjectsActive} into the saved bytes — inactive
+   * objects are excluded from a subsequent {@link PdfEngine.saveAsCopy}. The
+   * operation is destructive to the page content stream, so callers that need
+   * to preserve undo should run it on a throwaway copy at export time.
+   * @param doc - pdf document
+   * @param pageIndexes - indexes of pages to regenerate
+   * @returns task that resolves true when all pages regenerated successfully
+   */
+  generatePageContent: (doc: PdfDocumentObject, pageIndexes: number[]) => PdfTask<boolean>;
 }
 
 /**
@@ -3808,6 +3820,7 @@ export interface IPdfiumExecutor {
     ids: number[][],
     active: boolean,
   ): PdfTask<boolean>;
+  generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<boolean>;
   merge(files: PdfFile[]): PdfTask<PdfFile>;
   mergePages(mergeConfigs: Array<{ docId: string; pageIndices: number[] }>): PdfTask<PdfFile>;
   preparePrintDocument(doc: PdfDocumentObject, options?: PdfPrintOptions): PdfTask<ArrayBuffer>;

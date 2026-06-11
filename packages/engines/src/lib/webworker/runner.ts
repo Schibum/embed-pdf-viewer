@@ -388,6 +388,9 @@ export class EngineRunner {
       case 'setPageObjectsActive':
         task = engine.setPageObjectsActive!(...args);
         break;
+      case 'generatePageContent':
+        task = engine.generatePageContent!(...args);
+        break;
       case 'getPageTextRuns':
         task = engine.getPageTextRuns!(...args);
         break;

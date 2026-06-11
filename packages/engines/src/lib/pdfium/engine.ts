@@ -3718,6 +3718,37 @@ export class PdfiumNative implements IPdfiumExecutor {
   }
 
   /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.generatePageContent}
+   *
+   * @public
+   */
+  generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<boolean> {
+    const label = 'generatePageContent';
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'Begin', doc.id);
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    let ok = true;
+    for (const pageIndex of pageIndexes) {
+      const pageCtx = ctx.acquirePage(pageIndex);
+      if (!this.pdfiumModule.FPDFPage_GenerateContent(pageCtx.pagePtr)) {
+        ok = false;
+      }
+      pageCtx.release();
+    }
+
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
+    return PdfTaskHelper.resolve(ok);
+  }
+
+  /**
    * Walk a single page object: append leaf objects to `out` and recurse into
    * form XObjects, threading the index-path id and the container→page matrix.
    *
@@ -3797,26 +3828,61 @@ export class PdfiumNative implements IPdfiumExecutor {
     objPtr: number,
     parentMatrix: PdfTransformMatrix,
   ): Quad | null {
-    const FS_QUADPOINTSF_SIZE = 8 * 4; // four points, eight floats
-    const ptr = this.memoryManager.malloc(FS_QUADPOINTSF_SIZE);
-    const ok = this.pdfiumModule.FPDFPageObj_GetRotatedBounds(objPtr, ptr);
-    if (!ok) {
-      this.memoryManager.free(ptr);
-      return null;
-    }
-
     const pdf = this.pdfiumModule.pdfium;
-    const pts: Position[] = [];
-    for (let i = 0; i < 4; i++) {
-      const base = ptr + i * 8; // 8 bytes per point (x + y floats)
-      const cx = pdf.getValue(base, 'float');
-      const cy = pdf.getValue(base + 4, 'float');
-      const pagePt = this.applyMatrix(parentMatrix, { x: cx, y: cy });
-      pts.push(this.convertPagePointToDevicePoint(doc, page, pagePt));
-    }
-    this.memoryManager.free(ptr);
 
-    return { p1: pts[0], p2: pts[1], p3: pts[2], p4: pts[3] };
+    // Map four container-space corners through the parent matrix into device space.
+    const toQuad = (corners: Position[]): Quad => {
+      const pts = corners.map((c) =>
+        this.convertPagePointToDevicePoint(doc, page, this.applyMatrix(parentMatrix, c)),
+      );
+      return { p1: pts[0], p2: pts[1], p3: pts[2], p4: pts[3] };
+    };
+
+    // Preferred: rotated bounds (a true quad). Not all PDFium builds/objects
+    // support it, so fall back to axis-aligned bounds when it fails.
+    const FS_QUADPOINTSF_SIZE = 8 * 4; // four points, eight floats
+    const quadPtr = this.memoryManager.malloc(FS_QUADPOINTSF_SIZE);
+    const haveRotated = this.pdfiumModule.FPDFPageObj_GetRotatedBounds(objPtr, quadPtr);
+    if (haveRotated) {
+      const corners: Position[] = [];
+      for (let i = 0; i < 4; i++) {
+        const base = quadPtr + i * 8; // 8 bytes per point (x + y floats)
+        corners.push({ x: pdf.getValue(base, 'float'), y: pdf.getValue(base + 4, 'float') });
+      }
+      this.memoryManager.free(quadPtr);
+      return toQuad(corners);
+    }
+    this.memoryManager.free(quadPtr);
+
+    // Fallback: axis-aligned bounds (same call readPathObject relies on).
+    const leftPtr = this.memoryManager.malloc(4);
+    const bottomPtr = this.memoryManager.malloc(4);
+    const rightPtr = this.memoryManager.malloc(4);
+    const topPtr = this.memoryManager.malloc(4);
+    const haveBounds = this.pdfiumModule.FPDFPageObj_GetBounds(
+      objPtr,
+      leftPtr,
+      bottomPtr,
+      rightPtr,
+      topPtr,
+    );
+    const left = pdf.getValue(leftPtr, 'float');
+    const bottom = pdf.getValue(bottomPtr, 'float');
+    const right = pdf.getValue(rightPtr, 'float');
+    const top = pdf.getValue(topPtr, 'float');
+    this.memoryManager.free(leftPtr);
+    this.memoryManager.free(bottomPtr);
+    this.memoryManager.free(rightPtr);
+    this.memoryManager.free(topPtr);
+    if (!haveBounds) return null;
+
+    // container space is y-up; emit TL, TR, BR, BL
+    return toQuad([
+      { x: left, y: top },
+      { x: right, y: top },
+      { x: right, y: bottom },
+      { x: left, y: bottom },
+    ]);
   }
 
   /**
