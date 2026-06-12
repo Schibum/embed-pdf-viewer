@@ -1,6 +1,8 @@
-import { WrappedPdfiumModule } from "@embedpdf/pdfium";
-import { MemoryManager } from "./core/memory-manager";
-import { WasmPointer } from "./types/branded";
+import { PdfPathSubpathErase } from '@embedpdf/models';
+import { WrappedPdfiumModule } from '@embedpdf/pdfium';
+import { MemoryManager } from './core/memory-manager';
+import { buildSubpathReplacement } from './subpath-erase';
+import { WasmPointer } from './types/branded';
 
 export interface CacheConfig {
   /** Time-to-live for pages in milliseconds (default: 5000ms) */
@@ -111,7 +113,7 @@ export class DocumentContext {
     config: Required<CacheConfig>,
   ) {
     this.normalizeRotation = config.normalizeRotation;
-    this.pageCache = new PageCache(pdfium, docPtr, config);
+    this.pageCache = new PageCache(pdfium, docPtr, config, memoryManager);
   }
 
   /** Main accessor for pages */
@@ -125,6 +127,19 @@ export class DocumentContext {
    */
   setObjectsActive(pageIdx: number, idPaths: number[][], active: boolean): boolean {
     return this.pageCache.setObjectsActive(pageIdx, idPaths, active);
+  }
+
+  /**
+   * Set the erased-subpaths state of path objects (line-wise erase),
+   * persisting it so it survives page reloads.
+   */
+  setPathSubpathsInactive(pageIdx: number, items: PdfPathSubpathErase[]): boolean {
+    return this.pageCache.setPathSubpathsInactive(pageIdx, items);
+  }
+
+  /** Pointers of live subpath-replacement objects on the loaded page. */
+  getReplacementPtrs(pageIdx: number): number[] {
+    return this.pageCache.getReplacementPtrs(pageIdx);
   }
 
   /** Scoped accessor for one-off / bulk operations */
@@ -166,11 +181,28 @@ export class PageCache {
    * set here and re-apply it every time a page is (re)loaded.
    */
   private readonly inactiveObjects = new Map<number, Map<string, number[]>>();
+  /**
+   * Subpath-level erase state (line-wise eraser), keyed pageIdx → id-key →
+   * desired state. Persisted for the same reason as {@link inactiveObjects}
+   * and re-applied on every page (re)load. Mutually exclusive with a full
+   * soft-delete per object id.
+   */
+  private readonly subpathOverrides = new Map<
+    number,
+    Map<string, { idPath: number[]; inactiveSubpaths: number[] }>
+  >();
+  /**
+   * Live replacement-object pointers per loaded page, keyed pageIdx →
+   * id-key → objPtr. Pointers die with the page handle, so entries are
+   * dropped on page dispose and rebuilt by {@link applySubpathOverridesToPage}.
+   */
+  private readonly liveReplacements = new Map<number, Map<string, number>>();
 
   constructor(
     public readonly pdf: WrappedPdfiumModule,
     private readonly docPtr: number,
     config: Required<CacheConfig>,
+    private readonly memoryManager: MemoryManager,
   ) {
     this.config = config;
   }
@@ -206,9 +238,10 @@ export class PageCache {
       this.inactiveObjects.set(pageIdx, set);
     }
     for (const idPath of idPaths) {
-      const key = idPath.join(",");
+      const key = idPath.join(',');
       if (active) set.delete(key);
       else set.set(key, idPath.slice());
+      this.clearSubpathOverride(pageIdx, key);
     }
     if (set.size === 0) this.inactiveObjects.delete(pageIdx);
 
@@ -221,6 +254,122 @@ export class PageCache {
       if (!objPtr || !this.pdf.FPDFPageObj_SetIsActive(objPtr, active)) ok = false;
     }
     return ok;
+  }
+
+  /**
+   * Set the erased-subpaths state for the given path objects and remember it
+   * so it survives page reloads. Set-state semantics per object: non-empty
+   * `inactiveSubpaths` soft-deletes the original and (re)builds a replacement
+   * containing only the kept subpaths; an empty array restores the original.
+   * Returns true when every item applied to the loaded page (or the page is
+   * not currently loaded — it will be applied on next load).
+   */
+  setPathSubpathsInactive(pageIdx: number, items: PdfPathSubpathErase[]): boolean {
+    let ok = true;
+    for (const item of items) {
+      const key = item.id.join(',');
+      // Subpath state supersedes a full soft-delete for the same object.
+      const inactiveSet = this.inactiveObjects.get(pageIdx);
+      if (inactiveSet?.delete(key) && inactiveSet.size === 0) {
+        this.inactiveObjects.delete(pageIdx);
+      }
+      let overrides = this.subpathOverrides.get(pageIdx);
+      if (item.inactiveSubpaths.length === 0) {
+        if (overrides?.delete(key) && overrides.size === 0) {
+          this.subpathOverrides.delete(pageIdx);
+        }
+      } else {
+        if (!overrides) {
+          overrides = new Map();
+          this.subpathOverrides.set(pageIdx, overrides);
+        }
+        overrides.set(key, {
+          idPath: item.id.slice(),
+          inactiveSubpaths: item.inactiveSubpaths.slice(),
+        });
+      }
+
+      // Apply immediately to the currently-loaded handle, if any.
+      const ctx = this.cache.get(pageIdx);
+      if (!ctx) continue;
+      if (!this.applySubpathState(pageIdx, ctx.pagePtr, key, item.id, item.inactiveSubpaths)) {
+        ok = false;
+      }
+    }
+    return ok;
+  }
+
+  /** Pointers of live subpath-replacement objects on the loaded page. */
+  getReplacementPtrs(pageIdx: number): number[] {
+    const live = this.liveReplacements.get(pageIdx);
+    return live ? [...live.values()] : [];
+  }
+
+  /** Drop a persisted subpath override and its live replacement, if any. */
+  private clearSubpathOverride(pageIdx: number, key: string): void {
+    const overrides = this.subpathOverrides.get(pageIdx);
+    if (overrides?.delete(key) && overrides.size === 0) {
+      this.subpathOverrides.delete(pageIdx);
+    }
+    this.removeLiveReplacement(pageIdx, key);
+  }
+
+  /** Remove (and destroy) the live replacement object for `key`, if any. */
+  private removeLiveReplacement(pageIdx: number, key: string): void {
+    const live = this.liveReplacements.get(pageIdx);
+    const ptr = live?.get(key);
+    if (!live || ptr === undefined) return;
+    const ctx = this.cache.get(pageIdx);
+    if (ctx) {
+      this.pdf.FPDFPage_RemoveObject(ctx.pagePtr, ptr);
+      this.pdf.FPDFPageObj_Destroy(ptr);
+    }
+    live.delete(key);
+    if (live.size === 0) this.liveReplacements.delete(pageIdx);
+  }
+
+  /** Apply one object's subpath-erase state to a loaded page handle. */
+  private applySubpathState(
+    pageIdx: number,
+    pagePtr: number,
+    key: string,
+    idPath: number[],
+    inactiveSubpaths: number[],
+  ): boolean {
+    this.removeLiveReplacement(pageIdx, key);
+    const objPtr = this.resolveObject(pagePtr, idPath);
+    if (!objPtr) return false;
+    if (inactiveSubpaths.length === 0) {
+      return !!this.pdf.FPDFPageObj_SetIsActive(objPtr, true);
+    }
+    if (!this.pdf.FPDFPageObj_SetIsActive(objPtr, false)) return false;
+    const newPtr = buildSubpathReplacement(
+      this.pdf,
+      this.memoryManager,
+      pagePtr,
+      objPtr,
+      idPath,
+      new Set(inactiveSubpaths),
+    );
+    // No kept subpaths → the soft-delete alone is the correct state.
+    if (!newPtr) return true;
+    this.pdf.FPDFPage_InsertObject(pagePtr, newPtr);
+    let live = this.liveReplacements.get(pageIdx);
+    if (!live) {
+      live = new Map();
+      this.liveReplacements.set(pageIdx, live);
+    }
+    live.set(key, newPtr);
+    return true;
+  }
+
+  /** Re-apply persisted subpath erases to a freshly-loaded page. */
+  private applySubpathOverridesToPage(pageIdx: number, pagePtr: number): void {
+    const overrides = this.subpathOverrides.get(pageIdx);
+    if (!overrides) return;
+    for (const [key, o] of overrides) {
+      this.applySubpathState(pageIdx, pagePtr, key, o.idPath, o.inactiveSubpaths);
+    }
   }
 
   acquire(pageIdx: number): PageContext {
@@ -243,10 +392,14 @@ export class PageCache {
       ctx = new PageContext(this.pdf, this.docPtr, pageIdx, pagePtr, this.config.pageTtl, () => {
         this.cache.delete(pageIdx);
         this.removeFromAccessOrder(pageIdx);
+        // Replacement pointers die with the page handle.
+        this.liveReplacements.delete(pageIdx);
       });
       this.cache.set(pageIdx, ctx);
-      // Re-apply any persisted soft-deletes to this freshly-loaded page.
+      // Re-apply any persisted soft-deletes + subpath erases to this
+      // freshly-loaded page.
       this.applyInactiveToPage(pageIdx, pagePtr);
+      this.applySubpathOverridesToPage(pageIdx, pagePtr);
     }
 
     // Update LRU order
@@ -364,7 +517,7 @@ export class PageContext {
 
   /** Called by PageCache.acquire() */
   bumpRefCount() {
-    if (this.disposed) throw new Error("Context already disposed");
+    if (this.disposed) throw new Error('Context already disposed');
     this.refCount++;
   }
 
@@ -467,6 +620,6 @@ export class PageContext {
   }
 
   private ensureAlive() {
-    if (this.disposed) throw new Error("PageContext already disposed");
+    if (this.disposed) throw new Error('PageContext already disposed');
   }
 }

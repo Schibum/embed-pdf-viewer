@@ -1879,8 +1879,29 @@ export interface PdfPageObjectInfo {
    * Flattened path geometry for path objects. Each entry is one sub-path as a
    * flat array of alternating x/y device-space coordinates
    * (`[x0, y0, x1, y1, ...]`); bezier segments are sampled into line segments.
+   *
+   * Entry `k` corresponds 1:1 to the object's raw subpath `k` (a new subpath
+   * starts before each `MoveTo` segment; an empty leading group is dropped).
+   * That index is the unit {@link PdfEngine.setPathSubpathsInactive} operates
+   * on, so every subpath is emitted — including degenerate single-point ones.
    */
   polylines?: number[][];
+}
+
+/**
+ * Desired subpath-level erase state for one path object, addressed by its
+ * index-path id (see {@link PdfPageObjectInfo.id}).
+ *
+ * @public
+ */
+export interface PdfPathSubpathErase {
+  /** Index path of the path object within the page. */
+  id: number[];
+  /**
+   * Subpath indices (see {@link PdfPageObjectInfo.polylines}) to erase. An
+   * empty array fully restores the original object.
+   */
+  inactiveSubpaths: number[];
 }
 
 /**
@@ -3637,6 +3658,25 @@ export interface PdfEngine<T = Blob> {
     active: boolean,
   ) => PdfTask<boolean>;
   /**
+   * Set the erased-subpaths state of path objects (line-wise erase). For each
+   * item the original object is soft-deleted and replaced by a copy that
+   * contains only the kept subpaths (graphics state preserved); an empty
+   * `inactiveSubpaths` removes the replacement and restores the original.
+   * Idempotent set-state semantics: callers always send the full desired set
+   * per object, which makes undo/redo a plain re-send. The state survives page
+   * reloads and is baked into saved bytes by
+   * {@link PdfEngine.generatePageContent}.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param items - desired subpath-erase state per path object
+   * @returns task that resolves true when every item was applied
+   */
+  setPathSubpathsInactive: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPathSubpathErase[],
+  ) => PdfTask<boolean>;
+  /**
    * Regenerate the content stream of the given pages from their currently
    * active objects (via `FPDFPage_GenerateContent`). This bakes the result of
    * {@link PdfEngine.setPageObjectsActive} into the saved bytes — inactive
@@ -3819,6 +3859,11 @@ export interface IPdfiumExecutor {
     page: PdfPageObject,
     ids: number[][],
     active: boolean,
+  ): PdfTask<boolean>;
+  setPathSubpathsInactive(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPathSubpathErase[],
   ): PdfTask<boolean>;
   generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<boolean>;
   merge(files: PdfFile[]): PdfTask<PdfFile>;

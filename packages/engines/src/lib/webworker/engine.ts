@@ -23,6 +23,7 @@ import {
   PdfGlyphObject,
   PdfPageGeometry,
   PdfPageObjectInfo,
+  PdfPathSubpathErase,
   PdfPageTextRuns,
   PageTextSlice,
   AnnotationCreateContext,
@@ -1037,6 +1038,30 @@ export class WebWorkerEngine implements PdfEngine {
       page,
       ids,
       active,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.setPathSubpathsInactive}
+   *
+   * @public
+   */
+  setPathSubpathsInactive(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPathSubpathErase[],
+  ) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'setPathSubpathsInactive', doc, page, items);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'setPathSubpathsInactive', [
+      doc,
+      page,
+      items,
     ]);
     this.proxy(task, request);
 
