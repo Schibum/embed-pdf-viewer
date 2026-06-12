@@ -1,6 +1,6 @@
-import { WrappedPdfiumModule } from '@embedpdf/pdfium';
-import { MemoryManager } from './core/memory-manager';
-import { WasmPointer } from './types/branded';
+import { WrappedPdfiumModule } from "@embedpdf/pdfium";
+import { MemoryManager } from "./core/memory-manager";
+import { WasmPointer } from "./types/branded";
 
 export interface CacheConfig {
   /** Time-to-live for pages in milliseconds (default: 5000ms) */
@@ -119,6 +119,14 @@ export class DocumentContext {
     return this.pageCache.acquire(pageIdx);
   }
 
+  /**
+   * Soft-delete / restore page objects, persisting the choice so it survives
+   * page reloads (e.g. REFRESH_PAGES). Returns true when every id resolved.
+   */
+  setObjectsActive(pageIdx: number, idPaths: number[][], active: boolean): boolean {
+    return this.pageCache.setObjectsActive(pageIdx, idPaths, active);
+  }
+
   /** Scoped accessor for one-off / bulk operations */
   borrowPage<T>(pageIdx: number, fn: (ctx: PageContext) => T): T {
     return this.pageCache.borrowPage(pageIdx, fn);
@@ -151,6 +159,13 @@ export class PageCache {
   private readonly cache = new Map<number, PageContext>();
   private readonly accessOrder: number[] = []; // LRU tracking
   private config: Required<CacheConfig>;
+  /**
+   * Objects soft-deleted via {@link setObjectsActive}, keyed pageIdx → id-key →
+   * id-path. The "active" flag is a runtime property of a loaded page that is
+   * lost when the page is reloaded (e.g. on REFRESH_PAGES), so we persist the
+   * set here and re-apply it every time a page is (re)loaded.
+   */
+  private readonly inactiveObjects = new Map<number, Map<string, number[]>>();
 
   constructor(
     public readonly pdf: WrappedPdfiumModule,
@@ -158,6 +173,54 @@ export class PageCache {
     config: Required<CacheConfig>,
   ) {
     this.config = config;
+  }
+
+  /** Resolve an index-path id to a native page-object pointer (0 if absent). */
+  private resolveObject(pagePtr: number, idPath: number[]): number {
+    if (idPath.length === 0) return 0;
+    let objPtr = this.pdf.FPDFPage_GetObject(pagePtr, idPath[0]);
+    for (let i = 1; i < idPath.length && objPtr; i++) {
+      objPtr = this.pdf.FPDFFormObj_GetObject(objPtr, idPath[i]);
+    }
+    return objPtr;
+  }
+
+  /** Re-apply the persisted inactive set to a freshly-loaded page. */
+  private applyInactiveToPage(pageIdx: number, pagePtr: number): void {
+    const set = this.inactiveObjects.get(pageIdx);
+    if (!set) return;
+    for (const idPath of set.values()) {
+      const objPtr = this.resolveObject(pagePtr, idPath);
+      if (objPtr) this.pdf.FPDFPageObj_SetIsActive(objPtr, false);
+    }
+  }
+
+  /**
+   * Toggle the active flag for the given objects on a page and remember the
+   * choice so it survives page reloads. Returns true when every id resolved.
+   */
+  setObjectsActive(pageIdx: number, idPaths: number[][], active: boolean): boolean {
+    let set = this.inactiveObjects.get(pageIdx);
+    if (!set) {
+      set = new Map<string, number[]>();
+      this.inactiveObjects.set(pageIdx, set);
+    }
+    for (const idPath of idPaths) {
+      const key = idPath.join(",");
+      if (active) set.delete(key);
+      else set.set(key, idPath.slice());
+    }
+    if (set.size === 0) this.inactiveObjects.delete(pageIdx);
+
+    // Apply immediately to the currently-loaded handle, if any.
+    const ctx = this.cache.get(pageIdx);
+    if (!ctx) return true;
+    let ok = true;
+    for (const idPath of idPaths) {
+      const objPtr = this.resolveObject(ctx.pagePtr, idPath);
+      if (!objPtr || !this.pdf.FPDFPageObj_SetIsActive(objPtr, active)) ok = false;
+    }
+    return ok;
   }
 
   acquire(pageIdx: number): PageContext {
@@ -182,6 +245,8 @@ export class PageCache {
         this.removeFromAccessOrder(pageIdx);
       });
       this.cache.set(pageIdx, ctx);
+      // Re-apply any persisted soft-deletes to this freshly-loaded page.
+      this.applyInactiveToPage(pageIdx, pagePtr);
     }
 
     // Update LRU order
@@ -299,7 +364,7 @@ export class PageContext {
 
   /** Called by PageCache.acquire() */
   bumpRefCount() {
-    if (this.disposed) throw new Error('Context already disposed');
+    if (this.disposed) throw new Error("Context already disposed");
     this.refCount++;
   }
 
@@ -402,6 +467,6 @@ export class PageContext {
   }
 
   private ensureAlive() {
-    if (this.disposed) throw new Error('PageContext already disposed');
+    if (this.disposed) throw new Error("PageContext already disposed");
   }
 }
