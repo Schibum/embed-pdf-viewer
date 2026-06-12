@@ -228,14 +228,18 @@ export const coreReducer: Reducer<CoreState, CoreAction> = (state, action): Core
     }
 
     case REFRESH_PAGES: {
-      const { documentId, pageIndexes } = action.payload;
+      const { documentId, pageIndexes, dirtyRects } = action.payload;
       const docState = state.documents[documentId];
 
       if (!docState) return state;
 
-      // Convert 1-based page numbers to 0-based indices and increment versions
+      // Convert 1-based page numbers to 0-based indices and increment versions.
+      // Pages refreshed with dirty rects keep their version: the full-page
+      // render layer stays as-is and only intersecting tiles re-render
+      // (the tiling plugin reads dirtyRects from the action directly).
       const newVersions = { ...docState.pageRefreshVersions };
       for (const pageIndex of pageIndexes) {
+        if (dirtyRects?.[pageIndex]) continue;
         newVersions[pageIndex] = (newVersions[pageIndex] || 0) + 1;
       }
 
