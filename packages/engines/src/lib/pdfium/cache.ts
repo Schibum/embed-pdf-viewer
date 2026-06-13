@@ -142,6 +142,16 @@ export class DocumentContext {
     return this.pageCache.getReplacementPtrs(pageIdx);
   }
 
+  /** Set an object's total translation (PDF page space), persisted across reloads. */
+  setObjectTranslation(pageIdx: number, idPath: number[], pdx: number, pdy: number): boolean {
+    return this.pageCache.setObjectTranslation(pageIdx, idPath, pdx, pdy);
+  }
+
+  /** Acquire/borrow a page handle for one-off geometry conversions. */
+  borrowPageContext<T>(pageIdx: number, fn: (ctx: PageContext) => T): T {
+    return this.pageCache.borrowPage(pageIdx, fn);
+  }
+
   /** Scoped accessor for one-off / bulk operations */
   borrowPage<T>(pageIdx: number, fn: (ctx: PageContext) => T): T {
     return this.pageCache.borrowPage(pageIdx, fn);
@@ -197,6 +207,22 @@ export class PageCache {
    * dropped on page dispose and rebuilt by {@link applySubpathOverridesToPage}.
    */
   private readonly liveReplacements = new Map<number, Map<string, number>>();
+  /**
+   * Desired total translation per object (move), in PDF PAGE space (bottom-up),
+   * keyed pageIdx → id-key → {idPath, pdx, pdy}. Persisted like the erase sets
+   * and re-applied on page (re)load; `{0,0}` removes the entry.
+   */
+  private readonly transforms = new Map<
+    number,
+    Map<string, { idPath: number[]; pdx: number; pdy: number }>
+  >();
+  /**
+   * Translation already applied to the CURRENTLY-loaded page handle, per
+   * object. Lets {@link setObjectTranslation} apply only the delta on a live
+   * page. Reset when the page handle is disposed (a fresh load starts from the
+   * original positions).
+   */
+  private readonly appliedTransforms = new Map<number, Map<string, { pdx: number; pdy: number }>>();
 
   constructor(
     public readonly pdf: WrappedPdfiumModule,
@@ -372,6 +398,61 @@ export class PageCache {
     }
   }
 
+  /**
+   * Set the desired total translation (PDF page space) of an object and apply
+   * it to the loaded page by the delta from what's already applied. `{0,0}`
+   * removes the persisted entry (and moves the object back). Returns true when
+   * the object resolved on the loaded page (or the page isn't loaded — it'll
+   * be applied on next load).
+   */
+  setObjectTranslation(pageIdx: number, idPath: number[], pdx: number, pdy: number): boolean {
+    const key = idPath.join(',');
+    let desired = this.transforms.get(pageIdx);
+    if (!desired) {
+      desired = new Map();
+      this.transforms.set(pageIdx, desired);
+    }
+    if (pdx === 0 && pdy === 0) desired.delete(key);
+    else desired.set(key, { idPath: idPath.slice(), pdx, pdy });
+    if (desired.size === 0) this.transforms.delete(pageIdx);
+
+    const ctx = this.cache.get(pageIdx);
+    if (!ctx) return true;
+
+    let applied = this.appliedTransforms.get(pageIdx);
+    if (!applied) {
+      applied = new Map();
+      this.appliedTransforms.set(pageIdx, applied);
+    }
+    const prev = applied.get(key) ?? { pdx: 0, pdy: 0 };
+    const ddx = pdx - prev.pdx;
+    const ddy = pdy - prev.pdy;
+    if (ddx !== 0 || ddy !== 0) {
+      const objPtr = this.resolveObject(ctx.pagePtr, idPath);
+      if (!objPtr) return false;
+      // Translation in page space: matrix [1 0 0 1 ddx ddy].
+      this.pdf.FPDFPageObj_Transform(objPtr, 1, 0, 0, 1, ddx, ddy);
+    }
+    if (pdx === 0 && pdy === 0) applied.delete(key);
+    else applied.set(key, { pdx, pdy });
+    if (applied.size === 0) this.appliedTransforms.delete(pageIdx);
+    return true;
+  }
+
+  /** Re-apply persisted translations to a freshly-loaded page (from original). */
+  private applyTransformsToPage(pageIdx: number, pagePtr: number): void {
+    const desired = this.transforms.get(pageIdx);
+    if (!desired) return;
+    const applied = new Map<string, { pdx: number; pdy: number }>();
+    for (const [key, t] of desired) {
+      const objPtr = this.resolveObject(pagePtr, t.idPath);
+      if (!objPtr) continue;
+      this.pdf.FPDFPageObj_Transform(objPtr, 1, 0, 0, 1, t.pdx, t.pdy);
+      applied.set(key, { pdx: t.pdx, pdy: t.pdy });
+    }
+    if (applied.size > 0) this.appliedTransforms.set(pageIdx, applied);
+  }
+
   acquire(pageIdx: number): PageContext {
     let ctx = this.cache.get(pageIdx);
 
@@ -392,14 +473,16 @@ export class PageCache {
       ctx = new PageContext(this.pdf, this.docPtr, pageIdx, pagePtr, this.config.pageTtl, () => {
         this.cache.delete(pageIdx);
         this.removeFromAccessOrder(pageIdx);
-        // Replacement pointers die with the page handle.
+        // Replacement pointers + applied transforms die with the page handle.
         this.liveReplacements.delete(pageIdx);
+        this.appliedTransforms.delete(pageIdx);
       });
       this.cache.set(pageIdx, ctx);
-      // Re-apply any persisted soft-deletes + subpath erases to this
+      // Re-apply any persisted soft-deletes + subpath erases + moves to this
       // freshly-loaded page.
       this.applyInactiveToPage(pageIdx, pagePtr);
       this.applySubpathOverridesToPage(pageIdx, pagePtr);
+      this.applyTransformsToPage(pageIdx, pagePtr);
     }
 
     // Update LRU order

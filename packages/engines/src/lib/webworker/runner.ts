@@ -391,6 +391,9 @@ export class EngineRunner {
       case 'setPathSubpathsInactive':
         task = engine.setPathSubpathsInactive!(...args);
         break;
+      case 'transformPageObjects':
+        task = engine.transformPageObjects!(...args);
+        break;
       case 'generatePageContent':
         task = engine.generatePageContent!(...args);
         break;

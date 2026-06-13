@@ -35,6 +35,7 @@ import {
   PdfGlyphObject,
   PdfPageGeometry,
   PdfPageObjectInfo,
+  PdfPageObjectTranslation,
   PdfPathSubpathErase,
   PdfPageTextRuns,
   PdfPrintOptions,
@@ -896,6 +897,20 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
       {
         execute: () => this.executor.setPathSubpathsInactive(doc, page, items),
         meta: { docId: doc.id, pageIndex: page.index, operation: 'setPathSubpathsInactive' },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  transformPageObjects(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPageObjectTranslation[],
+  ): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.transformPageObjects(doc, page, items),
+        meta: { docId: doc.id, pageIndex: page.index, operation: 'transformPageObjects' },
       },
       { priority: Priority.MEDIUM },
     );

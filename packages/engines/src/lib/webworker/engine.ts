@@ -23,6 +23,7 @@ import {
   PdfGlyphObject,
   PdfPageGeometry,
   PdfPageObjectInfo,
+  PdfPageObjectTranslation,
   PdfPathSubpathErase,
   PdfPageTextRuns,
   PageTextSlice,
@@ -1059,6 +1060,30 @@ export class WebWorkerEngine implements PdfEngine {
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
     const request: ExecuteRequest = createRequest(requestId, 'setPathSubpathsInactive', [
+      doc,
+      page,
+      items,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.transformPageObjects}
+   *
+   * @public
+   */
+  transformPageObjects(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPageObjectTranslation[],
+  ) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'transformPageObjects', doc, page, items);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, 'transformPageObjects', [
       doc,
       page,
       items,

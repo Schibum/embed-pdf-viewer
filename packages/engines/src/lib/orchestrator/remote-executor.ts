@@ -28,6 +28,7 @@ import {
   PdfGlyphObject,
   PdfPageGeometry,
   PdfPageObjectInfo,
+  PdfPageObjectTranslation,
   PdfPathSubpathErase,
   PdfPageTextRuns,
   PdfPrintOptions,
@@ -113,6 +114,7 @@ type MessageType =
   | 'getPageObjects'
   | 'setPageObjectsActive'
   | 'setPathSubpathsInactive'
+  | 'transformPageObjects'
   | 'generatePageContent'
   | 'merge'
   | 'mergePages'
@@ -549,6 +551,14 @@ export class RemoteExecutor implements IPdfiumExecutor {
     items: PdfPathSubpathErase[],
   ): PdfTask<boolean> {
     return this.send<boolean>('setPathSubpathsInactive', [doc, page, items]);
+  }
+
+  transformPageObjects(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPageObjectTranslation[],
+  ): PdfTask<boolean> {
+    return this.send<boolean>('transformPageObjects', [doc, page, items]);
   }
 
   generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<boolean> {

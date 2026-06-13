@@ -48,6 +48,7 @@ import {
   PdfImageObject,
   PdfPageObjectType,
   PdfPageObjectInfo,
+  PdfPageObjectTranslation,
   PdfPathSubpathErase,
   PdfPathObject,
   PdfFormObject,
@@ -3739,6 +3740,44 @@ export class PdfiumNative implements IPdfiumExecutor {
     }
 
     const ok = ctx.setPathSubpathsInactive(page.index, items);
+
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
+    return PdfTaskHelper.resolve(ok);
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.transformPageObjects}
+   *
+   * @public
+   */
+  transformPageObjects(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPageObjectTranslation[],
+  ): PdfTask<boolean> {
+    const label = 'transformPageObjects';
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'Begin', doc.id);
+
+    const ctx = this.cache.getContext(doc.id);
+    if (!ctx) {
+      this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.DocNotOpen,
+        message: 'document does not open',
+      });
+    }
+
+    // Convert each device-space (top-down) translation into a PDF page-space
+    // (bottom-up) vector via a two-point difference, so the flip — and any
+    // rotation folded into the conversion — is handled correctly.
+    const origin = this.convertDevicePointToPagePoint(doc, page, { x: 0, y: 0 });
+    let ok = true;
+    for (const item of items) {
+      const moved = this.convertDevicePointToPagePoint(doc, page, { x: item.dx, y: item.dy });
+      const pdx = moved.x - origin.x;
+      const pdy = moved.y - origin.y;
+      if (!ctx.setObjectTranslation(page.index, item.id, pdx, pdy)) ok = false;
+    }
 
     this.logger.perf(LOG_SOURCE, LOG_CATEGORY, label, 'End', doc.id);
     return PdfTaskHelper.resolve(ok);

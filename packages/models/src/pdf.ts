@@ -1905,6 +1905,21 @@ export interface PdfPathSubpathErase {
 }
 
 /**
+ * Desired total translation of one page object from its original position,
+ * in device/top-down PDF points (the space of {@link PdfPageObjectInfo.quad}).
+ * Set-state: callers send the absolute offset, so undo/redo is a re-send and
+ * `{dx:0,dy:0}` restores the original position.
+ *
+ * @public
+ */
+export interface PdfPageObjectTranslation {
+  /** Index path of the object within the page. */
+  id: number[];
+  dx: number;
+  dy: number;
+}
+
+/**
  * Contents type of pdf stamp annotation
  *
  * @public
@@ -3677,6 +3692,21 @@ export interface PdfEngine<T = Blob> {
     items: PdfPathSubpathErase[],
   ) => PdfTask<boolean>;
   /**
+   * Set the desired total translation of page objects (move). Each object is
+   * offset from its ORIGINAL position by the given device-space delta;
+   * `{dx:0,dy:0}` restores it. Idempotent set-state, persisted across page
+   * reloads and baked into saved bytes by {@link PdfEngine.generatePageContent}.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param items - desired translation per object
+   * @returns task that resolves true when every item was applied
+   */
+  transformPageObjects: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPageObjectTranslation[],
+  ) => PdfTask<boolean>;
+  /**
    * Regenerate the content stream of the given pages from their currently
    * active objects (via `FPDFPage_GenerateContent`). This bakes the result of
    * {@link PdfEngine.setPageObjectsActive} into the saved bytes — inactive
@@ -3864,6 +3894,11 @@ export interface IPdfiumExecutor {
     doc: PdfDocumentObject,
     page: PdfPageObject,
     items: PdfPathSubpathErase[],
+  ): PdfTask<boolean>;
+  transformPageObjects(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPageObjectTranslation[],
   ): PdfTask<boolean>;
   generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<boolean>;
   merge(files: PdfFile[]): PdfTask<PdfFile>;
