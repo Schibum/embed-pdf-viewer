@@ -462,6 +462,22 @@ export class PageCache {
   }
 
   /**
+   * Translate an object's clip path by the same page-space vector as the object
+   * itself. PDFium keeps the clip path on each page object independent of the
+   * object's matrix, so moving a clipped object (e.g. a logo drawn inside a
+   * `q … W n … Q` block) without this leaves the content masked to its original
+   * clip rectangle — only the part still overlapping the old position renders.
+   * No-op when the object carries no clip (CountPaths < 0), so it never creates
+   * a spurious empty clip that would hide the object entirely.
+   */
+  private translateObjectClip(objPtr: number, ddx: number, ddy: number): void {
+    if (ddx === 0 && ddy === 0) return;
+    const clip = this.pdf.FPDFPageObj_GetClipPath(objPtr);
+    if (!clip || this.pdf.FPDFClipPath_CountPaths(clip) <= 0) return;
+    this.pdf.FPDFPageObj_TransformClipPath(objPtr, 1, 0, 0, 1, ddx, ddy);
+  }
+
+  /**
    * Set the desired total translation (PDF page space) of an object and apply
    * it to the loaded page by the delta from what's already applied. `{0,0}`
    * removes the persisted entry (and moves the object back). Returns true when
@@ -495,6 +511,7 @@ export class PageCache {
       if (!objPtr) return false;
       // Translation in page space: matrix [1 0 0 1 ddx ddy].
       this.pdf.FPDFPageObj_Transform(objPtr, 1, 0, 0, 1, ddx, ddy);
+      this.translateObjectClip(objPtr, ddx, ddy);
     }
     if (pdx === 0 && pdy === 0) applied.delete(key);
     else applied.set(key, { pdx, pdy });
@@ -511,6 +528,7 @@ export class PageCache {
       const objPtr = this.resolveObject(pagePtr, t.idPath);
       if (!objPtr) continue;
       this.pdf.FPDFPageObj_Transform(objPtr, 1, 0, 0, 1, t.pdx, t.pdy);
+      this.translateObjectClip(objPtr, t.pdx, t.pdy);
       applied.set(key, { pdx: t.pdx, pdy: t.pdy });
     }
     if (applied.size > 0) this.appliedTransforms.set(pageIdx, applied);
