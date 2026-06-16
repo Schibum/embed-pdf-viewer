@@ -8,8 +8,8 @@ import {
   PdfEngineMethodReturnType,
   PdfErrorCode,
   TaskReturn,
-} from '@embedpdf/models';
-import { collectTransferables } from '../collect-transferables';
+} from "@embedpdf/models";
+import { collectTransferables } from "../collect-transferables";
 
 /**
  * Request body that represent method calls of PdfEngine, it contains the
@@ -28,7 +28,7 @@ export type PdfEngineMethodRequestBody = {
  */
 export type SpecificExecuteRequest<M extends PdfEngineMethodName> = {
   id: string;
-  type: 'ExecuteRequest';
+  type: "ExecuteRequest";
   data: {
     name: M;
     args: PdfEngineMethodArgs<M>;
@@ -53,7 +53,7 @@ export interface AbortRequest {
   /**
    * request type
    */
-  type: 'AbortRequest';
+  type: "AbortRequest";
 }
 /**
  * Request that execute pdf engine method
@@ -66,7 +66,7 @@ export interface ExecuteRequest {
   /**
    * request type
    */
-  type: 'ExecuteRequest';
+  type: "ExecuteRequest";
   /**
    * request body
    */
@@ -83,7 +83,7 @@ export interface ExecuteResponse {
   /**
    * response type
    */
-  type: 'ExecuteResponse';
+  type: "ExecuteResponse";
   /**
    * response body
    */
@@ -101,7 +101,7 @@ export interface ExecuteProgress<T = unknown> {
   /**
    * response type
    */
-  type: 'ExecuteProgress';
+  type: "ExecuteProgress";
   /**
    * response body
    */
@@ -119,7 +119,7 @@ export interface ReadyResponse {
   /**
    * response type
    */
-  type: 'ReadyResponse';
+  type: "ReadyResponse";
 }
 
 /**
@@ -131,8 +131,8 @@ export type Request = ExecuteRequest | AbortRequest;
  */
 export type Response = ExecuteResponse | ReadyResponse | ExecuteProgress;
 
-const LOG_SOURCE = 'WebWorkerEngineRunner';
-const LOG_CATEGORY = 'Engine';
+const LOG_SOURCE = "WebWorkerEngineRunner";
+const LOG_CATEGORY = "Engine";
 
 /**
  * Pdf engine runner, it will execute pdf engine based on the request it received and
@@ -160,21 +160,16 @@ export class EngineRunner {
    * Handle post message
    */
   handle(evt: MessageEvent<Request>) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'webworker receive message event: ', evt.data);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "webworker receive message event: ", evt.data);
     try {
       const request = evt.data as Request;
       switch (request.type) {
-        case 'ExecuteRequest':
+        case "ExecuteRequest":
           this.execute(request);
           break;
       }
     } catch (e) {
-      this.logger.info(
-        LOG_SOURCE,
-        LOG_CATEGORY,
-        'webworker met error when processing message event:',
-        e,
-      );
+      this.logger.info(LOG_SOURCE, LOG_CATEGORY, "webworker met error when processing message event:", e);
     }
   }
 
@@ -188,10 +183,10 @@ export class EngineRunner {
     this.listen();
 
     this.respond({
-      id: '0',
-      type: 'ReadyResponse',
+      id: "0",
+      type: "ReadyResponse",
     });
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'runner is ready');
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "runner is ready");
   }
 
   /**
@@ -202,20 +197,20 @@ export class EngineRunner {
    * @protected
    */
   execute = async (request: ExecuteRequest) => {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'runner start exeucte request');
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "runner start exeucte request");
     if (!this.engine) {
       const error: PdfEngineError = {
-        type: 'reject',
+        type: "reject",
         reason: {
           code: PdfErrorCode.NotReady,
-          message: 'engine has not started yet',
+          message: "engine has not started yet",
         },
       };
       const response: ExecuteResponse = {
         id: request.id,
-        type: 'ExecuteResponse',
+        type: "ExecuteResponse",
         data: {
-          type: 'error',
+          type: "error",
           value: error,
         },
       };
@@ -227,7 +222,7 @@ export class EngineRunner {
     const { name, args } = request.data;
     if (!engine[name]) {
       const error: PdfEngineError = {
-        type: 'reject',
+        type: "reject",
         reason: {
           code: PdfErrorCode.NotSupport,
           message: `engine method ${name} is not supported yet`,
@@ -235,9 +230,9 @@ export class EngineRunner {
       };
       const response: ExecuteResponse = {
         id: request.id,
-        type: 'ExecuteResponse',
+        type: "ExecuteResponse",
         data: {
-          type: 'error',
+          type: "error",
           value: error,
         },
       };
@@ -247,187 +242,190 @@ export class EngineRunner {
 
     let task: PdfEngineMethodReturnType<typeof name>;
     switch (name) {
-      case 'isSupport':
+      case "isSupport":
         task = engine.isSupport!(...args);
         break;
-      case 'destroy':
+      case "destroy":
         task = engine.destroy!(...args);
         break;
-      case 'openDocumentUrl':
+      case "openDocumentUrl":
         task = engine.openDocumentUrl!(...args);
         break;
-      case 'openDocumentBuffer':
+      case "openDocumentBuffer":
         task = engine.openDocumentBuffer!(...args);
         break;
-      case 'getDocPermissions':
+      case "getDocPermissions":
         task = engine.getDocPermissions!(...args);
         break;
-      case 'getDocUserPermissions':
+      case "getDocUserPermissions":
         task = engine.getDocUserPermissions!(...args);
         break;
-      case 'getMetadata':
+      case "getMetadata":
         task = engine.getMetadata!(...args);
         break;
-      case 'setMetadata':
+      case "setMetadata":
         task = engine.setMetadata!(...args);
         break;
-      case 'getBookmarks':
+      case "getBookmarks":
         task = engine.getBookmarks!(...args);
         break;
-      case 'setBookmarks':
+      case "setBookmarks":
         task = engine.setBookmarks!(...args);
         break;
-      case 'deleteBookmarks':
+      case "deleteBookmarks":
         task = engine.deleteBookmarks!(...args);
         break;
-      case 'getSignatures':
+      case "getSignatures":
         task = engine.getSignatures!(...args);
         break;
-      case 'renderPage':
+      case "renderPage":
         task = engine.renderPage!(...args);
         break;
-      case 'renderPageRect':
+      case "renderPageRect":
         task = engine.renderPageRect!(...args);
         break;
-      case 'renderPageRaw':
+      case "renderPageRaw":
         task = engine.renderPageRaw!(...args);
         break;
-      case 'renderPageRectRaw':
+      case "renderPageRectRaw":
         task = engine.renderPageRectRaw!(...args);
         break;
-      case 'renderPageAnnotation':
+      case "renderPageAnnotation":
         task = engine.renderPageAnnotation!(...args);
         break;
-      case 'renderPageAnnotations':
+      case "renderPageAnnotations":
         task = engine.renderPageAnnotations!(...args);
         break;
-      case 'renderPageAnnotationsRaw':
+      case "renderPageAnnotationsRaw":
         task = engine.renderPageAnnotationsRaw!(...args);
         break;
-      case 'renderThumbnail':
+      case "renderThumbnail":
         task = engine.renderThumbnail!(...args);
         break;
-      case 'getAllAnnotations':
+      case "getAllAnnotations":
         task = engine.getAllAnnotations!(...args);
         break;
-      case 'getPageAnnotations':
+      case "getPageAnnotations":
         task = engine.getPageAnnotations!(...args);
         break;
-      case 'createPageAnnotation':
+      case "createPageAnnotation":
         task = engine.createPageAnnotation!(...args);
         break;
-      case 'updatePageAnnotation':
+      case "updatePageAnnotation":
         task = engine.updatePageAnnotation!(...args);
         break;
-      case 'removePageAnnotation':
+      case "removePageAnnotation":
         task = engine.removePageAnnotation!(...args);
         break;
-      case 'getPageTextRects':
+      case "getPageTextRects":
         task = engine.getPageTextRects!(...args);
         break;
-      case 'searchAllPages':
+      case "searchAllPages":
         task = engine.searchAllPages!(...args);
         break;
-      case 'closeDocument':
+      case "closeDocument":
         task = engine.closeDocument!(...args);
         break;
-      case 'closeAllDocuments':
+      case "closeAllDocuments":
         task = engine.closeAllDocuments!(...args);
         break;
-      case 'saveAsCopy':
+      case "saveAsCopy":
         task = engine.saveAsCopy!(...args);
         break;
-      case 'getAttachments':
+      case "getAttachments":
         task = engine.getAttachments!(...args);
         break;
-      case 'addAttachment':
+      case "addAttachment":
         task = engine.addAttachment!(...args);
         break;
-      case 'removeAttachment':
+      case "removeAttachment":
         task = engine.removeAttachment!(...args);
         break;
-      case 'readAttachmentContent':
+      case "readAttachmentContent":
         task = engine.readAttachmentContent!(...args);
         break;
-      case 'setFormFieldValue':
+      case "setFormFieldValue":
         task = engine.setFormFieldValue!(...args);
         break;
-      case 'flattenPage':
+      case "flattenPage":
         task = engine.flattenPage!(...args);
         break;
-      case 'extractPages':
+      case "extractPages":
         task = engine.extractPages!(...args);
         break;
-      case 'extractText':
+      case "extractText":
         task = engine.extractText!(...args);
         break;
-      case 'redactTextInRects':
+      case "redactTextInRects":
         task = engine.redactTextInRects!(...args);
         break;
-      case 'applyRedaction':
+      case "applyRedaction":
         task = engine.applyRedaction!(...args);
         break;
-      case 'applyAllRedactions':
+      case "applyAllRedactions":
         task = engine.applyAllRedactions!(...args);
         break;
-      case 'flattenAnnotation':
+      case "flattenAnnotation":
         task = engine.flattenAnnotation!(...args);
         break;
-      case 'getTextSlices':
+      case "getTextSlices":
         task = engine.getTextSlices!(...args);
         break;
-      case 'getPageGlyphs':
+      case "getPageGlyphs":
         task = engine.getPageGlyphs!(...args);
         break;
-      case 'getPageGeometry':
+      case "getPageGeometry":
         task = engine.getPageGeometry!(...args);
         break;
-      case 'getPageObjects':
+      case "getPageObjects":
         task = engine.getPageObjects!(...args);
         break;
-      case 'setPageObjectsActive':
+      case "setPageObjectsActive":
         task = engine.setPageObjectsActive!(...args);
         break;
-      case 'setPathSubpathsInactive':
+      case "setPathSubpathsInactive":
         task = engine.setPathSubpathsInactive!(...args);
         break;
-      case 'transformPageObjects':
+      case "transformPageObjects":
         task = engine.transformPageObjects!(...args);
         break;
-      case 'generatePageContent':
+      case "transformPathSubpaths":
+        task = engine.transformPathSubpaths!(...args);
+        break;
+      case "generatePageContent":
         task = engine.generatePageContent!(...args);
         break;
-      case 'getPageTextRuns':
+      case "getPageTextRuns":
         task = engine.getPageTextRuns!(...args);
         break;
-      case 'merge':
+      case "merge":
         task = engine.merge!(...args);
         break;
-      case 'mergePages':
+      case "mergePages":
         task = engine.mergePages!(...args);
         break;
-      case 'preparePrintDocument':
+      case "preparePrintDocument":
         task = engine.preparePrintDocument!(...args);
         break;
-      case 'setDocumentEncryption':
+      case "setDocumentEncryption":
         task = engine.setDocumentEncryption(...args);
         break;
-      case 'removeEncryption':
+      case "removeEncryption":
         task = engine.removeEncryption(...args);
         break;
-      case 'unlockOwnerPermissions':
+      case "unlockOwnerPermissions":
         task = engine.unlockOwnerPermissions(...args);
         break;
-      case 'isEncrypted':
+      case "isEncrypted":
         task = engine.isEncrypted(...args);
         break;
-      case 'isOwnerUnlocked':
+      case "isOwnerUnlocked":
         task = engine.isOwnerUnlocked(...args);
         break;
       default:
         // This should never be reached due to the earlier check, but provides exhaustiveness
         const error: PdfEngineError = {
-          type: 'reject',
+          type: "reject",
           reason: {
             code: PdfErrorCode.NotSupport,
             message: `engine method ${name} is not supported`,
@@ -435,9 +433,9 @@ export class EngineRunner {
         };
         const response: ExecuteResponse = {
           id: request.id,
-          type: 'ExecuteResponse',
+          type: "ExecuteResponse",
           data: {
-            type: 'error',
+            type: "error",
             value: error,
           },
         };
@@ -448,7 +446,7 @@ export class EngineRunner {
     task.onProgress((progress) => {
       const response: ExecuteProgress = {
         id: request.id,
-        type: 'ExecuteProgress',
+        type: "ExecuteProgress",
         data: progress,
       };
       this.respond(response);
@@ -458,9 +456,9 @@ export class EngineRunner {
       (result) => {
         const response: ExecuteResponse = {
           id: request.id,
-          type: 'ExecuteResponse',
+          type: "ExecuteResponse",
           data: {
-            type: 'result',
+            type: "result",
             value: result,
           },
         };
@@ -469,9 +467,9 @@ export class EngineRunner {
       (error) => {
         const response: ExecuteResponse = {
           id: request.id,
-          type: 'ExecuteResponse',
+          type: "ExecuteResponse",
           data: {
-            type: 'error',
+            type: "error",
             value: error,
           },
         };
@@ -487,7 +485,7 @@ export class EngineRunner {
    * @protected
    */
   respond(response: Response) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'runner respond: ', response);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "runner respond: ", response);
     self.postMessage(response, { transfer: collectTransferables(response) });
   }
 }

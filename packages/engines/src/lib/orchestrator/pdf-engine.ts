@@ -37,6 +37,7 @@ import {
   PdfPageObjectInfo,
   PdfPageObjectTranslation,
   PdfPathSubpathErase,
+  PdfPathSubpathTransform,
   PdfPageTextRuns,
   PdfPrintOptions,
   PdfEngineFeature,
@@ -51,16 +52,16 @@ import {
   IPdfiumExecutor,
   AnnotationAppearanceMap,
   RenderPriority as Priority,
-} from '@embedpdf/models';
-import { WorkerTaskQueue } from './task-queue';
-import type { ImageDataConverter } from '../converters/types';
+} from "@embedpdf/models";
+import { WorkerTaskQueue } from "./task-queue";
+import type { ImageDataConverter } from "../converters/types";
 
 // Re-export for convenience
-export type { ImageDataConverter } from '../converters/types';
-export type { ImageDataLike, IPdfiumExecutor, BatchProgress } from '@embedpdf/models';
+export type { ImageDataConverter } from "../converters/types";
+export type { ImageDataLike, IPdfiumExecutor, BatchProgress } from "@embedpdf/models";
 
-const LOG_SOURCE = 'PdfEngine';
-const LOG_CATEGORY = 'Orchestrator';
+const LOG_SOURCE = "PdfEngine";
+const LOG_CATEGORY = "Orchestrator";
 
 export interface PdfEngineOptions<T> {
   /**
@@ -99,8 +100,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     this.options = {
       imageConverter: options.imageConverter,
       fetcher:
-        options.fetcher ??
-        (typeof fetch !== 'undefined' ? (url, init) => fetch(url, init) : undefined),
+        options.fetcher ?? (typeof fetch !== "undefined" ? (url, init) => fetch(url, init) : undefined),
       logger: this.logger,
     };
 
@@ -111,7 +111,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
       logger: this.logger,
     });
 
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'PdfEngine orchestrator created');
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "PdfEngine orchestrator created");
   }
 
   /**
@@ -152,17 +152,14 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return task;
   }
 
-  openDocumentUrl(
-    file: PdfFileUrl,
-    options?: PdfOpenDocumentUrlOptions,
-  ): PdfTask<PdfDocumentObject> {
+  openDocumentUrl(file: PdfFileUrl, options?: PdfOpenDocumentUrlOptions): PdfTask<PdfDocumentObject> {
     const task = new Task<PdfDocumentObject, PdfErrorReason>();
 
     // Handle fetch in main thread (not worker!)
     (async () => {
       try {
         if (!this.options.fetcher) {
-          throw new Error('Fetcher is not set');
+          throw new Error("Fetcher is not set");
         }
 
         const response = await this.options.fetcher(file.url, options?.requestOptions);
@@ -190,14 +187,11 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return task;
   }
 
-  openDocumentBuffer(
-    file: PdfFile,
-    options?: PdfOpenDocumentBufferOptions,
-  ): PdfTask<PdfDocumentObject> {
+  openDocumentBuffer(file: PdfFile, options?: PdfOpenDocumentBufferOptions): PdfTask<PdfDocumentObject> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.openDocumentBuffer(file, options),
-        meta: { docId: file.id, operation: 'openDocumentBuffer' },
+        meta: { docId: file.id, operation: "openDocumentBuffer" },
       },
       { priority: Priority.CRITICAL },
     );
@@ -207,7 +201,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getMetadata(doc),
-        meta: { docId: doc.id, operation: 'getMetadata' },
+        meta: { docId: doc.id, operation: "getMetadata" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -217,7 +211,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.setMetadata(doc, metadata),
-        meta: { docId: doc.id, operation: 'setMetadata' },
+        meta: { docId: doc.id, operation: "setMetadata" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -227,7 +221,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getDocPermissions(doc),
-        meta: { docId: doc.id, operation: 'getDocPermissions' },
+        meta: { docId: doc.id, operation: "getDocPermissions" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -237,7 +231,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getDocUserPermissions(doc),
-        meta: { docId: doc.id, operation: 'getDocUserPermissions' },
+        meta: { docId: doc.id, operation: "getDocUserPermissions" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -247,7 +241,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getSignatures(doc),
-        meta: { docId: doc.id, operation: 'getSignatures' },
+        meta: { docId: doc.id, operation: "getSignatures" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -257,7 +251,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getBookmarks(doc),
-        meta: { docId: doc.id, operation: 'getBookmarks' },
+        meta: { docId: doc.id, operation: "getBookmarks" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -267,7 +261,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.setBookmarks(doc, bookmarks),
-        meta: { docId: doc.id, operation: 'setBookmarks' },
+        meta: { docId: doc.id, operation: "setBookmarks" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -277,7 +271,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.deleteBookmarks(doc),
-        meta: { docId: doc.id, operation: 'deleteBookmarks' },
+        meta: { docId: doc.id, operation: "deleteBookmarks" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -285,11 +279,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
 
   // ========== Rendering with Encoding ==========
 
-  renderPage(
-    doc: PdfDocumentObject,
-    page: PdfPageObject,
-    options?: PdfRenderPageOptions,
-  ): PdfTask<T> {
+  renderPage(doc: PdfDocumentObject, page: PdfPageObject, options?: PdfRenderPageOptions): PdfTask<T> {
     return this.renderWithEncoding(
       () => this.executor.renderPageRaw(doc, page, options),
       options,
@@ -324,7 +314,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.renderPageRaw(doc, page, options),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'renderPageRaw' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "renderPageRaw" },
       },
       { priority: options?.priority ?? Priority.HIGH },
     );
@@ -339,7 +329,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.renderPageRect(doc, page, rect, options),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'renderPageRectRaw' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "renderPageRectRaw" },
       },
       { priority: options?.priority ?? Priority.HIGH },
     );
@@ -383,7 +373,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
       .enqueue(
         {
           execute: () => this.executor.renderPageAnnotationsRaw(doc, page, options),
-          meta: { docId: doc.id, pageIndex: page.index, operation: 'renderPageAnnotationsRaw' },
+          meta: { docId: doc.id, pageIndex: page.index, operation: "renderPageAnnotationsRaw" },
         },
         { priority: Priority.MEDIUM },
       )
@@ -401,7 +391,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.renderPageAnnotationsRaw(doc, page, options),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'renderPageAnnotationsRaw' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "renderPageAnnotationsRaw" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -421,7 +411,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
       .enqueue(
         {
           execute: () => renderFn(),
-          meta: { docId, pageIndex, operation: 'render' },
+          meta: { docId, pageIndex, operation: "render" },
         },
         { priority },
       )
@@ -435,7 +425,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
    * Encode image using encoder pool or inline
    */
   private encodeImage(rawImageData: ImageDataLike, options: any): Promise<T> {
-    const imageType = options?.imageType ?? 'image/webp';
+    const imageType = options?.imageType ?? "image/webp";
     const quality = options?.quality;
 
     // Convert to plain object for encoding
@@ -455,7 +445,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     rawMap: AnnotationAppearanceMap<ImageDataLike>,
     options: PdfRenderPageAnnotationOptions | undefined,
   ): Promise<AnnotationAppearanceMap<T>> {
-    const imageType = options?.imageType ?? 'image/webp';
+    const imageType = options?.imageType ?? "image/webp";
     const quality = options?.imageQuality;
 
     const convertImage = (rawImageData: ImageDataLike): Promise<T> => {
@@ -469,7 +459,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
 
     const jobs: Promise<void>[] = [];
     const encodedMap: AnnotationAppearanceMap<T> = {};
-    const modes: Array<'normal' | 'rollover' | 'down'> = ['normal', 'rollover', 'down'];
+    const modes: Array<"normal" | "rollover" | "down"> = ["normal", "rollover", "down"];
 
     for (const [annotationId, appearances] of Object.entries(rawMap)) {
       const encodedAppearances: NonNullable<AnnotationAppearanceMap<T>[string]> = {};
@@ -500,7 +490,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getPageAnnotations(doc, page),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageAnnotations' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "getPageAnnotations" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -515,7 +505,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.createPageAnnotation(doc, page, annotation, context),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'createPageAnnotation' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "createPageAnnotation" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -530,7 +520,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.updatePageAnnotation(doc, page, annotation, options),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'updatePageAnnotation' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "updatePageAnnotation" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -544,7 +534,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.removePageAnnotation(doc, page, annotation),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'removePageAnnotation' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "removePageAnnotation" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -580,7 +570,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
       const batchTask = this.workerQueue.enqueue(
         {
           execute: () => this.executor.getAnnotationsBatch(doc, chunkPages),
-          meta: { docId: doc.id, operation: 'getAnnotationsBatch', chunkSize: chunkPages.length },
+          meta: { docId: doc.id, operation: "getAnnotationsBatch", chunkSize: chunkPages.length },
         },
         { priority: Priority.LOW },
       );
@@ -604,7 +594,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getPageTextRects(doc, page),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageTextRects' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "getPageTextRects" },
       },
       {
         priority: Priority.MEDIUM,
@@ -652,7 +642,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
       const batchTask = this.workerQueue.enqueue(
         {
           execute: () => this.executor.searchBatch(doc, chunkPages, keyword, flags),
-          meta: { docId: doc.id, operation: 'searchBatch', chunkSize: chunkPages.length },
+          meta: { docId: doc.id, operation: "searchBatch", chunkSize: chunkPages.length },
         },
         { priority: Priority.LOW },
       );
@@ -678,7 +668,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getAttachments(doc),
-        meta: { docId: doc.id, operation: 'getAttachments' },
+        meta: { docId: doc.id, operation: "getAttachments" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -688,7 +678,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.addAttachment(doc, params),
-        meta: { docId: doc.id, operation: 'addAttachment' },
+        meta: { docId: doc.id, operation: "addAttachment" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -698,20 +688,17 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.removeAttachment(doc, attachment),
-        meta: { docId: doc.id, operation: 'removeAttachment' },
+        meta: { docId: doc.id, operation: "removeAttachment" },
       },
       { priority: Priority.MEDIUM },
     );
   }
 
-  readAttachmentContent(
-    doc: PdfDocumentObject,
-    attachment: PdfAttachmentObject,
-  ): PdfTask<ArrayBuffer> {
+  readAttachmentContent(doc: PdfDocumentObject, attachment: PdfAttachmentObject): PdfTask<ArrayBuffer> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.readAttachmentContent(doc, attachment),
-        meta: { docId: doc.id, operation: 'readAttachmentContent' },
+        meta: { docId: doc.id, operation: "readAttachmentContent" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -728,7 +715,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.setFormFieldValue(doc, page, annotation, value),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'setFormFieldValue' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "setFormFieldValue" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -742,7 +729,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.flattenPage(doc, page, options),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'flattenPage' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "flattenPage" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -754,7 +741,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.extractPages(doc, pageIndexes),
-        meta: { docId: doc.id, pageIndexes: pageIndexes, operation: 'extractPages' },
+        meta: { docId: doc.id, pageIndexes: pageIndexes, operation: "extractPages" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -764,7 +751,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.extractText(doc, pageIndexes),
-        meta: { docId: doc.id, pageIndexes: pageIndexes, operation: 'extractText' },
+        meta: { docId: doc.id, pageIndexes: pageIndexes, operation: "extractText" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -779,7 +766,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.redactTextInRects(doc, page, rects, options),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'redactTextInRects' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "redactTextInRects" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -793,7 +780,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.applyRedaction(doc, page, annotation),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'applyRedaction' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "applyRedaction" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -803,7 +790,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.applyAllRedactions(doc, page),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'applyAllRedactions' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "applyAllRedactions" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -817,7 +804,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.flattenAnnotation(doc, page, annotation),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'flattenAnnotation' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "flattenAnnotation" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -827,7 +814,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getTextSlices(doc, slices),
-        meta: { docId: doc.id, slices: slices, operation: 'getTextSlices' },
+        meta: { docId: doc.id, slices: slices, operation: "getTextSlices" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -837,7 +824,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getPageGlyphs(doc, page),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageGlyphs' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "getPageGlyphs" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -847,7 +834,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getPageGeometry(doc, page),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageGeometry' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "getPageGeometry" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -857,7 +844,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getPageTextRuns(doc, page),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageTextRuns' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "getPageTextRuns" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -867,7 +854,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.getPageObjects(doc, page),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'getPageObjects' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "getPageObjects" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -882,7 +869,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.setPageObjectsActive(doc, page, ids, active),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'setPageObjectsActive' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "setPageObjectsActive" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -896,7 +883,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.setPathSubpathsInactive(doc, page, items),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'setPathSubpathsInactive' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "setPathSubpathsInactive" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -910,7 +897,21 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.transformPageObjects(doc, page, items),
-        meta: { docId: doc.id, pageIndex: page.index, operation: 'transformPageObjects' },
+        meta: { docId: doc.id, pageIndex: page.index, operation: "transformPageObjects" },
+      },
+      { priority: Priority.MEDIUM },
+    );
+  }
+
+  transformPathSubpaths(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPathSubpathTransform[],
+  ): PdfTask<boolean> {
+    return this.workerQueue.enqueue(
+      {
+        execute: () => this.executor.transformPathSubpaths(doc, page, items),
+        meta: { docId: doc.id, pageIndex: page.index, operation: "transformPathSubpaths" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -920,7 +921,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.generatePageContent(doc, pageIndexes),
-        meta: { docId: doc.id, pageIndex: pageIndexes[0] ?? -1, operation: 'generatePageContent' },
+        meta: { docId: doc.id, pageIndex: pageIndexes[0] ?? -1, operation: "generatePageContent" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -932,7 +933,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.merge(files),
-        meta: { docId: files.map((file) => file.id).join(','), operation: 'merge' },
+        meta: { docId: files.map((file) => file.id).join(","), operation: "merge" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -943,8 +944,8 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
       {
         execute: () => this.executor.mergePages(mergeConfigs),
         meta: {
-          docId: mergeConfigs.map((config) => config.docId).join(','),
-          operation: 'mergePages',
+          docId: mergeConfigs.map((config) => config.docId).join(","),
+          operation: "mergePages",
         },
       },
       { priority: Priority.MEDIUM },
@@ -955,7 +956,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.preparePrintDocument(doc, options),
-        meta: { docId: doc.id, operation: 'preparePrintDocument' },
+        meta: { docId: doc.id, operation: "preparePrintDocument" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -965,7 +966,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.saveAsCopy(doc),
-        meta: { docId: doc.id, operation: 'saveAsCopy' },
+        meta: { docId: doc.id, operation: "saveAsCopy" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -975,7 +976,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.closeDocument(doc),
-        meta: { docId: doc.id, operation: 'closeDocument' },
+        meta: { docId: doc.id, operation: "closeDocument" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -985,7 +986,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.closeAllDocuments(),
-        meta: { operation: 'closeAllDocuments' },
+        meta: { operation: "closeAllDocuments" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -1002,9 +1003,8 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
   ): PdfTask<boolean> {
     return this.workerQueue.enqueue(
       {
-        execute: () =>
-          this.executor.setDocumentEncryption(doc, userPassword, ownerPassword, allowedFlags),
-        meta: { docId: doc.id, operation: 'setDocumentEncryption' },
+        execute: () => this.executor.setDocumentEncryption(doc, userPassword, ownerPassword, allowedFlags),
+        meta: { docId: doc.id, operation: "setDocumentEncryption" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -1017,7 +1017,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.removeEncryption(doc),
-        meta: { docId: doc.id, operation: 'removeEncryption' },
+        meta: { docId: doc.id, operation: "removeEncryption" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -1030,7 +1030,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.unlockOwnerPermissions(doc, ownerPassword),
-        meta: { docId: doc.id, operation: 'unlockOwnerPermissions' },
+        meta: { docId: doc.id, operation: "unlockOwnerPermissions" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -1043,7 +1043,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.isEncrypted(doc),
-        meta: { docId: doc.id, operation: 'isEncrypted' },
+        meta: { docId: doc.id, operation: "isEncrypted" },
       },
       { priority: Priority.MEDIUM },
     );
@@ -1056,7 +1056,7 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     return this.workerQueue.enqueue(
       {
         execute: () => this.executor.isOwnerUnlocked(doc),
-        meta: { docId: doc.id, operation: 'isOwnerUnlocked' },
+        meta: { docId: doc.id, operation: "isOwnerUnlocked" },
       },
       { priority: Priority.MEDIUM },
     );

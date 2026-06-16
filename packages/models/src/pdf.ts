@@ -1,5 +1,5 @@
-import { Size, Rect, Position, Quad, Rotation } from './geometry';
-import { Task, TaskError } from './task';
+import { Size, Rect, Position, Quad, Rotation } from "./geometry";
+import { Task, TaskError } from "./task";
 
 /**
  * Representation of pdf page
@@ -134,42 +134,42 @@ export interface PdfMetadataObject {
  *
  * @public
  */
-export const PdfSoftHyphenMarker = '\u00AD';
+export const PdfSoftHyphenMarker = "\u00AD";
 
 /**
  * Unicode **zero-width space** (`U+200B`).
  *
  * @public
  */
-export const PdfZeroWidthSpace = '\u200B';
+export const PdfZeroWidthSpace = "\u200B";
 
 /**
  * Unicode **word-joiner** (`U+2060`) – zero-width no-break.
  *
  * @public
  */
-export const PdfWordJoiner = '\u2060';
+export const PdfWordJoiner = "\u2060";
 
 /**
  * Unicode **byte-order mark / zero-width&nbsp;no-break space** (`U+FEFF`).
  *
  * @public
  */
-export const PdfBomOrZwnbsp = '\uFEFF';
+export const PdfBomOrZwnbsp = "\uFEFF";
 
 /**
  * Unicode non-character `U+FFFE`.
  *
  * @public
  */
-export const PdfNonCharacterFFFE = '\uFFFE';
+export const PdfNonCharacterFFFE = "\uFFFE";
 
 /**
  * Unicode non-character `U+FFFF`.
  *
  * @public
  */
-export const PdfNonCharacterFFFF = '\uFFFF';
+export const PdfNonCharacterFFFF = "\uFFFF";
 
 /**
  * **Frozen list** of all unwanted markers in canonical order.
@@ -190,7 +190,7 @@ export const PdfUnwantedTextMarkers = Object.freeze([
  *
  * @public
  */
-export const PdfUnwantedTextRegex = new RegExp(`[${PdfUnwantedTextMarkers.join('')}]`, 'g');
+export const PdfUnwantedTextRegex = new RegExp(`[${PdfUnwantedTextMarkers.join("")}]`, "g");
 
 /**
  * Remove all {@link PdfUnwantedTextMarkers | unwanted markers} from *text*.
@@ -201,7 +201,7 @@ export const PdfUnwantedTextRegex = new RegExp(`[${PdfUnwantedTextMarkers.join('
  * @public
  */
 export function stripPdfUnwantedMarkers(text: string): string {
-  return text.replace(PdfUnwantedTextRegex, '');
+  return text.replace(PdfUnwantedTextRegex, "");
 }
 
 /**
@@ -459,10 +459,7 @@ export interface AnnotationAppearances<TImage = ImageDataLike> {
  * Map of annotation ID to its rendered appearance stream images.
  * @public
  */
-export type AnnotationAppearanceMap<TImage = ImageDataLike> = Record<
-  string,
-  AnnotationAppearances<TImage>
->;
+export type AnnotationAppearanceMap<TImage = ImageDataLike> = Record<string, AnnotationAppearances<TImage>>;
 
 /**
  * Representation of pdf action
@@ -497,11 +494,11 @@ export type PdfActionObject =
  */
 export type PdfLinkTarget =
   | {
-      type: 'action';
+      type: "action";
       action: PdfActionObject;
     }
   | {
-      type: 'destination';
+      type: "destination";
       destination: PdfDestinationObject;
     };
 
@@ -683,35 +680,35 @@ export enum PdfAnnotationSubtype {
  * @public
  */
 export const PdfAnnotationSubtypeName: Record<PdfAnnotationSubtype, string> = {
-  [PdfAnnotationSubtype.UNKNOWN]: 'unknow',
-  [PdfAnnotationSubtype.TEXT]: 'text',
-  [PdfAnnotationSubtype.LINK]: 'link',
-  [PdfAnnotationSubtype.FREETEXT]: 'freetext',
-  [PdfAnnotationSubtype.LINE]: 'line',
-  [PdfAnnotationSubtype.SQUARE]: 'square',
-  [PdfAnnotationSubtype.CIRCLE]: 'circle',
-  [PdfAnnotationSubtype.POLYGON]: 'polygon',
-  [PdfAnnotationSubtype.POLYLINE]: 'polyline',
-  [PdfAnnotationSubtype.HIGHLIGHT]: 'highlight',
-  [PdfAnnotationSubtype.UNDERLINE]: 'underline',
-  [PdfAnnotationSubtype.SQUIGGLY]: 'squiggly',
-  [PdfAnnotationSubtype.STRIKEOUT]: 'strikeout',
-  [PdfAnnotationSubtype.STAMP]: 'stamp',
-  [PdfAnnotationSubtype.CARET]: 'caret',
-  [PdfAnnotationSubtype.INK]: 'ink',
-  [PdfAnnotationSubtype.POPUP]: 'popup',
-  [PdfAnnotationSubtype.FILEATTACHMENT]: 'fileattachment',
-  [PdfAnnotationSubtype.SOUND]: 'sound',
-  [PdfAnnotationSubtype.MOVIE]: 'movie',
-  [PdfAnnotationSubtype.WIDGET]: 'widget',
-  [PdfAnnotationSubtype.SCREEN]: 'screen',
-  [PdfAnnotationSubtype.PRINTERMARK]: 'printermark',
-  [PdfAnnotationSubtype.TRAPNET]: 'trapnet',
-  [PdfAnnotationSubtype.WATERMARK]: 'watermark',
-  [PdfAnnotationSubtype.THREED]: 'threed',
-  [PdfAnnotationSubtype.RICHMEDIA]: 'richmedia',
-  [PdfAnnotationSubtype.XFAWIDGET]: 'xfawidget',
-  [PdfAnnotationSubtype.REDACT]: 'redact',
+  [PdfAnnotationSubtype.UNKNOWN]: "unknow",
+  [PdfAnnotationSubtype.TEXT]: "text",
+  [PdfAnnotationSubtype.LINK]: "link",
+  [PdfAnnotationSubtype.FREETEXT]: "freetext",
+  [PdfAnnotationSubtype.LINE]: "line",
+  [PdfAnnotationSubtype.SQUARE]: "square",
+  [PdfAnnotationSubtype.CIRCLE]: "circle",
+  [PdfAnnotationSubtype.POLYGON]: "polygon",
+  [PdfAnnotationSubtype.POLYLINE]: "polyline",
+  [PdfAnnotationSubtype.HIGHLIGHT]: "highlight",
+  [PdfAnnotationSubtype.UNDERLINE]: "underline",
+  [PdfAnnotationSubtype.SQUIGGLY]: "squiggly",
+  [PdfAnnotationSubtype.STRIKEOUT]: "strikeout",
+  [PdfAnnotationSubtype.STAMP]: "stamp",
+  [PdfAnnotationSubtype.CARET]: "caret",
+  [PdfAnnotationSubtype.INK]: "ink",
+  [PdfAnnotationSubtype.POPUP]: "popup",
+  [PdfAnnotationSubtype.FILEATTACHMENT]: "fileattachment",
+  [PdfAnnotationSubtype.SOUND]: "sound",
+  [PdfAnnotationSubtype.MOVIE]: "movie",
+  [PdfAnnotationSubtype.WIDGET]: "widget",
+  [PdfAnnotationSubtype.SCREEN]: "screen",
+  [PdfAnnotationSubtype.PRINTERMARK]: "printermark",
+  [PdfAnnotationSubtype.TRAPNET]: "trapnet",
+  [PdfAnnotationSubtype.WATERMARK]: "watermark",
+  [PdfAnnotationSubtype.THREED]: "threed",
+  [PdfAnnotationSubtype.RICHMEDIA]: "richmedia",
+  [PdfAnnotationSubtype.XFAWIDGET]: "xfawidget",
+  [PdfAnnotationSubtype.REDACT]: "redact",
 };
 
 /**
@@ -730,7 +727,7 @@ export interface AnnotationContextMap {
  * @public
  */
 export type AnnotationCreateContext<A extends PdfAnnotationObject> =
-  A['type'] extends keyof AnnotationContextMap ? AnnotationContextMap[A['type']] : undefined;
+  A["type"] extends keyof AnnotationContextMap ? AnnotationContextMap[A["type"]] : undefined;
 
 /**
  * Status of pdf annotation
@@ -768,31 +765,31 @@ export enum PdfAnnotationState {
   /**
    * Annotation is active
    */
-  Marked = 'Marked',
+  Marked = "Marked",
   /**
    * Annotation is unmarked
    */
-  Unmarked = 'Unmarked',
+  Unmarked = "Unmarked",
   /**
    * Annotation is ink
    */
-  Accepted = 'Accepted',
+  Accepted = "Accepted",
   /**
    * Annotation is rejected
    */
-  Rejected = 'Rejected',
+  Rejected = "Rejected",
   /**
    * Annotation is complete
    */
-  Completed = 'Completed',
+  Completed = "Completed",
   /**
    * Annotation is cancelled
    */
-  Cancelled = 'Cancelled',
+  Cancelled = "Cancelled",
   /**
    * Annotation is none
    */
-  None = 'None',
+  None = "None",
 }
 
 /**
@@ -804,11 +801,11 @@ export enum PdfAnnotationStateModel {
   /**
    * Annotation is marked
    */
-  Marked = 'Marked',
+  Marked = "Marked",
   /**
    * Annotation is reviewed
    */
-  Review = 'Review',
+  Review = "Review",
 }
 
 /**
@@ -1373,30 +1370,28 @@ export interface PdfWidgetAnnoOption {
 }
 
 export type PdfAnnotationFlagName =
-  | 'invisible'
-  | 'hidden'
-  | 'print'
-  | 'noZoom'
-  | 'noRotate'
-  | 'noView'
-  | 'readOnly'
-  | 'locked'
-  | 'toggleNoView';
+  | "invisible"
+  | "hidden"
+  | "print"
+  | "noZoom"
+  | "noRotate"
+  | "noView"
+  | "readOnly"
+  | "locked"
+  | "toggleNoView";
 
-type FlagMap = Partial<
-  Record<Exclude<PdfAnnotationFlags, PdfAnnotationFlags.NONE>, PdfAnnotationFlagName>
->;
+type FlagMap = Partial<Record<Exclude<PdfAnnotationFlags, PdfAnnotationFlags.NONE>, PdfAnnotationFlagName>>;
 
 export const PdfAnnotationFlagName: Readonly<FlagMap> = Object.freeze({
-  [PdfAnnotationFlags.INVISIBLE]: 'invisible',
-  [PdfAnnotationFlags.HIDDEN]: 'hidden',
-  [PdfAnnotationFlags.PRINT]: 'print',
-  [PdfAnnotationFlags.NO_ZOOM]: 'noZoom',
-  [PdfAnnotationFlags.NO_ROTATE]: 'noRotate',
-  [PdfAnnotationFlags.NO_VIEW]: 'noView',
-  [PdfAnnotationFlags.READ_ONLY]: 'readOnly',
-  [PdfAnnotationFlags.LOCKED]: 'locked',
-  [PdfAnnotationFlags.TOGGLE_NOVIEW]: 'toggleNoView',
+  [PdfAnnotationFlags.INVISIBLE]: "invisible",
+  [PdfAnnotationFlags.HIDDEN]: "hidden",
+  [PdfAnnotationFlags.PRINT]: "print",
+  [PdfAnnotationFlags.NO_ZOOM]: "noZoom",
+  [PdfAnnotationFlags.NO_ROTATE]: "noRotate",
+  [PdfAnnotationFlags.NO_VIEW]: "noView",
+  [PdfAnnotationFlags.READ_ONLY]: "readOnly",
+  [PdfAnnotationFlags.LOCKED]: "locked",
+  [PdfAnnotationFlags.TOGGLE_NOVIEW]: "toggleNoView",
 } as const);
 
 /** Build a reverse map once so look-ups are O(1)                      */
@@ -1416,10 +1411,7 @@ const PdfAnnotationFlagValue: Record<PdfAnnotationFlagName, PdfAnnotationFlags> 
  */
 export function flagsToNames(raw: number): PdfAnnotationFlagName[] {
   return (
-    Object.keys(PdfAnnotationFlagName) as unknown as Exclude<
-      PdfAnnotationFlags,
-      PdfAnnotationFlags.NONE
-    >[]
+    Object.keys(PdfAnnotationFlagName) as unknown as Exclude<PdfAnnotationFlags, PdfAnnotationFlags.NONE>[]
   )
     .filter((flag) => (raw & flag) !== 0)
     .map((flag) => PdfAnnotationFlagName[flag]!);
@@ -1920,6 +1912,26 @@ export interface PdfPageObjectTranslation {
 }
 
 /**
+ * Desired total translation of individual subpaths ("lines") of one stroked
+ * path object, in device/top-down PDF points (the space of
+ * {@link PdfPageObjectInfo.quad}). PDFium cannot transform part of a path, so —
+ * like {@link PdfPathSubpathErase} — the original is soft-deleted and replaced
+ * by a copy in which the listed subpaths are translated and the rest are left
+ * in place. Set-state: callers send the absolute offset, so `{dx:0,dy:0}`
+ * restores the listed subpaths and undo/redo is a re-send.
+ *
+ * @public
+ */
+export interface PdfPathSubpathTransform {
+  /** Index path of the path object within the page. */
+  id: number[];
+  /** Subpath indices (see {@link PdfPageObjectInfo.polylines}) to translate. */
+  subpaths: number[];
+  dx: number;
+  dy: number;
+}
+
+/**
  * Contents type of pdf stamp annotation
  *
  * @public
@@ -2304,7 +2316,7 @@ export type PdfSupportedAnnoObject =
  * @public
  */
 export interface PdfUnsupportedAnnoObject extends PdfAnnotationObjectBase {
-  type: Exclude<PdfAnnotationSubtype, PdfSupportedAnnoObject['type']>;
+  type: Exclude<PdfAnnotationSubtype, PdfSupportedAnnoObject["type"]>;
 }
 
 /**
@@ -2421,7 +2433,7 @@ export function unionFlags(flags: MatchFlag[]) {
  *
  * @public
  */
-export type ImageConversionTypes = 'image/webp' | 'image/png' | 'image/jpeg';
+export type ImageConversionTypes = "image/webp" | "image/png" | "image/jpeg";
 
 /**
  * Targe for searching
@@ -2697,9 +2709,9 @@ export interface PdfPageTextRuns {
  * @public
  */
 export type FormFieldValue =
-  | { kind: 'text'; text: string }
-  | { kind: 'selection'; index: number; isSelected: boolean }
-  | { kind: 'checked'; isChecked: boolean };
+  | { kind: "text"; text: string }
+  | { kind: "selection"; index: number; isSelected: boolean }
+  | { kind: "checked"; isChecked: boolean };
 
 /**
  * Transformation that will be applied to annotation
@@ -2784,13 +2796,13 @@ export function buildPermissions(...flags: PdfPermissionFlag[]): number {
  * @public
  */
 export class PermissionDeniedError extends Error {
-  public readonly name = 'PermissionDeniedError';
+  public readonly name = "PermissionDeniedError";
 
   constructor(
     public readonly requiredFlags: PdfPermissionFlag[],
     public readonly currentPermissions: number,
   ) {
-    const flagNames = requiredFlags.map((f) => PdfPermissionFlag[f]).join(', ');
+    const flagNames = requiredFlags.map((f) => PdfPermissionFlag[f]).join(", ");
     super(`Permission denied. Required: ${flagNames}`);
   }
 }
@@ -2991,7 +3003,7 @@ export interface PdfOpenDocumentUrlOptions {
   /**
    * Loading mode
    */
-  mode?: 'auto' | 'range-request' | 'full-fetch';
+  mode?: "auto" | "range-request" | "full-fetch";
   /**
    * HTTP request options for fetching the PDF
    */
@@ -3173,20 +3185,14 @@ export interface PdfEngine<T = Blob> {
    * @param options - Additional options including mode (auto, range-request, full-fetch) and password
    * @returns Task that resolves with the PdfDocumentObject or an error
    */
-  openDocumentUrl: (
-    file: PdfFileUrl,
-    options?: PdfOpenDocumentUrlOptions,
-  ) => PdfTask<PdfDocumentObject>;
+  openDocumentUrl: (file: PdfFileUrl, options?: PdfOpenDocumentUrlOptions) => PdfTask<PdfDocumentObject>;
   /**
    * Open pdf document from buffer
    * @param file - pdf file
    * @param options - Additional options including password
    * @returns task that contains the file or error
    */
-  openDocumentBuffer: (
-    file: PdfFile,
-    options?: PdfOpenDocumentBufferOptions,
-  ) => PdfTask<PdfDocumentObject>;
+  openDocumentBuffer: (file: PdfFile, options?: PdfOpenDocumentBufferOptions) => PdfTask<PdfDocumentObject>;
   /**
    * Get the metadata of the file
    * @param doc - pdf document
@@ -3244,11 +3250,7 @@ export interface PdfEngine<T = Blob> {
    * @param options - render options
    * @returns task contains the rendered image or error
    */
-  renderPage: (
-    doc: PdfDocumentObject,
-    page: PdfPageObject,
-    options?: PdfRenderPageOptions,
-  ) => PdfTask<T>;
+  renderPage: (doc: PdfDocumentObject, page: PdfPageObject, options?: PdfRenderPageOptions) => PdfTask<T>;
   /**
    * Render the specified rect of pdf page
    * @param doc - pdf document
@@ -3352,10 +3354,7 @@ export interface PdfEngine<T = Blob> {
    * @param page - pdf page
    * @returns task contains the annotations or error
    */
-  getPageAnnotations: (
-    doc: PdfDocumentObject,
-    page: PdfPageObject,
-  ) => PdfTask<PdfAnnotationObject[]>;
+  getPageAnnotations: (doc: PdfDocumentObject, page: PdfPageObject) => PdfTask<PdfAnnotationObject[]>;
   /**
    * Create a annotation on specified page
    * @param doc - pdf document
@@ -3451,10 +3450,7 @@ export interface PdfEngine<T = Blob> {
    * @param attachment - pdf attachments
    * @returns task that contains the content of specified attachment or error
    */
-  readAttachmentContent: (
-    doc: PdfDocumentObject,
-    attachment: PdfAttachmentObject,
-  ) => PdfTask<ArrayBuffer>;
+  readAttachmentContent: (doc: PdfDocumentObject, attachment: PdfAttachmentObject) => PdfTask<ArrayBuffer>;
   /**
    * Set form field value
    * @param doc - pdf document
@@ -3707,6 +3703,22 @@ export interface PdfEngine<T = Blob> {
     items: PdfPageObjectTranslation[],
   ) => PdfTask<boolean>;
   /**
+   * Set the desired total translation of individual subpaths ("lines") of
+   * stroked path objects. Like {@link PdfEngine.setPathSubpathsInactive}, the
+   * original is soft-deleted and replaced by a copy with the listed subpaths
+   * translated; `{dx:0,dy:0}` restores them. Idempotent set-state, persisted
+   * across page reloads and baked by {@link PdfEngine.generatePageContent}.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param items - desired subpath translation per path object
+   * @returns task that resolves true when every item was applied
+   */
+  transformPathSubpaths: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPathSubpathTransform[],
+  ) => PdfTask<boolean>;
+  /**
    * Regenerate the content stream of the given pages from their currently
    * active objects (via `FPDFPage_GenerateContent`). This bakes the result of
    * {@link PdfEngine.setPageObjectsActive} into the saved bytes — inactive
@@ -3753,10 +3765,7 @@ export interface BatchProgress<T> {
 export interface IPdfiumExecutor {
   // Core operations
   destroy(): void;
-  openDocumentBuffer(
-    file: PdfFile,
-    options?: PdfOpenDocumentBufferOptions,
-  ): PdfTask<PdfDocumentObject>;
+  openDocumentBuffer(file: PdfFile, options?: PdfOpenDocumentBufferOptions): PdfTask<PdfDocumentObject>;
   getMetadata(doc: PdfDocumentObject): PdfTask<PdfMetadataObject>;
   setMetadata(doc: PdfDocumentObject, metadata: Partial<PdfMetadataObject>): PdfTask<boolean>;
   getDocPermissions(doc: PdfDocumentObject): PdfTask<number>;
@@ -3796,10 +3805,7 @@ export interface IPdfiumExecutor {
   ): PdfTask<AnnotationAppearanceMap<ImageDataLike>>;
 
   // Single page operations
-  getPageAnnotationsRaw(
-    doc: PdfDocumentObject,
-    page: PdfPageObject,
-  ): PdfTask<PdfAnnotationObject[]>;
+  getPageAnnotationsRaw(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfAnnotationObject[]>;
   getPageAnnotations(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfAnnotationObject[]>;
   createPageAnnotation<A extends PdfAnnotationObject>(
     doc: PdfDocumentObject,
@@ -3845,10 +3851,7 @@ export interface IPdfiumExecutor {
   getAttachments(doc: PdfDocumentObject): PdfTask<PdfAttachmentObject[]>;
   addAttachment(doc: PdfDocumentObject, params: PdfAddAttachmentParams): PdfTask<boolean>;
   removeAttachment(doc: PdfDocumentObject, attachment: PdfAttachmentObject): PdfTask<boolean>;
-  readAttachmentContent(
-    doc: PdfDocumentObject,
-    attachment: PdfAttachmentObject,
-  ): PdfTask<ArrayBuffer>;
+  readAttachmentContent(doc: PdfDocumentObject, attachment: PdfAttachmentObject): PdfTask<ArrayBuffer>;
   setFormFieldValue(
     doc: PdfDocumentObject,
     page: PdfPageObject,
@@ -3900,6 +3903,11 @@ export interface IPdfiumExecutor {
     page: PdfPageObject,
     items: PdfPageObjectTranslation[],
   ): PdfTask<boolean>;
+  transformPathSubpaths(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPathSubpathTransform[],
+  ): PdfTask<boolean>;
   generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<boolean>;
   merge(files: PdfFile[]): PdfTask<PdfFile>;
   mergePages(mergeConfigs: Array<{ docId: string; pageIndices: number[] }>): PdfTask<PdfFile>;
@@ -3926,15 +3934,11 @@ export interface IPdfiumExecutor {
  *
  * @public
  */
-export type PdfEngineMethodArgs<P extends PdfEngineMethodName> = Readonly<
-  Parameters<Required<PdfEngine>[P]>
->;
+export type PdfEngineMethodArgs<P extends PdfEngineMethodName> = Readonly<Parameters<Required<PdfEngine>[P]>>;
 
 /**
  * Return type of PdfEngine method
  *
  * @public
  */
-export type PdfEngineMethodReturnType<P extends PdfEngineMethodName> = ReturnType<
-  Required<PdfEngine>[P]
->;
+export type PdfEngineMethodReturnType<P extends PdfEngineMethodName> = ReturnType<Required<PdfEngine>[P]>;

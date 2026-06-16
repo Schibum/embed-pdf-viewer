@@ -30,6 +30,7 @@ import {
   PdfPageObjectInfo,
   PdfPageObjectTranslation,
   PdfPathSubpathErase,
+  PdfPathSubpathTransform,
   PdfPageTextRuns,
   PdfPrintOptions,
   PdfSignatureObject,
@@ -42,9 +43,9 @@ import {
   IPdfiumExecutor,
   ImageDataLike,
   AnnotationAppearanceMap,
-} from '@embedpdf/models';
-import type { WorkerRequest, WorkerResponse } from './pdfium-native-runner';
-import type { FontFallbackConfig } from '../pdfium/font-fallback';
+} from "@embedpdf/models";
+import type { WorkerRequest, WorkerResponse } from "./pdfium-native-runner";
+import type { FontFallbackConfig } from "../pdfium/font-fallback";
 
 /**
  * Options for creating a RemoteExecutor
@@ -64,69 +65,70 @@ export interface RemoteExecutorOptions {
   fontFallback?: FontFallbackConfig;
 }
 
-const LOG_SOURCE = 'RemoteExecutor';
-const LOG_CATEGORY = 'Worker';
+const LOG_SOURCE = "RemoteExecutor";
+const LOG_CATEGORY = "Worker";
 
 /**
  * Message types for worker communication
  */
 type MessageType =
-  | 'destroy'
-  | 'openDocumentBuffer'
-  | 'getMetadata'
-  | 'setMetadata'
-  | 'getDocPermissions'
-  | 'getDocUserPermissions'
-  | 'getSignatures'
-  | 'getBookmarks'
-  | 'setBookmarks'
-  | 'deleteBookmarks'
-  | 'renderPageRaw'
-  | 'renderPageRect'
-  | 'renderThumbnailRaw'
-  | 'renderPageAnnotationRaw'
-  | 'renderPageAnnotationsRaw'
-  | 'getPageAnnotations'
-  | 'getPageAnnotationsRaw'
-  | 'createPageAnnotation'
-  | 'updatePageAnnotation'
-  | 'removePageAnnotation'
-  | 'getPageTextRects'
-  | 'searchInPage'
-  | 'getAnnotationsBatch'
-  | 'searchBatch'
-  | 'getAttachments'
-  | 'addAttachment'
-  | 'removeAttachment'
-  | 'readAttachmentContent'
-  | 'setFormFieldValue'
-  | 'flattenPage'
-  | 'extractPages'
-  | 'extractText'
-  | 'redactTextInRects'
-  | 'applyRedaction'
-  | 'applyAllRedactions'
-  | 'flattenAnnotation'
-  | 'getTextSlices'
-  | 'getPageGlyphs'
-  | 'getPageGeometry'
-  | 'getPageTextRuns'
-  | 'getPageObjects'
-  | 'setPageObjectsActive'
-  | 'setPathSubpathsInactive'
-  | 'transformPageObjects'
-  | 'generatePageContent'
-  | 'merge'
-  | 'mergePages'
-  | 'preparePrintDocument'
-  | 'saveAsCopy'
-  | 'closeDocument'
-  | 'closeAllDocuments'
-  | 'setDocumentEncryption'
-  | 'removeEncryption'
-  | 'unlockOwnerPermissions'
-  | 'isEncrypted'
-  | 'isOwnerUnlocked';
+  | "destroy"
+  | "openDocumentBuffer"
+  | "getMetadata"
+  | "setMetadata"
+  | "getDocPermissions"
+  | "getDocUserPermissions"
+  | "getSignatures"
+  | "getBookmarks"
+  | "setBookmarks"
+  | "deleteBookmarks"
+  | "renderPageRaw"
+  | "renderPageRect"
+  | "renderThumbnailRaw"
+  | "renderPageAnnotationRaw"
+  | "renderPageAnnotationsRaw"
+  | "getPageAnnotations"
+  | "getPageAnnotationsRaw"
+  | "createPageAnnotation"
+  | "updatePageAnnotation"
+  | "removePageAnnotation"
+  | "getPageTextRects"
+  | "searchInPage"
+  | "getAnnotationsBatch"
+  | "searchBatch"
+  | "getAttachments"
+  | "addAttachment"
+  | "removeAttachment"
+  | "readAttachmentContent"
+  | "setFormFieldValue"
+  | "flattenPage"
+  | "extractPages"
+  | "extractText"
+  | "redactTextInRects"
+  | "applyRedaction"
+  | "applyAllRedactions"
+  | "flattenAnnotation"
+  | "getTextSlices"
+  | "getPageGlyphs"
+  | "getPageGeometry"
+  | "getPageTextRuns"
+  | "getPageObjects"
+  | "setPageObjectsActive"
+  | "setPathSubpathsInactive"
+  | "transformPageObjects"
+  | "transformPathSubpaths"
+  | "generatePageContent"
+  | "merge"
+  | "mergePages"
+  | "preparePrintDocument"
+  | "saveAsCopy"
+  | "closeDocument"
+  | "closeAllDocuments"
+  | "setDocumentEncryption"
+  | "removeEncryption"
+  | "unlockOwnerPermissions"
+  | "isEncrypted"
+  | "isOwnerUnlocked";
 
 /**
  * RemoteExecutor - Proxy for worker communication
@@ -139,7 +141,7 @@ type MessageType =
  * - Progress tracking
  */
 export class RemoteExecutor implements IPdfiumExecutor {
-  private static READY_TASK_ID = '0';
+  private static READY_TASK_ID = "0";
   private pendingRequests = new Map<string, Task<any, any>>();
   private requestCounter = 0;
   private logger: Logger;
@@ -150,7 +152,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     options: RemoteExecutorOptions,
   ) {
     this.logger = options.logger ?? new NoopLogger();
-    this.worker.addEventListener('message', this.handleMessage);
+    this.worker.addEventListener("message", this.handleMessage);
 
     // Create ready task - will be resolved when worker sends 'ready'
     this.readyTask = new Task<boolean, PdfErrorReason>();
@@ -159,13 +161,13 @@ export class RemoteExecutor implements IPdfiumExecutor {
     // Send initialization message with WASM URL and font fallback config
     this.worker.postMessage({
       id: RemoteExecutor.READY_TASK_ID,
-      type: 'wasmInit',
+      type: "wasmInit",
       wasmUrl: options.wasmUrl,
       logger: options.logger ? serializeLogger(options.logger) : undefined,
       fontFallback: options.fontFallback,
     });
 
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'RemoteExecutor created');
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "RemoteExecutor created");
   }
 
   /**
@@ -185,7 +187,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
 
     const request: WorkerRequest = {
       id,
-      type: 'execute',
+      type: "execute",
       method,
       args,
     };
@@ -198,15 +200,10 @@ export class RemoteExecutor implements IPdfiumExecutor {
         this.worker.postMessage(request);
       },
       (error) => {
-        this.logger.error(
-          LOG_SOURCE,
-          LOG_CATEGORY,
-          `Worker init failed, rejecting ${method}:`,
-          error,
-        );
+        this.logger.error(LOG_SOURCE, LOG_CATEGORY, `Worker init failed, rejecting ${method}:`, error);
         task.reject({
           code: PdfErrorCode.Initialization,
-          message: 'Worker initialization failed',
+          message: "Worker initialization failed",
         });
       },
     );
@@ -221,8 +218,8 @@ export class RemoteExecutor implements IPdfiumExecutor {
     const response = event.data;
 
     // Handle ready response - resolve the readyTask
-    if (response.type === 'ready') {
-      this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'Worker is ready');
+    if (response.type === "ready") {
+      this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "Worker is ready");
       this.readyTask.resolve(true);
       return;
     }
@@ -230,37 +227,28 @@ export class RemoteExecutor implements IPdfiumExecutor {
     const task = this.pendingRequests.get(response.id);
 
     if (!task) {
-      this.logger.warn(
-        LOG_SOURCE,
-        LOG_CATEGORY,
-        `Received response for unknown request: ${response.id}`,
-      );
+      this.logger.warn(LOG_SOURCE, LOG_CATEGORY, `Received response for unknown request: ${response.id}`);
       return;
     }
 
     switch (response.type) {
-      case 'result':
+      case "result":
         this.logger.debug(LOG_SOURCE, LOG_CATEGORY, `Received result for ${response.id}`);
         task.resolve(response.data);
         this.pendingRequests.delete(response.id);
         break;
 
-      case 'error':
-        this.logger.debug(
-          LOG_SOURCE,
-          LOG_CATEGORY,
-          `Received error for ${response.id}:`,
-          response.error,
-        );
+      case "error":
+        this.logger.debug(LOG_SOURCE, LOG_CATEGORY, `Received error for ${response.id}:`, response.error);
         if (response.error) {
           task.fail(response.error);
         } else {
-          task.reject({ code: PdfErrorCode.Unknown, message: 'Unknown error' });
+          task.reject({ code: PdfErrorCode.Unknown, message: "Unknown error" });
         }
         this.pendingRequests.delete(response.id);
         break;
 
-      case 'progress':
+      case "progress":
         this.logger.debug(LOG_SOURCE, LOG_CATEGORY, `Received progress for ${response.id}`);
         task.progress(response.progress);
         break;
@@ -271,60 +259,57 @@ export class RemoteExecutor implements IPdfiumExecutor {
    * Cleanup and terminate worker
    */
   destroy(): void {
-    this.worker.removeEventListener('message', this.handleMessage);
+    this.worker.removeEventListener("message", this.handleMessage);
 
     // Reject all pending requests (except readyTask)
     this.pendingRequests.forEach((task, id) => {
       if (id !== RemoteExecutor.READY_TASK_ID) {
-        task.abort('Worker destroyed');
+        task.abort("Worker destroyed");
         this.logger.debug(LOG_SOURCE, LOG_CATEGORY, `Aborted pending request: ${id}`);
       }
     });
     this.pendingRequests.clear();
 
     this.worker.terminate();
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'RemoteExecutor destroyed');
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "RemoteExecutor destroyed");
   }
 
   // ========== IPdfExecutor Implementation ==========
 
-  openDocumentBuffer(
-    file: PdfFile,
-    options?: PdfOpenDocumentBufferOptions,
-  ): PdfTask<PdfDocumentObject> {
-    return this.send<PdfDocumentObject>('openDocumentBuffer', [file, options]);
+  openDocumentBuffer(file: PdfFile, options?: PdfOpenDocumentBufferOptions): PdfTask<PdfDocumentObject> {
+    return this.send<PdfDocumentObject>("openDocumentBuffer", [file, options]);
   }
 
   getMetadata(doc: PdfDocumentObject): PdfTask<PdfMetadataObject> {
-    return this.send<PdfMetadataObject>('getMetadata', [doc]);
+    return this.send<PdfMetadataObject>("getMetadata", [doc]);
   }
 
   setMetadata(doc: PdfDocumentObject, metadata: Partial<PdfMetadataObject>): PdfTask<boolean> {
-    return this.send<boolean>('setMetadata', [doc, metadata]);
+    return this.send<boolean>("setMetadata", [doc, metadata]);
   }
 
   getDocPermissions(doc: PdfDocumentObject): PdfTask<number> {
-    return this.send<number>('getDocPermissions', [doc]);
+    return this.send<number>("getDocPermissions", [doc]);
   }
 
   getDocUserPermissions(doc: PdfDocumentObject): PdfTask<number> {
-    return this.send<number>('getDocUserPermissions', [doc]);
+    return this.send<number>("getDocUserPermissions", [doc]);
   }
 
   getSignatures(doc: PdfDocumentObject): PdfTask<PdfSignatureObject[]> {
-    return this.send<PdfSignatureObject[]>('getSignatures', [doc]);
+    return this.send<PdfSignatureObject[]>("getSignatures", [doc]);
   }
 
   getBookmarks(doc: PdfDocumentObject): PdfTask<PdfBookmarksObject> {
-    return this.send<PdfBookmarksObject>('getBookmarks', [doc]);
+    return this.send<PdfBookmarksObject>("getBookmarks", [doc]);
   }
 
   setBookmarks(doc: PdfDocumentObject, bookmarks: PdfBookmarkObject[]): PdfTask<boolean> {
-    return this.send<boolean>('setBookmarks', [doc, bookmarks]);
+    return this.send<boolean>("setBookmarks", [doc, bookmarks]);
   }
 
   deleteBookmarks(doc: PdfDocumentObject): PdfTask<boolean> {
-    return this.send<boolean>('deleteBookmarks', [doc]);
+    return this.send<boolean>("deleteBookmarks", [doc]);
   }
 
   renderPageRaw(
@@ -332,7 +317,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     page: PdfPageObject,
     options?: PdfRenderPageOptions,
   ): PdfTask<ImageDataLike> {
-    return this.send<ImageDataLike>('renderPageRaw', [doc, page, options]);
+    return this.send<ImageDataLike>("renderPageRaw", [doc, page, options]);
   }
 
   renderPageRect(
@@ -341,7 +326,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     rect: Rect,
     options?: PdfRenderPageOptions,
   ): PdfTask<ImageDataLike> {
-    return this.send<ImageDataLike>('renderPageRect', [doc, page, rect, options]);
+    return this.send<ImageDataLike>("renderPageRect", [doc, page, rect, options]);
   }
 
   renderThumbnailRaw(
@@ -349,7 +334,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     page: PdfPageObject,
     options?: PdfRenderThumbnailOptions,
   ): PdfTask<ImageDataLike> {
-    return this.send<ImageDataLike>('renderThumbnailRaw', [doc, page, options]);
+    return this.send<ImageDataLike>("renderThumbnailRaw", [doc, page, options]);
   }
 
   renderPageAnnotationRaw(
@@ -358,7 +343,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     annotation: PdfAnnotationObject,
     options?: PdfRenderPageAnnotationOptions,
   ): PdfTask<ImageDataLike> {
-    return this.send<ImageDataLike>('renderPageAnnotationRaw', [doc, page, annotation, options]);
+    return this.send<ImageDataLike>("renderPageAnnotationRaw", [doc, page, annotation, options]);
   }
 
   renderPageAnnotationsRaw(
@@ -366,18 +351,15 @@ export class RemoteExecutor implements IPdfiumExecutor {
     page: PdfPageObject,
     options?: PdfRenderPageAnnotationOptions,
   ): PdfTask<AnnotationAppearanceMap> {
-    return this.send<AnnotationAppearanceMap>('renderPageAnnotationsRaw', [doc, page, options]);
+    return this.send<AnnotationAppearanceMap>("renderPageAnnotationsRaw", [doc, page, options]);
   }
 
-  getPageAnnotationsRaw(
-    doc: PdfDocumentObject,
-    page: PdfPageObject,
-  ): PdfTask<PdfAnnotationObject[]> {
-    return this.send<PdfAnnotationObject[]>('getPageAnnotationsRaw', [doc, page]);
+  getPageAnnotationsRaw(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfAnnotationObject[]> {
+    return this.send<PdfAnnotationObject[]>("getPageAnnotationsRaw", [doc, page]);
   }
 
   getPageAnnotations(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfAnnotationObject[]> {
-    return this.send<PdfAnnotationObject[]>('getPageAnnotations', [doc, page]);
+    return this.send<PdfAnnotationObject[]>("getPageAnnotations", [doc, page]);
   }
 
   createPageAnnotation<A extends PdfAnnotationObject>(
@@ -386,7 +368,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     annotation: A,
     context?: AnnotationCreateContext<A>,
   ): PdfTask<string> {
-    return this.send<string>('createPageAnnotation', [doc, page, annotation, context]);
+    return this.send<string>("createPageAnnotation", [doc, page, annotation, context]);
   }
 
   updatePageAnnotation(
@@ -395,7 +377,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     annotation: PdfAnnotationObject,
     options?: { regenerateAppearance?: boolean },
   ): PdfTask<boolean> {
-    return this.send<boolean>('updatePageAnnotation', [doc, page, annotation, options]);
+    return this.send<boolean>("updatePageAnnotation", [doc, page, annotation, options]);
   }
 
   removePageAnnotation(
@@ -403,11 +385,11 @@ export class RemoteExecutor implements IPdfiumExecutor {
     page: PdfPageObject,
     annotation: PdfAnnotationObject,
   ): PdfTask<boolean> {
-    return this.send<boolean>('removePageAnnotation', [doc, page, annotation]);
+    return this.send<boolean>("removePageAnnotation", [doc, page, annotation]);
   }
 
   getPageTextRects(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfTextRectObject[]> {
-    return this.send<PdfTextRectObject[]>('getPageTextRects', [doc, page]);
+    return this.send<PdfTextRectObject[]>("getPageTextRects", [doc, page]);
   }
 
   searchInPage(
@@ -416,7 +398,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     keyword: string,
     flags: number,
   ): PdfTask<SearchResult[]> {
-    return this.send<SearchResult[]>('searchInPage', [doc, page, keyword, flags]);
+    return this.send<SearchResult[]>("searchInPage", [doc, page, keyword, flags]);
   }
 
   getAnnotationsBatch(
@@ -424,7 +406,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     pages: PdfPageObject[],
   ): PdfTask<Record<number, PdfAnnotationObject[]>, BatchProgress<PdfAnnotationObject[]>> {
     return this.send<Record<number, PdfAnnotationObject[]>, BatchProgress<PdfAnnotationObject[]>>(
-      'getAnnotationsBatch',
+      "getAnnotationsBatch",
       [doc, pages],
     );
   }
@@ -435,7 +417,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     keyword: string,
     flags: number,
   ): PdfTask<Record<number, SearchResult[]>, BatchProgress<SearchResult[]>> {
-    return this.send<Record<number, SearchResult[]>, BatchProgress<SearchResult[]>>('searchBatch', [
+    return this.send<Record<number, SearchResult[]>, BatchProgress<SearchResult[]>>("searchBatch", [
       doc,
       pages,
       keyword,
@@ -444,22 +426,19 @@ export class RemoteExecutor implements IPdfiumExecutor {
   }
 
   getAttachments(doc: PdfDocumentObject): PdfTask<PdfAttachmentObject[]> {
-    return this.send<PdfAttachmentObject[]>('getAttachments', [doc]);
+    return this.send<PdfAttachmentObject[]>("getAttachments", [doc]);
   }
 
   addAttachment(doc: PdfDocumentObject, params: PdfAddAttachmentParams): PdfTask<boolean> {
-    return this.send<boolean>('addAttachment', [doc, params]);
+    return this.send<boolean>("addAttachment", [doc, params]);
   }
 
   removeAttachment(doc: PdfDocumentObject, attachment: PdfAttachmentObject): PdfTask<boolean> {
-    return this.send<boolean>('removeAttachment', [doc, attachment]);
+    return this.send<boolean>("removeAttachment", [doc, attachment]);
   }
 
-  readAttachmentContent(
-    doc: PdfDocumentObject,
-    attachment: PdfAttachmentObject,
-  ): PdfTask<ArrayBuffer> {
-    return this.send<ArrayBuffer>('readAttachmentContent', [doc, attachment]);
+  readAttachmentContent(doc: PdfDocumentObject, attachment: PdfAttachmentObject): PdfTask<ArrayBuffer> {
+    return this.send<ArrayBuffer>("readAttachmentContent", [doc, attachment]);
   }
 
   setFormFieldValue(
@@ -468,7 +447,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     annotation: PdfWidgetAnnoObject,
     value: FormFieldValue,
   ): PdfTask<boolean> {
-    return this.send<boolean>('setFormFieldValue', [doc, page, annotation, value]);
+    return this.send<boolean>("setFormFieldValue", [doc, page, annotation, value]);
   }
 
   flattenPage(
@@ -476,15 +455,15 @@ export class RemoteExecutor implements IPdfiumExecutor {
     page: PdfPageObject,
     options?: PdfFlattenPageOptions,
   ): PdfTask<PdfPageFlattenResult> {
-    return this.send<PdfPageFlattenResult>('flattenPage', [doc, page, options]);
+    return this.send<PdfPageFlattenResult>("flattenPage", [doc, page, options]);
   }
 
   extractPages(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<ArrayBuffer> {
-    return this.send<ArrayBuffer>('extractPages', [doc, pageIndexes]);
+    return this.send<ArrayBuffer>("extractPages", [doc, pageIndexes]);
   }
 
   extractText(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<string> {
-    return this.send<string>('extractText', [doc, pageIndexes]);
+    return this.send<string>("extractText", [doc, pageIndexes]);
   }
 
   redactTextInRects(
@@ -493,7 +472,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     rects: Rect[],
     options?: PdfRedactTextOptions,
   ): PdfTask<boolean> {
-    return this.send<boolean>('redactTextInRects', [doc, page, rects, options]);
+    return this.send<boolean>("redactTextInRects", [doc, page, rects, options]);
   }
 
   applyRedaction(
@@ -501,11 +480,11 @@ export class RemoteExecutor implements IPdfiumExecutor {
     page: PdfPageObject,
     annotation: PdfAnnotationObject,
   ): PdfTask<boolean> {
-    return this.send<boolean>('applyRedaction', [doc, page, annotation]);
+    return this.send<boolean>("applyRedaction", [doc, page, annotation]);
   }
 
   applyAllRedactions(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<boolean> {
-    return this.send<boolean>('applyAllRedactions', [doc, page]);
+    return this.send<boolean>("applyAllRedactions", [doc, page]);
   }
 
   flattenAnnotation(
@@ -513,27 +492,27 @@ export class RemoteExecutor implements IPdfiumExecutor {
     page: PdfPageObject,
     annotation: PdfAnnotationObject,
   ): PdfTask<boolean> {
-    return this.send<boolean>('flattenAnnotation', [doc, page, annotation]);
+    return this.send<boolean>("flattenAnnotation", [doc, page, annotation]);
   }
 
   getTextSlices(doc: PdfDocumentObject, slices: PageTextSlice[]): PdfTask<string[]> {
-    return this.send<string[]>('getTextSlices', [doc, slices]);
+    return this.send<string[]>("getTextSlices", [doc, slices]);
   }
 
   getPageGlyphs(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfGlyphObject[]> {
-    return this.send<PdfGlyphObject[]>('getPageGlyphs', [doc, page]);
+    return this.send<PdfGlyphObject[]>("getPageGlyphs", [doc, page]);
   }
 
   getPageGeometry(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfPageGeometry> {
-    return this.send<PdfPageGeometry>('getPageGeometry', [doc, page]);
+    return this.send<PdfPageGeometry>("getPageGeometry", [doc, page]);
   }
 
   getPageTextRuns(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfPageTextRuns> {
-    return this.send<PdfPageTextRuns>('getPageTextRuns', [doc, page]);
+    return this.send<PdfPageTextRuns>("getPageTextRuns", [doc, page]);
   }
 
   getPageObjects(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfPageObjectInfo[]> {
-    return this.send<PdfPageObjectInfo[]>('getPageObjects', [doc, page]);
+    return this.send<PdfPageObjectInfo[]>("getPageObjects", [doc, page]);
   }
 
   setPageObjectsActive(
@@ -542,7 +521,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     ids: number[][],
     active: boolean,
   ): PdfTask<boolean> {
-    return this.send<boolean>('setPageObjectsActive', [doc, page, ids, active]);
+    return this.send<boolean>("setPageObjectsActive", [doc, page, ids, active]);
   }
 
   setPathSubpathsInactive(
@@ -550,7 +529,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
     page: PdfPageObject,
     items: PdfPathSubpathErase[],
   ): PdfTask<boolean> {
-    return this.send<boolean>('setPathSubpathsInactive', [doc, page, items]);
+    return this.send<boolean>("setPathSubpathsInactive", [doc, page, items]);
   }
 
   transformPageObjects(
@@ -558,35 +537,43 @@ export class RemoteExecutor implements IPdfiumExecutor {
     page: PdfPageObject,
     items: PdfPageObjectTranslation[],
   ): PdfTask<boolean> {
-    return this.send<boolean>('transformPageObjects', [doc, page, items]);
+    return this.send<boolean>("transformPageObjects", [doc, page, items]);
+  }
+
+  transformPathSubpaths(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    items: PdfPathSubpathTransform[],
+  ): PdfTask<boolean> {
+    return this.send<boolean>("transformPathSubpaths", [doc, page, items]);
   }
 
   generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]): PdfTask<boolean> {
-    return this.send<boolean>('generatePageContent', [doc, pageIndexes]);
+    return this.send<boolean>("generatePageContent", [doc, pageIndexes]);
   }
 
   merge(files: PdfFile[]): PdfTask<PdfFile> {
-    return this.send<PdfFile>('merge', [files]);
+    return this.send<PdfFile>("merge", [files]);
   }
 
   mergePages(mergeConfigs: Array<{ docId: string; pageIndices: number[] }>): PdfTask<PdfFile> {
-    return this.send<PdfFile>('mergePages', [mergeConfigs]);
+    return this.send<PdfFile>("mergePages", [mergeConfigs]);
   }
 
   preparePrintDocument(doc: PdfDocumentObject, options?: PdfPrintOptions): PdfTask<ArrayBuffer> {
-    return this.send<ArrayBuffer>('preparePrintDocument', [doc, options]);
+    return this.send<ArrayBuffer>("preparePrintDocument", [doc, options]);
   }
 
   saveAsCopy(doc: PdfDocumentObject): PdfTask<ArrayBuffer> {
-    return this.send<ArrayBuffer>('saveAsCopy', [doc]);
+    return this.send<ArrayBuffer>("saveAsCopy", [doc]);
   }
 
   closeDocument(doc: PdfDocumentObject): PdfTask<boolean> {
-    return this.send<boolean>('closeDocument', [doc]);
+    return this.send<boolean>("closeDocument", [doc]);
   }
 
   closeAllDocuments(): PdfTask<boolean> {
-    return this.send<boolean>('closeAllDocuments', []);
+    return this.send<boolean>("closeAllDocuments", []);
   }
 
   setDocumentEncryption(
@@ -595,27 +582,22 @@ export class RemoteExecutor implements IPdfiumExecutor {
     ownerPassword: string,
     allowedFlags: number,
   ): PdfTask<boolean> {
-    return this.send<boolean>('setDocumentEncryption', [
-      doc,
-      userPassword,
-      ownerPassword,
-      allowedFlags,
-    ]);
+    return this.send<boolean>("setDocumentEncryption", [doc, userPassword, ownerPassword, allowedFlags]);
   }
 
   removeEncryption(doc: PdfDocumentObject): PdfTask<boolean> {
-    return this.send<boolean>('removeEncryption', [doc]);
+    return this.send<boolean>("removeEncryption", [doc]);
   }
 
   unlockOwnerPermissions(doc: PdfDocumentObject, ownerPassword: string): PdfTask<boolean> {
-    return this.send<boolean>('unlockOwnerPermissions', [doc, ownerPassword]);
+    return this.send<boolean>("unlockOwnerPermissions", [doc, ownerPassword]);
   }
 
   isEncrypted(doc: PdfDocumentObject): PdfTask<boolean> {
-    return this.send<boolean>('isEncrypted', [doc]);
+    return this.send<boolean>("isEncrypted", [doc]);
   }
 
   isOwnerUnlocked(doc: PdfDocumentObject): PdfTask<boolean> {
-    return this.send<boolean>('isOwnerUnlocked', [doc]);
+    return this.send<boolean>("isOwnerUnlocked", [doc]);
   }
 }
