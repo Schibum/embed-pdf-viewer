@@ -56,12 +56,7 @@ export function readArrayBuffer(
 
   readChars(bufferPtr, bufferSize);
 
-  const arrayBuffer = new ArrayBuffer(bufferSize);
-  const view = new DataView(arrayBuffer);
-
-  for (let i = 0; i < bufferSize; i++) {
-    view.setInt8(i, wasmModule.getValue(bufferPtr + i, 'i8'));
-  }
+  const arrayBuffer = wasmModule.HEAPU8.slice(bufferPtr, bufferPtr + bufferSize).buffer;
 
   wasmModule.wasmExports.free(bufferPtr);
 

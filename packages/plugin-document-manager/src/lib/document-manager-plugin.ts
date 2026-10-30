@@ -306,8 +306,8 @@ export class DocumentManagerPlugin extends BasePlugin<
 
     const documentId = options.documentId || this.generateDocumentId();
 
-    // Store options for potential retry
-    this.loadOptions.set(documentId, options);
+    // Store options for potential retry; a transferred buffer can't be reused
+    if (!options.transferBuffer) this.loadOptions.set(documentId, options);
 
     this.dispatchCoreAction(
       startLoadingDocument(
@@ -336,6 +336,7 @@ export class DocumentManagerPlugin extends BasePlugin<
     const engineTask = this.engine.openDocumentBuffer(file, {
       password: options.password,
       normalizeRotation: true,
+      transferContent: options.transferBuffer,
     });
 
     task.resolve({

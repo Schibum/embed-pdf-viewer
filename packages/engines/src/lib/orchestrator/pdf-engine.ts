@@ -52,6 +52,7 @@ import {
   IPdfiumExecutor,
   AnnotationAppearanceMap,
   RenderPriority as Priority,
+  TaskStage,
 } from "@embedpdf/models";
 import { WorkerTaskQueue } from "./task-queue";
 import type { ImageDataConverter } from "../converters/types";
@@ -171,9 +172,11 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
         };
 
         // Then open in worker - use wait() to properly propagate task errors
+        // The fetched bytes have no other owner, so hand them over instead of copying
         this.openDocumentBuffer(pdfFile, {
           password: options?.password,
           normalizeRotation: options?.normalizeRotation,
+          transferContent: true,
         }).wait(
           (doc) => task.resolve(doc),
           (error) => task.fail(error),
@@ -335,6 +338,62 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     );
   }
 
+  // ========== Bitmap Rendering (ImageBitmap created next to the pixels) ==========
+
+  renderPageBitmap(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageBitmap> {
+    return this.enqueueBitmap(
+      () => this.executor.renderPageBitmap(doc, page, options),
+      { docId: doc.id, pageIndex: page.index, operation: "renderPageBitmap" },
+      options?.priority ?? Priority.CRITICAL,
+    );
+  }
+
+  renderPageRectBitmap(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    rect: Rect,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageBitmap> {
+    return this.enqueueBitmap(
+      () => this.executor.renderPageRectBitmap(doc, page, rect, options),
+      { docId: doc.id, pageIndex: page.index, operation: "renderPageRectBitmap" },
+      options?.priority ?? Priority.HIGH,
+    );
+  }
+
+  /**
+   * Queue a bitmap render. A bitmap that arrives after the caller aborted the
+   * task has no owner, so it is closed right away to release its pixel memory.
+   */
+  private enqueueBitmap(
+    render: () => PdfTask<ImageBitmap>,
+    meta: { docId: string; pageIndex: number; operation: string },
+    priority: Priority,
+  ): PdfTask<ImageBitmap> {
+    let result: PdfTask<ImageBitmap> | undefined;
+    result = this.workerQueue.enqueue(
+      {
+        execute: () => {
+          const rendering = render();
+          rendering.wait(
+            (bitmap) => {
+              if (result && result.state.stage !== TaskStage.Pending) bitmap.close();
+            },
+            () => {},
+          );
+          return rendering;
+        },
+        meta,
+      },
+      { priority },
+    );
+    return result;
+  }
+
   renderThumbnail(
     doc: PdfDocumentObject,
     page: PdfPageObject,
@@ -428,14 +487,8 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     const imageType = options?.imageType ?? "image/webp";
     const quality = options?.quality;
 
-    // Convert to plain object for encoding
-    const plainImageData = {
-      data: new Uint8ClampedArray(rawImageData.data),
-      width: rawImageData.width,
-      height: rawImageData.height,
-    };
-
-    return this.options.imageConverter(() => plainImageData, imageType, quality);
+    // The raw pixels are a fresh buffer owned by this call, so the encoder may take them as is
+    return this.options.imageConverter(() => rawImageData, imageType, quality);
   }
 
   /**
@@ -448,14 +501,8 @@ export class PdfEngine<T = Blob> implements IPdfEngine<T> {
     const imageType = options?.imageType ?? "image/webp";
     const quality = options?.imageQuality;
 
-    const convertImage = (rawImageData: ImageDataLike): Promise<T> => {
-      const plainImageData = {
-        data: new Uint8ClampedArray(rawImageData.data),
-        width: rawImageData.width,
-        height: rawImageData.height,
-      };
-      return this.options.imageConverter(() => plainImageData, imageType, quality);
-    };
+    const convertImage = (rawImageData: ImageDataLike): Promise<T> =>
+      this.options.imageConverter(() => rawImageData, imageType, quality);
 
     const jobs: Promise<void>[] = [];
     const encodedMap: AnnotationAppearanceMap<T> = {};

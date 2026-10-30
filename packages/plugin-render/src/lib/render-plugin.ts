@@ -1,13 +1,10 @@
 import { BasePlugin, PluginRegistry } from '@embedpdf/core';
 import {
   PdfDocumentObject,
-  PdfErrorCode,
   PdfPageObject,
   PdfRenderPageOptions,
   RenderPriority,
-  TaskStage,
 } from '@embedpdf/models';
-import type { ImageDataLike, PdfTask } from '@embedpdf/models';
 import {
   RenderCapability,
   RenderPageOptions,
@@ -142,34 +139,12 @@ export class RenderPlugin extends BasePlugin<RenderPluginConfig, RenderCapabilit
   // Bitmap Rendering
   // ─────────────────────────────────────────────────────────
 
-  /**
-   * Convert a raw render task to an ImageBitmap task.
-   * After `createImageBitmap` resolves, we check whether the derived task
-   * was aborted/rejected while the async conversion was in progress.
-   * If so, close the bitmap immediately to avoid leaking GPU memory.
-   */
-  private rawToBitmap(rawTask: PdfTask<ImageDataLike>) {
-    const derived = rawTask.map(
-      async (raw) => {
-        const bitmap = await createImageBitmap(new ImageData(raw.data, raw.width, raw.height));
-        if (derived.state.stage !== TaskStage.Pending) {
-          bitmap.close();
-        }
-        return bitmap;
-      },
-      (err: unknown) => ({ code: PdfErrorCode.Unknown, message: String(err) }),
-    );
-    return derived;
-  }
-
   private renderPageBitmap({ pageIndex, options }: RenderPageOptions, documentId?: string) {
     const { doc, page } = this.resolveDocAndPage(pageIndex, documentId);
-    return this.rawToBitmap(
-      this.engine.renderPageRaw(doc, page, {
-        ...this.mergeRawOptions(options),
-        priority: RenderPriority.CRITICAL,
-      }),
-    );
+    return this.engine.renderPageBitmap(doc, page, {
+      ...this.mergeRawOptions(options),
+      priority: RenderPriority.CRITICAL,
+    });
   }
 
   private renderPageRectBitmap(
@@ -177,12 +152,10 @@ export class RenderPlugin extends BasePlugin<RenderPluginConfig, RenderCapabilit
     documentId?: string,
   ) {
     const { doc, page } = this.resolveDocAndPage(pageIndex, documentId);
-    return this.rawToBitmap(
-      this.engine.renderPageRectRaw(doc, page, rect, {
-        ...this.mergeRawOptions(options),
-        priority: RenderPriority.HIGH,
-      }),
-    );
+    return this.engine.renderPageRectBitmap(doc, page, rect, {
+      ...this.mergeRawOptions(options),
+      priority: RenderPriority.HIGH,
+    });
   }
 
   // ─────────────────────────────────────────────────────────

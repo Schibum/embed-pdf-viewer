@@ -290,6 +290,12 @@ export class EngineRunner {
       case "renderPageRectRaw":
         task = engine.renderPageRectRaw!(...args);
         break;
+      case "renderPageBitmap":
+        task = engine.renderPageBitmap!(...args);
+        break;
+      case "renderPageRectBitmap":
+        task = engine.renderPageRectBitmap!(...args);
+        break;
       case "renderPageAnnotation":
         task = engine.renderPageAnnotation!(...args);
         break;
@@ -457,10 +463,11 @@ export class EngineRunner {
         const response: ExecuteResponse = {
           id: request.id,
           type: "ExecuteResponse",
+          // The result union is too wide for TS to relate member-wise to the response union
           data: {
             type: "result",
             value: result,
-          },
+          } as PdfEngineMethodResponseBody,
         };
         this.respond(response);
       },

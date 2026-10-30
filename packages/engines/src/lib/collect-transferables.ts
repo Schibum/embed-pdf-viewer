@@ -1,6 +1,6 @@
 /**
  * Recursively walks a response object and collects Transferable entries
- * (ArrayBuffer from typed arrays, raw ArrayBuffer).
+ * (ArrayBuffer from typed arrays, raw ArrayBuffer, ImageBitmap).
  *
  * Depth-limited to 6 to cover the deepest nesting in this codebase:
  *   response.data.result[annotId][mode].data.data  (AnnotationAppearanceMap)
@@ -8,12 +8,17 @@
 
 const MAX_DEPTH = 6;
 
-function walk(value: unknown, seen: Set<ArrayBuffer>, depth: number): void {
+function walk(value: unknown, seen: Set<Transferable>, depth: number): void {
   if (depth > MAX_DEPTH || value == null || typeof value !== 'object') {
     return;
   }
 
   if (value instanceof ArrayBuffer) {
+    seen.add(value);
+    return;
+  }
+
+  if (typeof ImageBitmap !== 'undefined' && value instanceof ImageBitmap) {
     seen.add(value);
     return;
   }
@@ -44,7 +49,7 @@ function walk(value: unknown, seen: Set<ArrayBuffer>, depth: number): void {
 }
 
 export function collectTransferables(value: unknown): Transferable[] {
-  const seen = new Set<ArrayBuffer>();
+  const seen = new Set<Transferable>();
   walk(value, seen, 0);
   return Array.from(seen);
 }

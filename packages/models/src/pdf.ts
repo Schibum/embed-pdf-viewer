@@ -2978,6 +2978,12 @@ export interface PdfOpenDocumentBufferOptions {
    * @default false
    */
   normalizeRotation?: boolean;
+  /**
+   * When true, an engine running in a worker takes ownership of `file.content`
+   * instead of copying it: the caller's ArrayBuffer is detached after the call.
+   * @default false
+   */
+  transferContent?: boolean;
 }
 
 export interface PdfRequestOptions {
@@ -3294,6 +3300,35 @@ export interface PdfEngine<T = Blob> {
     rect: Rect,
     options?: PdfRenderPageOptions,
   ) => PdfTask<ImageDataLike>;
+  /**
+   * Render the specified pdf page into an ImageBitmap. The bitmap is created
+   * where the pixels live (the engine's worker), so no pixel buffer crosses
+   * into the caller's JS heap. The caller owns the bitmap and must close() it.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param options - render options (imageType/imageQuality are ignored)
+   * @returns task contains the ImageBitmap or error
+   */
+  renderPageBitmap: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    options?: PdfRenderPageOptions,
+  ) => PdfTask<ImageBitmap>;
+  /**
+   * Render the specified rect of a pdf page into an ImageBitmap.
+   * See {@link PdfEngine.renderPageBitmap}.
+   * @param doc - pdf document
+   * @param page - pdf page
+   * @param rect - target rect in PDF coordinate space
+   * @param options - render options (imageType/imageQuality are ignored)
+   * @returns task contains the ImageBitmap or error
+   */
+  renderPageRectBitmap: (
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    rect: Rect,
+    options?: PdfRenderPageOptions,
+  ) => PdfTask<ImageBitmap>;
   /**
    * Render the thumbnail of specified pdf page
    * @param doc - pdf document
@@ -3803,6 +3838,17 @@ export interface IPdfiumExecutor {
     page: PdfPageObject,
     options?: PdfRenderPageAnnotationOptions,
   ): PdfTask<AnnotationAppearanceMap<ImageDataLike>>;
+  renderPageBitmap(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageBitmap>;
+  renderPageRectBitmap(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    rect: Rect,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageBitmap>;
 
   // Single page operations
   getPageAnnotationsRaw(doc: PdfDocumentObject, page: PdfPageObject): PdfTask<PdfAnnotationObject[]>;

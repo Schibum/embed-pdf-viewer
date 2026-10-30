@@ -191,6 +191,14 @@ export interface PdfiumEngineOptions {
   fontFallback?: FontFallbackConfig;
 }
 
+/** An RGBA render result living in the WASM heap; `heapPtr` must be freed by the owner. */
+interface RenderedHeapBitmap {
+  heapPtr: WasmPointer;
+  width: number;
+  height: number;
+  bytes: number;
+}
+
 /**
  * Pdf engine that based on pdfium wasm
  */
@@ -809,6 +817,35 @@ export class PdfiumNative implements IPdfiumExecutor {
     this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `RenderPageRect`, "End", `${doc.id}-${page.index}`);
 
     return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.renderPageBitmap}
+   *
+   * @public
+   */
+  renderPageBitmap(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageBitmap> {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPageBitmap", doc, page, options);
+    return this.renderRectBitmap(doc, page, { origin: { x: 0, y: 0 }, size: page.size }, options);
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.renderPageRectBitmap}
+   *
+   * @public
+   */
+  renderPageRectBitmap(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    rect: Rect,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageBitmap> {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPageRectBitmap", doc, page, rect, options);
+    return this.renderRectBitmap(doc, page, rect, options);
   }
 
   /**
@@ -1506,11 +1543,7 @@ export class PdfiumNative implements IPdfiumExecutor {
       });
     }
 
-    const buffer = new ArrayBuffer(size);
-    const view = new DataView(buffer);
-    for (let i = 0; i < size; i++) {
-      view.setInt8(i, this.pdfiumModule.pdfium.getValue(contentPtr + i, "i8"));
-    }
+    const buffer = this.pdfiumModule.pdfium.HEAPU8.slice(contentPtr, contentPtr + size).buffer;
 
     this.memoryManager.free(sizePtr);
     this.memoryManager.free(contentPtr);
@@ -2812,16 +2845,13 @@ export class PdfiumNative implements IPdfiumExecutor {
       return false;
     }
 
-    for (let i = 0; i < pixelCount; i++) {
-      const red = imageData.data[i * bytesPerPixel];
-      const green = imageData.data[i * bytesPerPixel + 1];
-      const blue = imageData.data[i * bytesPerPixel + 2];
-      const alpha = imageData.data[i * bytesPerPixel + 3];
-
-      this.pdfiumModule.pdfium.setValue(bitmapBufferPtr + i * bytesPerPixel, blue, "i8");
-      this.pdfiumModule.pdfium.setValue(bitmapBufferPtr + i * bytesPerPixel + 1, green, "i8");
-      this.pdfiumModule.pdfium.setValue(bitmapBufferPtr + i * bytesPerPixel + 2, red, "i8");
-      this.pdfiumModule.pdfium.setValue(bitmapBufferPtr + i * bytesPerPixel + 3, alpha, "i8");
+    // RGBA → BGRA straight into the WASM heap
+    const src = imageData.data;
+    const dst = this.pdfiumModule.pdfium.HEAPU8.subarray(bitmapBufferPtr, bitmapBufferPtr + bytesPerPixel * pixelCount);
+    dst.set(src);
+    for (let i = 0; i < dst.length; i += bytesPerPixel) {
+      dst[i] = src[i + 2];
+      dst[i + 2] = src[i];
     }
 
     const format = BitmapFormat.Bitmap_BGRA;
@@ -2899,11 +2929,7 @@ export class PdfiumNative implements IPdfiumExecutor {
     const size = this.pdfiumModule.PDFiumExt_GetFileWriterSize(writerPtr);
     const dataPtr = this.memoryManager.malloc(size);
     this.pdfiumModule.PDFiumExt_GetFileWriterData(writerPtr, dataPtr, size);
-    const buffer = new ArrayBuffer(size);
-    const view = new DataView(buffer);
-    for (let i = 0; i < size; i++) {
-      view.setInt8(i, this.pdfiumModule.pdfium.getValue(dataPtr + i, "i8"));
-    }
+    const buffer = this.pdfiumModule.pdfium.HEAPU8.slice(dataPtr, dataPtr + size).buffer;
     this.memoryManager.free(dataPtr);
     this.pdfiumModule.PDFiumExt_CloseFileWriter(writerPtr);
 
@@ -6744,19 +6770,13 @@ export class PdfiumNative implements IPdfiumExecutor {
     const pixelCount = bitmapWidth * bitmapHeight;
     const bytesPerPixel = 4;
     const array = new Uint8ClampedArray(pixelCount * bytesPerPixel);
-    for (let i = 0; i < pixelCount; i++) {
-      switch (format) {
-        case BitmapFormat.Bitmap_BGR:
-          {
-            const blue = this.pdfiumModule.pdfium.getValue(bitmapBufferPtr + i * 3, "i8");
-            const green = this.pdfiumModule.pdfium.getValue(bitmapBufferPtr + i * 3 + 1, "i8");
-            const red = this.pdfiumModule.pdfium.getValue(bitmapBufferPtr + i * 3 + 2, "i8");
-            array[i * bytesPerPixel] = red;
-            array[i * bytesPerPixel + 1] = green;
-            array[i * bytesPerPixel + 2] = blue;
-            array[i * bytesPerPixel + 3] = 100;
-          }
-          break;
+    if (format === BitmapFormat.Bitmap_BGR) {
+      const src = this.pdfiumModule.pdfium.HEAPU8.subarray(bitmapBufferPtr, bitmapBufferPtr + pixelCount * 3);
+      for (let i = 0, j = 0; i < pixelCount; i++, j += 3) {
+        array[i * bytesPerPixel] = src[j + 2];
+        array[i * bytesPerPixel + 1] = src[j + 1];
+        array[i * bytesPerPixel + 2] = src[j];
+        array[i * bytesPerPixel + 3] = 100;
       }
     }
 
@@ -8039,21 +8059,21 @@ export class PdfiumNative implements IPdfiumExecutor {
     return { data: imageData, rect: annotRect };
   }
 
-  private renderRectEncoded(
+  /**
+   * Render `rect` of the page into a freshly malloc'd RGBA buffer in the WASM heap.
+   * The caller owns `heapPtr` and must free it.
+   */
+  private renderRectToHeap(
     doc: PdfDocumentObject,
     page: PdfPageObject,
     rect: Rect,
     options?: PdfRenderPageOptions,
-  ): PdfTask<ImageDataLike> {
-    const task = new Task<ImageDataLike, PdfErrorReason>();
+  ): RenderedHeapBitmap | PdfErrorReason {
     const rotation: Rotation = options?.rotation ?? Rotation.Degree0;
 
     const ctx = this.cache.getContext(doc.id);
     if (!ctx) {
-      return PdfTaskHelper.reject({
-        code: PdfErrorCode.DocNotOpen,
-        message: "document does not open",
-      });
+      return { code: PdfErrorCode.DocNotOpen, message: "document does not open" };
     }
 
     // ---- 1) decide device size (scale × dpr, swap for 90/270)
@@ -8125,37 +8145,64 @@ export class PdfiumNative implements IPdfiumExecutor {
       pageCtx.release();
       this.memoryManager.free(mPtr);
       this.memoryManager.free(clipPtr);
+      this.pdfiumModule.FPDFBitmap_Destroy(bitmapPtr);
     }
 
-    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `RenderRectEncodedData`, "Begin", `${doc.id}-${page.index}`);
-    const data = this.pdfiumModule.pdfium.HEAPU8.subarray(heapPtr, heapPtr + bytes);
-    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `RenderRectEncodedData`, "End", `${doc.id}-${page.index}`);
+    return { heapPtr, width: wDev, height: hDev, bytes };
+  }
 
-    this.logger.perf(
-      LOG_SOURCE,
-      LOG_CATEGORY,
-      `RenderRectEncodedImageData`,
-      "Begin",
-      `${doc.id}-${page.index}`,
-    );
+  private renderRectEncoded(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    rect: Rect,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageDataLike> {
+    const rendered = this.renderRectToHeap(doc, page, rect, options);
+    if (!("heapPtr" in rendered)) return PdfTaskHelper.reject(rendered);
+
+    const { heapPtr, width, height, bytes } = rendered;
     // Return plain object (ImageDataLike) instead of browser-specific ImageData
     // This ensures compatibility with Node.js and other non-browser environments
     const imageDataLike: ImageDataLike = {
-      data: new Uint8ClampedArray(data),
-      width: wDev,
-      height: hDev,
+      data: new Uint8ClampedArray(this.pdfiumModule.pdfium.HEAPU8.buffer as ArrayBuffer, heapPtr, bytes).slice(),
+      width,
+      height,
     };
-    this.logger.perf(
-      LOG_SOURCE,
-      LOG_CATEGORY,
-      `RenderRectEncodedImageData`,
-      "End",
-      `${doc.id}-${page.index}`,
-    );
-    task.resolve(imageDataLike);
-
-    this.pdfiumModule.FPDFBitmap_Destroy(bitmapPtr);
     this.memoryManager.free(heapPtr);
+
+    return PdfTaskHelper.resolve(imageDataLike);
+  }
+
+  /**
+   * Render `rect` of the page straight into an ImageBitmap. The bitmap is created
+   * from a view on the WASM heap, so the pixels are copied once (into the bitmap)
+   * and never pass through the JS heap.
+   */
+  private renderRectBitmap(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    rect: Rect,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageBitmap> {
+    if (typeof createImageBitmap !== "function") {
+      return PdfTaskHelper.reject({
+        code: PdfErrorCode.NotSupport,
+        message: "createImageBitmap is not available",
+      });
+    }
+
+    const rendered = this.renderRectToHeap(doc, page, rect, options);
+    if (!("heapPtr" in rendered)) return PdfTaskHelper.reject(rendered);
+
+    const { heapPtr, width, height, bytes } = rendered;
+    const task = new Task<ImageBitmap, PdfErrorReason>();
+    const pixels = new Uint8ClampedArray(this.pdfiumModule.pdfium.HEAPU8.buffer as ArrayBuffer, heapPtr, bytes);
+    createImageBitmap(new ImageData(pixels, width, height))
+      .then(
+        (bitmap) => task.resolve(bitmap),
+        (error: unknown) => task.reject({ code: PdfErrorCode.Unknown, message: String(error) }),
+      )
+      .finally(() => this.memoryManager.free(heapPtr));
 
     return task;
   }

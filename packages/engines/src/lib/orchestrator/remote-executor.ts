@@ -84,6 +84,8 @@ type MessageType =
   | "deleteBookmarks"
   | "renderPageRaw"
   | "renderPageRect"
+  | "renderPageBitmap"
+  | "renderPageRectBitmap"
   | "renderThumbnailRaw"
   | "renderPageAnnotationRaw"
   | "renderPageAnnotationsRaw"
@@ -181,7 +183,11 @@ export class RemoteExecutor implements IPdfiumExecutor {
    * Send a message to the worker and return a Task
    * Waits for worker to be ready before sending
    */
-  private send<T, P = unknown>(method: MessageType, args: any[]): Task<T, PdfErrorReason, P> {
+  private send<T, P = unknown>(
+    method: MessageType,
+    args: any[],
+    transfer: Transferable[] = [],
+  ): Task<T, PdfErrorReason, P> {
     const id = this.generateId();
     const task = new Task<T, PdfErrorReason, P>();
 
@@ -197,7 +203,7 @@ export class RemoteExecutor implements IPdfiumExecutor {
       () => {
         this.pendingRequests.set(id, task);
         this.logger.debug(LOG_SOURCE, LOG_CATEGORY, `Sending ${method} request:`, id);
-        this.worker.postMessage(request);
+        this.worker.postMessage(request, transfer);
       },
       (error) => {
         this.logger.error(LOG_SOURCE, LOG_CATEGORY, `Worker init failed, rejecting ${method}:`, error);
@@ -277,7 +283,8 @@ export class RemoteExecutor implements IPdfiumExecutor {
   // ========== IPdfExecutor Implementation ==========
 
   openDocumentBuffer(file: PdfFile, options?: PdfOpenDocumentBufferOptions): PdfTask<PdfDocumentObject> {
-    return this.send<PdfDocumentObject>("openDocumentBuffer", [file, options]);
+    const transfer = options?.transferContent ? [file.content] : [];
+    return this.send<PdfDocumentObject>("openDocumentBuffer", [file, options], transfer);
   }
 
   getMetadata(doc: PdfDocumentObject): PdfTask<PdfMetadataObject> {
@@ -318,6 +325,23 @@ export class RemoteExecutor implements IPdfiumExecutor {
     options?: PdfRenderPageOptions,
   ): PdfTask<ImageDataLike> {
     return this.send<ImageDataLike>("renderPageRaw", [doc, page, options]);
+  }
+
+  renderPageBitmap(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageBitmap> {
+    return this.send<ImageBitmap>("renderPageBitmap", [doc, page, options]);
+  }
+
+  renderPageRectBitmap(
+    doc: PdfDocumentObject,
+    page: PdfPageObject,
+    rect: Rect,
+    options?: PdfRenderPageOptions,
+  ): PdfTask<ImageBitmap> {
+    return this.send<ImageBitmap>("renderPageRectBitmap", [doc, page, rect, options]);
   }
 
   renderPageRect(
