@@ -7,6 +7,7 @@ import {
   PdfTextRectObject,
   PdfWidgetAnnoObject,
   Task,
+  TaskStage,
   Logger,
   NoopLogger,
   PdfAnnotationObject,
@@ -176,9 +177,16 @@ export class WebWorkerEngine implements PdfEngine {
         case "ExecuteResponse":
           {
             switch (response.data.type) {
-              case "result":
-                task.resolve(response.data.value);
+              case "result": {
+                const value = response.data.value;
+                // A bitmap that arrives after its task was aborted has no owner
+                const orphaned = task.state.stage !== TaskStage.Pending;
+                if (orphaned && typeof ImageBitmap !== "undefined" && value instanceof ImageBitmap) {
+                  value.close();
+                }
+                task.resolve(value);
                 break;
+              }
               case "error":
                 task.reject(response.data.value.reason);
                 break;
