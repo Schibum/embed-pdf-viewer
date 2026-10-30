@@ -1,5 +1,13 @@
 # @embedpdf/snippet
 
+## 2.7.0
+
+### Patch Changes
+
+- [#478](https://github.com/embedpdf/embed-pdf-viewer/pull/478) by [@phreyah](https://github.com/phreyah) – Add Swedish (`sv`) translations to the snippet viewer.
+
+- [#467](https://github.com/embedpdf/embed-pdf-viewer/pull/467) by [@bobsingor](https://github.com/bobsingor) – Fixed color matching case insensitivity and rotation debounce logic in the annotation sidebar.
+
 ## 2.6.2
 
 ## 2.6.1
