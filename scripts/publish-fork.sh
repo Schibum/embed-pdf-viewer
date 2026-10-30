@@ -11,9 +11,24 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORKTREE_DIR="${REPO_ROOT}/.publish-worktree"
 BRANCH_NAME="publish-fork"
 
+# Fetch Google Cloud access token
+echo "==> Fetching Google Cloud access token..."
+NPM_TOKEN=$(gcloud auth print-access-token)
+export NPM_TOKEN
+
+configure_npmrc() {
+  echo "==> Configuring .npmrc for GCP Artifact Registry..."
+  cat <<EOF > .npmrc
+@pdfmergy-embedpdf:registry=https://us-central1-npm.pkg.dev/w69b-pdfmerge/npm/
+//us-central1-npm.pkg.dev/w69b-pdfmerge/npm/:always-auth=true
+//us-central1-npm.pkg.dev/w69b-pdfmerge/npm/:_authToken=\${NPM_TOKEN}
+EOF
+}
+
 if [ "$PUBLISH_ONLY" = "true" ] && [ -d "$WORKTREE_DIR/packages" ]; then
   echo "==> PUBLISH_ONLY: reusing existing worktree at $WORKTREE_DIR"
   cd "$WORKTREE_DIR"
+  configure_npmrc
 else
   # Clean up any stale worktree
   git worktree remove --force "$WORKTREE_DIR" 2>/dev/null || true
@@ -43,17 +58,7 @@ else
     -not -path '*/node_modules/*' \
     -exec sed -i '' "s|${OLD_SCOPE}/|${SCOPE}/|g" {} +
 
-  # Update .npmrc registry scope
-  sed -i '' "s|${OLD_SCOPE}:registry|${SCOPE}:registry|g" .npmrc 2>/dev/null || true
-
-  # Remove _authToken=${NPM_TOKEN} lines so npm falls back to ~/.npmrc session auth
-  # (from `npm login`). The project .npmrc's env-var reference overrides session auth
-  # with an empty value when NPM_TOKEN is unset.
-  if [ -z "${NPM_TOKEN:-}" ]; then
-    echo "==> NPM_TOKEN not set, removing _authToken lines to use session auth"
-    find . -name '.npmrc' -not -path '*/node_modules/*' \
-      -exec sed -i '' '/:_authToken=/d' {} +
-  fi
+  configure_npmrc
 
   # ── Version override ────────────────────────────────────────────────
 
@@ -129,7 +134,7 @@ if [ "$DRY_RUN" = "true" ]; then
   pnpm -r publish --dry-run --access public  2>&1 || true
 else
   echo "==> Publishing to npm under $SCOPE"
-  CONCURRENCY=8
+  CONCURRENCY=30
 
   # Collect all package name/version/dir in one node call
   PKGS=$(pnpm -r list --json --depth=-1 2>/dev/null | node -e "
@@ -172,8 +177,8 @@ else
       FIRST_LINE=$(echo "$NEED_PUBLISH" | head -1)
       IFS=$'\t' read -r FIRST_NAME FIRST_VER FIRST_DIR <<< "$FIRST_LINE"
       echo "  Publishing $FIRST_NAME@$FIRST_VER (testing auth)..."
-      OUTPUT=$(cd "$FIRST_DIR" && pnpm publish --access public --no-git-checks $OTP_FLAG 2>&1)
-      if [ $? -eq 0 ]; then
+      OUTPUT=$(cd "$FIRST_DIR" && pnpm publish --access public --no-git-checks $OTP_FLAG 2>&1) && status=0 || status=$?
+      if [ $status -eq 0 ]; then
         echo "    OK"
       elif echo "$OUTPUT" | grep -q "EOTP"; then
         echo "    OTP required."
@@ -198,8 +203,7 @@ else
       while IFS=$'\t' read -r name ver dir; do
         [ -z "$name" ] && continue
         (
-          OUT=$(cd "$dir" && pnpm publish --access public --no-git-checks $OTP_FLAG 2>&1)
-          RC=$?
+          OUT=$(cd "$dir" && pnpm publish --access public --no-git-checks $OTP_FLAG 2>&1) && RC=0 || RC=$?
           if [ $RC -eq 0 ]; then
             echo "  Published $name@$ver"
           elif echo "$OUT" | grep -q "previously published\|E403"; then

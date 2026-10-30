@@ -1,4 +1,4 @@
-import { PdfDocumentObject, PdfErrorCode, PdfPageObject, Rotation } from '@embedpdf/models';
+import { PdfDocumentObject, PdfErrorCode, PdfPageObject, Rect, Rotation } from '@embedpdf/models';
 import { PermissionConfig } from '../types/permissions';
 
 // Document lifecycle actions
@@ -155,6 +155,14 @@ export interface RefreshPagesAction {
   payload: {
     documentId: string;
     pageIndexes: number[];
+    /**
+     * Optional dirty regions per page (unrotated page points, top-left
+     * origin — the space of `Tile.pageRect`). Pages listed here refresh
+     * incrementally: only intersecting tiles re-render and the page's
+     * full-page refresh version is NOT bumped. Pages without an entry
+     * refresh fully (previous behavior).
+     */
+    dirtyRects?: Record<number, Rect[]>;
   };
 }
 
@@ -283,9 +291,13 @@ export const refreshDocument = (documentId: string, document: PdfDocumentObject)
   payload: { documentId, document },
 });
 
-export const refreshPages = (documentId: string, pageIndexes: number[]): CoreAction => ({
+export const refreshPages = (
+  documentId: string,
+  pageIndexes: number[],
+  dirtyRects?: Record<number, Rect[]>,
+): CoreAction => ({
   type: REFRESH_PAGES,
-  payload: { documentId, pageIndexes },
+  payload: { documentId, pageIndexes, dirtyRects },
 });
 
 export const setPages = (documentId: string, pages: PdfPageObject[][]): CoreAction => ({

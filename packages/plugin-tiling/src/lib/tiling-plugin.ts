@@ -6,7 +6,7 @@ import {
   REFRESH_PAGES,
   RefreshPagesAction,
 } from '@embedpdf/core';
-import { ignore } from '@embedpdf/models';
+import { ignore, Rect } from '@embedpdf/models';
 import { RenderCapability, RenderPlugin } from '@embedpdf/plugin-render';
 import {
   ScrollCapability,
@@ -28,6 +28,16 @@ import {
   TilingScope,
 } from './types';
 import { calculateTilesForPage } from './utils';
+
+/** Axis-aligned overlap test in the shared unrotated page-point space. */
+function rectIntersectsRect(a: Rect, b: Rect): boolean {
+  return (
+    a.origin.x < b.origin.x + b.size.width &&
+    a.origin.x + a.size.width > b.origin.x &&
+    a.origin.y < b.origin.y + b.size.height &&
+    a.origin.y + a.size.height > b.origin.y
+  );
+}
 
 export class TilingPlugin extends BasePlugin<TilingPluginConfig, TilingCapability, TilingState> {
   static readonly id = 'tiling' as const;
@@ -84,7 +94,7 @@ export class TilingPlugin extends BasePlugin<TilingPluginConfig, TilingCapabilit
   }
 
   async recalculateTiles(payload: RefreshPagesAction['payload']): Promise<void> {
-    const { documentId, pageIndexes } = payload;
+    const { documentId, pageIndexes, dirtyRects } = payload;
     const coreDoc = this.getCoreDocument(documentId);
     if (!coreDoc || !coreDoc.document) return;
 
@@ -96,6 +106,7 @@ export class TilingPlugin extends BasePlugin<TilingPluginConfig, TilingCapabilit
     const refreshedTiles: Record<number, Tile[]> = {};
     const refreshTimestamp = Date.now();
     const scale = coreDoc.scale;
+    const currentTiles = this.state.documents[documentId]?.visibleTiles ?? {};
 
     for (const pageIndex of pageIndexes) {
       const metric = currentMetrics.pageVisibilityMetrics.find(
@@ -109,7 +120,7 @@ export class TilingPlugin extends BasePlugin<TilingPluginConfig, TilingCapabilit
       // Calculate effective rotation for this page (page intrinsic + document rotation)
       const effectiveRotation = ((page.rotation ?? 0) + coreDoc.rotation) % 4;
 
-      refreshedTiles[pageIndex] = calculateTilesForPage({
+      const freshTiles = calculateTilesForPage({
         page,
         metric,
         scale,
@@ -117,10 +128,32 @@ export class TilingPlugin extends BasePlugin<TilingPluginConfig, TilingCapabilit
         tileSize: this.config.tileSize,
         overlapPx: this.config.overlapPx,
         extraRings: this.config.extraRings,
-      }).map((tile) => ({
-        ...tile,
-        id: `${tile.id}-r${refreshTimestamp}`, // Add refresh token to force new render
-      }));
+      });
+
+      const rects = dirtyRects?.[pageIndex];
+      if (!rects || rects.length === 0) {
+        refreshedTiles[pageIndex] = freshTiles.map((tile) => ({
+          ...tile,
+          id: `${tile.id}-r${refreshTimestamp}`, // Add refresh token to force new render
+        }));
+        continue;
+      }
+
+      // Incremental refresh: only tiles intersecting a dirty rect get a new
+      // id (and thus a re-render); clean tiles inherit their CURRENT id so
+      // the reducer keeps them — including any refresh token from an earlier
+      // refresh — and their canvases are left untouched.
+      const currentIdByCell = new Map<string, string>();
+      for (const t of currentTiles[pageIndex] ?? []) {
+        if (!t.isFallback) currentIdByCell.set(`${t.col}:${t.row}:${t.srcScale}`, t.id);
+      }
+      refreshedTiles[pageIndex] = freshTiles.map((tile) => {
+        if (rects.some((r) => rectIntersectsRect(r, tile.pageRect))) {
+          return { ...tile, id: `${tile.id}-r${refreshTimestamp}` };
+        }
+        const existingId = currentIdByCell.get(`${tile.col}:${tile.row}:${tile.srcScale}`);
+        return existingId ? { ...tile, id: existingId } : tile;
+      });
     }
 
     if (Object.keys(refreshedTiles).length > 0) {

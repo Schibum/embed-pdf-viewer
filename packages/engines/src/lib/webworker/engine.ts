@@ -7,6 +7,7 @@ import {
   PdfTextRectObject,
   PdfWidgetAnnoObject,
   Task,
+  TaskStage,
   Logger,
   NoopLogger,
   PdfAnnotationObject,
@@ -22,6 +23,10 @@ import {
   PdfFileUrl,
   PdfGlyphObject,
   PdfPageGeometry,
+  PdfPageObjectInfo,
+  PdfPageObjectTranslation,
+  PdfPathSubpathErase,
+  PdfPathSubpathTransform,
   PdfPageTextRuns,
   PageTextSlice,
   AnnotationCreateContext,
@@ -42,11 +47,11 @@ import {
   PdfAddAttachmentParams,
   AnnotationAppearanceMap,
   ImageDataLike,
-} from '@embedpdf/models';
-import { ExecuteRequest, Response, SpecificExecuteRequest } from './runner';
+} from "@embedpdf/models";
+import { ExecuteRequest, Response, SpecificExecuteRequest } from "./runner";
 
-const LOG_SOURCE = 'WebWorkerEngine';
-const LOG_CATEGORY = 'Engine';
+const LOG_SOURCE = "WebWorkerEngine";
+const LOG_CATEGORY = "Engine";
 
 /**
  * Create a request for the webworker
@@ -62,7 +67,7 @@ function createRequest<M extends PdfEngineMethodName>(
 ): SpecificExecuteRequest<M> {
   return {
     id,
-    type: 'ExecuteRequest',
+    type: "ExecuteRequest",
     data: {
       name,
       args,
@@ -98,7 +103,7 @@ export class WorkerTask<R, P = unknown> extends Task<R, PdfErrorReason, P> {
 
     this.worker.postMessage({
       id: this.messageId,
-      type: 'AbortRequest',
+      type: "AbortRequest",
     });
   }
 
@@ -116,7 +121,7 @@ export class WorkerTask<R, P = unknown> extends Task<R, PdfErrorReason, P> {
  * PDF engine that runs within webworker
  */
 export class WebWorkerEngine implements PdfEngine {
-  static readyTaskId = '0';
+  static readyTaskId = "0";
   /**
    * Task that represent the state of preparation
    */
@@ -138,7 +143,7 @@ export class WebWorkerEngine implements PdfEngine {
     private worker: Worker,
     private logger: Logger = new NoopLogger(),
   ) {
-    this.worker.addEventListener('message', this.handle);
+    this.worker.addEventListener("message", this.handle);
 
     this.readyTask = new WorkerTask<boolean>(this.worker, WebWorkerEngine.readyTaskId);
     this.tasks.set(WebWorkerEngine.readyTaskId, this.readyTask);
@@ -154,12 +159,7 @@ export class WebWorkerEngine implements PdfEngine {
    * @private
    */
   handle = (evt: MessageEvent<any>) => {
-    this.logger.debug(
-      LOG_SOURCE,
-      LOG_CATEGORY,
-      'webworker engine start handling message: ',
-      evt.data,
-    );
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "webworker engine start handling message: ", evt.data);
     try {
       const response = evt.data as Response;
       const task = this.tasks.get(response.id);
@@ -168,19 +168,26 @@ export class WebWorkerEngine implements PdfEngine {
       }
 
       switch (response.type) {
-        case 'ReadyResponse':
+        case "ReadyResponse":
           this.readyTask.resolve(true);
           break;
-        case 'ExecuteProgress':
+        case "ExecuteProgress":
           task.progress(response.data);
           break;
-        case 'ExecuteResponse':
+        case "ExecuteResponse":
           {
             switch (response.data.type) {
-              case 'result':
-                task.resolve(response.data.value);
+              case "result": {
+                const value = response.data.value;
+                // A bitmap that arrives after its task was aborted has no owner
+                const orphaned = task.state.stage !== TaskStage.Pending;
+                if (orphaned && typeof ImageBitmap !== "undefined" && value instanceof ImageBitmap) {
+                  value.close();
+                }
+                task.resolve(value);
                 break;
-              case 'error':
+              }
+              case "error":
                 task.reject(response.data.value.reason);
                 break;
             }
@@ -189,7 +196,7 @@ export class WebWorkerEngine implements PdfEngine {
           break;
       }
     } catch (e) {
-      this.logger.error(LOG_SOURCE, LOG_CATEGORY, 'webworker met error when handling message: ', e);
+      this.logger.error(LOG_SOURCE, LOG_CATEGORY, "webworker met error when handling message: ", e);
     }
   };
 
@@ -209,18 +216,18 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   destroy() {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'destroy');
-    const requestId = this.generateRequestId('General');
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "destroy");
+    const requestId = this.generateRequestId("General");
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
     const finish = () => {
-      this.worker.removeEventListener('message', this.handle);
+      this.worker.removeEventListener("message", this.handle);
       this.worker.terminate();
     };
 
     task.wait(finish, finish);
 
-    const request: ExecuteRequest = createRequest(requestId, 'destroy', []);
+    const request: ExecuteRequest = createRequest(requestId, "destroy", []);
     this.proxy(task, request);
 
     return task;
@@ -232,11 +239,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   openDocumentUrl(file: PdfFileUrl, options?: PdfOpenDocumentUrlOptions) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'openDocumentUrl', file.url, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "openDocumentUrl", file.url, options);
     const requestId = this.generateRequestId(file.id);
     const task = new WorkerTask<PdfDocumentObject>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'openDocumentUrl', [file, options]);
+    const request: ExecuteRequest = createRequest(requestId, "openDocumentUrl", [file, options]);
     this.proxy(task, request);
 
     return task;
@@ -248,11 +255,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   openDocumentBuffer(file: PdfFile, options?: PdfOpenDocumentBufferOptions) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'openDocumentBuffer', file, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "openDocumentBuffer", file, options);
     const requestId = this.generateRequestId(file.id);
     const task = new WorkerTask<PdfDocumentObject>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'openDocumentBuffer', [file, options]);
+    const request: ExecuteRequest = createRequest(requestId, "openDocumentBuffer", [file, options]);
     this.proxy(task, request);
 
     return task;
@@ -264,11 +271,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getMetadata(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getMetadata', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getMetadata", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfMetadataObject>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getMetadata', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "getMetadata", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -280,11 +287,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   setMetadata(doc: PdfDocumentObject, metadata: Partial<PdfMetadataObject>) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'setMetadata', doc, metadata);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "setMetadata", doc, metadata);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'setMetadata', [doc, metadata]);
+    const request: ExecuteRequest = createRequest(requestId, "setMetadata", [doc, metadata]);
     this.proxy(task, request);
 
     return task;
@@ -296,11 +303,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getDocPermissions(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getDocPermissions', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getDocPermissions", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<number>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getDocPermissions', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "getDocPermissions", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -312,11 +319,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getDocUserPermissions(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getDocUserPermissions', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getDocUserPermissions", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<number>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getDocUserPermissions', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "getDocUserPermissions", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -328,11 +335,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getBookmarks(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getBookmarks', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getBookmarks", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfBookmarksObject>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getBookmarks', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "getBookmarks", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -344,11 +351,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   setBookmarks(doc: PdfDocumentObject, payload: PdfBookmarkObject[]) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'setBookmarks', doc, payload);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "setBookmarks", doc, payload);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'setBookmarks', [doc, payload]);
+    const request: ExecuteRequest = createRequest(requestId, "setBookmarks", [doc, payload]);
     this.proxy(task, request);
 
     return task;
@@ -360,11 +367,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   deleteBookmarks(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'deleteBookmarks', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "deleteBookmarks", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'deleteBookmarks', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "deleteBookmarks", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -376,11 +383,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getSignatures(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getSignatures', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getSignatures", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfSignatureObject[]>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getSignatures', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "getSignatures", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -392,11 +399,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   renderPage(doc: PdfDocumentObject, page: PdfPageObject, options?: PdfRenderPageOptions) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renderPage', doc, page, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPage", doc, page, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<Blob>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'renderPage', [doc, page, options]);
+    const request: ExecuteRequest = createRequest(requestId, "renderPage", [doc, page, options]);
     this.proxy(task, request);
 
     return task;
@@ -407,22 +414,12 @@ export class WebWorkerEngine implements PdfEngine {
    *
    * @public
    */
-  renderPageRect(
-    doc: PdfDocumentObject,
-    page: PdfPageObject,
-    rect: Rect,
-    options?: PdfRenderPageOptions,
-  ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renderPageRect', doc, page, rect, options);
+  renderPageRect(doc: PdfDocumentObject, page: PdfPageObject, rect: Rect, options?: PdfRenderPageOptions) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPageRect", doc, page, rect, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<Blob>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'renderPageRect', [
-      doc,
-      page,
-      rect,
-      options,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "renderPageRect", [doc, page, rect, options]);
     this.proxy(task, request);
 
     return task;
@@ -434,11 +431,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   renderPageRaw(doc: PdfDocumentObject, page: PdfPageObject, options?: PdfRenderPageOptions) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renderPageRaw', doc, page, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPageRaw", doc, page, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<ImageDataLike>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'renderPageRaw', [doc, page, options]);
+    const request: ExecuteRequest = createRequest(requestId, "renderPageRaw", [doc, page, options]);
     this.proxy(task, request);
 
     return task;
@@ -449,22 +446,44 @@ export class WebWorkerEngine implements PdfEngine {
    *
    * @public
    */
-  renderPageRectRaw(
-    doc: PdfDocumentObject,
-    page: PdfPageObject,
-    rect: Rect,
-    options?: PdfRenderPageOptions,
-  ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renderPageRectRaw', doc, page, rect, options);
+  renderPageRectRaw(doc: PdfDocumentObject, page: PdfPageObject, rect: Rect, options?: PdfRenderPageOptions) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPageRectRaw", doc, page, rect, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<ImageDataLike>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'renderPageRectRaw', [
-      doc,
-      page,
-      rect,
-      options,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "renderPageRectRaw", [doc, page, rect, options]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.renderPageBitmap}
+   *
+   * @public
+   */
+  renderPageBitmap(doc: PdfDocumentObject, page: PdfPageObject, options?: PdfRenderPageOptions) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPageBitmap", doc, page, options);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<ImageBitmap>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, "renderPageBitmap", [doc, page, options]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.renderPageRectBitmap}
+   *
+   * @public
+   */
+  renderPageRectBitmap(doc: PdfDocumentObject, page: PdfPageObject, rect: Rect, options?: PdfRenderPageOptions) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPageRectBitmap", doc, page, rect, options);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<ImageBitmap>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, "renderPageRectBitmap", [doc, page, rect, options]);
     this.proxy(task, request);
 
     return task;
@@ -481,11 +500,11 @@ export class WebWorkerEngine implements PdfEngine {
     annotation: PdfAnnotationObject,
     options?: PdfRenderPageAnnotationOptions,
   ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renderAnnotation', doc, page, annotation, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderAnnotation", doc, page, annotation, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<Blob>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'renderPageAnnotation', [
+    const request: ExecuteRequest = createRequest(requestId, "renderPageAnnotation", [
       doc,
       page,
       annotation,
@@ -501,15 +520,11 @@ export class WebWorkerEngine implements PdfEngine {
     page: PdfPageObject,
     options?: PdfRenderPageAnnotationOptions,
   ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renderPageAnnotations', doc, page, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPageAnnotations", doc, page, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<AnnotationAppearanceMap<Blob>>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'renderPageAnnotations', [
-      doc,
-      page,
-      options,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "renderPageAnnotations", [doc, page, options]);
     this.proxy(task, request);
 
     return task;
@@ -520,11 +535,11 @@ export class WebWorkerEngine implements PdfEngine {
     page: PdfPageObject,
     options?: PdfRenderPageAnnotationOptions,
   ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renderPageAnnotationsRaw', doc, page, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderPageAnnotationsRaw", doc, page, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<AnnotationAppearanceMap<ImageDataLike>>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'renderPageAnnotationsRaw', [
+    const request: ExecuteRequest = createRequest(requestId, "renderPageAnnotationsRaw", [
       doc,
       page,
       options,
@@ -540,7 +555,7 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getAllAnnotations(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getAllAnnotations', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getAllAnnotations", doc);
     const requestId = this.generateRequestId(doc.id);
 
     const task = new WorkerTask<Record<number, PdfAnnotationObject[]>, PdfAnnotationsProgress>(
@@ -548,7 +563,7 @@ export class WebWorkerEngine implements PdfEngine {
       requestId,
     );
 
-    const request: ExecuteRequest = createRequest(requestId, 'getAllAnnotations', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "getAllAnnotations", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -560,11 +575,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getPageAnnotations(doc: PdfDocumentObject, page: PdfPageObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageAnnotations', doc, page);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getPageAnnotations", doc, page);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfAnnotationObject[]>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getPageAnnotations', [doc, page]);
+    const request: ExecuteRequest = createRequest(requestId, "getPageAnnotations", [doc, page]);
     this.proxy(task, request);
 
     return task;
@@ -581,24 +596,16 @@ export class WebWorkerEngine implements PdfEngine {
     annotation: A,
     context?: AnnotationCreateContext<A>,
   ) {
-    this.logger.debug(
-      LOG_SOURCE,
-      LOG_CATEGORY,
-      'createPageAnnotations',
-      doc,
-      page,
-      annotation,
-      context,
-    );
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "createPageAnnotations", doc, page, annotation, context);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<string>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'createPageAnnotation', [
+    const request: ExecuteRequest = createRequest(requestId, "createPageAnnotation", [
       doc,
       page,
       annotation,
       context,
-    ] as PdfEngineMethodArgs<'createPageAnnotation'>);
+    ] as PdfEngineMethodArgs<"createPageAnnotation">);
     this.proxy(task, request);
 
     return task;
@@ -610,11 +617,11 @@ export class WebWorkerEngine implements PdfEngine {
     annotation: PdfAnnotationObject,
     options?: { regenerateAppearance?: boolean },
   ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'updatePageAnnotation', doc, page, annotation);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "updatePageAnnotation", doc, page, annotation);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'updatePageAnnotation', [
+    const request: ExecuteRequest = createRequest(requestId, "updatePageAnnotation", [
       doc,
       page,
       annotation,
@@ -630,20 +637,12 @@ export class WebWorkerEngine implements PdfEngine {
    *
    * @public
    */
-  removePageAnnotation(
-    doc: PdfDocumentObject,
-    page: PdfPageObject,
-    annotation: PdfAnnotationObject,
-  ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'removePageAnnotations', doc, page, annotation);
+  removePageAnnotation(doc: PdfDocumentObject, page: PdfPageObject, annotation: PdfAnnotationObject) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "removePageAnnotations", doc, page, annotation);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'removePageAnnotation', [
-      doc,
-      page,
-      annotation,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "removePageAnnotation", [doc, page, annotation]);
     this.proxy(task, request);
 
     return task;
@@ -655,11 +654,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getPageTextRects(doc: PdfDocumentObject, page: PdfPageObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageTextRects', doc, page);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getPageTextRects", doc, page);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfTextRectObject[]>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getPageTextRects', [doc, page]);
+    const request: ExecuteRequest = createRequest(requestId, "getPageTextRects", [doc, page]);
     this.proxy(task, request);
 
     return task;
@@ -670,20 +669,12 @@ export class WebWorkerEngine implements PdfEngine {
    *
    * @public
    */
-  renderThumbnail(
-    doc: PdfDocumentObject,
-    page: PdfPageObject,
-    options?: PdfRenderThumbnailOptions,
-  ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'renderThumbnail', doc, page, options);
+  renderThumbnail(doc: PdfDocumentObject, page: PdfPageObject, options?: PdfRenderThumbnailOptions) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "renderThumbnail", doc, page, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<Blob>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'renderThumbnail', [
-      doc,
-      page,
-      options,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "renderThumbnail", [doc, page, options]);
     this.proxy(task, request);
 
     return task;
@@ -695,19 +686,12 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   searchAllPages(doc: PdfDocumentObject, keyword: string, options?: PdfSearchAllPagesOptions) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'searchAllPages', doc, keyword, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "searchAllPages", doc, keyword, options);
 
     const requestId = this.generateRequestId(doc.id);
-    const task = new WorkerTask<SearchAllPagesResult, PdfPageSearchProgress>(
-      this.worker,
-      requestId,
-    );
+    const task = new WorkerTask<SearchAllPagesResult, PdfPageSearchProgress>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'searchAllPages', [
-      doc,
-      keyword,
-      options,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "searchAllPages", [doc, keyword, options]);
 
     this.proxy(task, request);
     return task;
@@ -719,11 +703,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   saveAsCopy(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'saveAsCopy', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "saveAsCopy", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<ArrayBuffer>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'saveAsCopy', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "saveAsCopy", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -735,11 +719,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getAttachments(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getAttachments', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getAttachments", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfAttachmentObject[]>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getAttachments', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "getAttachments", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -751,11 +735,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   addAttachment(doc: PdfDocumentObject, params: PdfAddAttachmentParams) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'addAttachment', doc, params);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "addAttachment", doc, params);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'addAttachment', [doc, params]);
+    const request: ExecuteRequest = createRequest(requestId, "addAttachment", [doc, params]);
     this.proxy(task, request);
 
     return task;
@@ -767,11 +751,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   removeAttachment(doc: PdfDocumentObject, attachment: PdfAttachmentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'removeAttachment', doc, attachment);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "removeAttachment", doc, attachment);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'removeAttachment', [doc, attachment]);
+    const request: ExecuteRequest = createRequest(requestId, "removeAttachment", [doc, attachment]);
     this.proxy(task, request);
 
     return task;
@@ -783,14 +767,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   readAttachmentContent(doc: PdfDocumentObject, attachment: PdfAttachmentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'readAttachmentContent', doc, attachment);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "readAttachmentContent", doc, attachment);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<ArrayBuffer>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'readAttachmentContent', [
-      doc,
-      attachment,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "readAttachmentContent", [doc, attachment]);
     this.proxy(task, request);
 
     return task;
@@ -807,11 +788,11 @@ export class WebWorkerEngine implements PdfEngine {
     annotation: PdfWidgetAnnoObject,
     value: FormFieldValue,
   ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'setFormFieldValue', doc, annotation, value);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "setFormFieldValue", doc, annotation, value);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'setFormFieldValue', [
+    const request: ExecuteRequest = createRequest(requestId, "setFormFieldValue", [
       doc,
       page,
       annotation,
@@ -828,11 +809,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   flattenPage(doc: PdfDocumentObject, page: PdfPageObject, options?: PdfFlattenPageOptions) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'flattenPage', doc, page, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "flattenPage", doc, page, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfPageFlattenResult>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'flattenPage', [doc, page, options]);
+    const request: ExecuteRequest = createRequest(requestId, "flattenPage", [doc, page, options]);
     this.proxy(task, request);
 
     return task;
@@ -844,11 +825,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   extractPages(doc: PdfDocumentObject, pageIndexes: number[]) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'extractPages', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "extractPages", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<ArrayBuffer>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'extractPages', [doc, pageIndexes]);
+    const request: ExecuteRequest = createRequest(requestId, "extractPages", [doc, pageIndexes]);
     this.proxy(task, request);
 
     return task;
@@ -865,11 +846,11 @@ export class WebWorkerEngine implements PdfEngine {
     rects: Rect[],
     options?: PdfRedactTextOptions,
   ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'redactTextInRects', doc, page, rects, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "redactTextInRects", doc, page, rects, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'redactTextInRects', [
+    const request: ExecuteRequest = createRequest(requestId, "redactTextInRects", [
       doc,
       page,
       rects,
@@ -886,15 +867,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   applyRedaction(doc: PdfDocumentObject, page: PdfPageObject, annotation: PdfAnnotationObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'applyRedaction', doc, page, annotation);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "applyRedaction", doc, page, annotation);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'applyRedaction', [
-      doc,
-      page,
-      annotation,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "applyRedaction", [doc, page, annotation]);
     this.proxy(task, request);
 
     return task;
@@ -906,11 +883,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   applyAllRedactions(doc: PdfDocumentObject, page: PdfPageObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'applyAllRedactions', doc, page);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "applyAllRedactions", doc, page);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'applyAllRedactions', [doc, page]);
+    const request: ExecuteRequest = createRequest(requestId, "applyAllRedactions", [doc, page]);
     this.proxy(task, request);
 
     return task;
@@ -922,15 +899,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   flattenAnnotation(doc: PdfDocumentObject, page: PdfPageObject, annotation: PdfAnnotationObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'flattenAnnotation', doc, page, annotation);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "flattenAnnotation", doc, page, annotation);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'flattenAnnotation', [
-      doc,
-      page,
-      annotation,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "flattenAnnotation", [doc, page, annotation]);
     this.proxy(task, request);
 
     return task;
@@ -942,11 +915,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   extractText(doc: PdfDocumentObject, pageIndexes: number[]) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'extractText', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "extractText", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<string>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'extractText', [doc, pageIndexes]);
+    const request: ExecuteRequest = createRequest(requestId, "extractText", [doc, pageIndexes]);
     this.proxy(task, request);
 
     return task;
@@ -958,11 +931,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getTextSlices(doc: PdfDocumentObject, slices: PageTextSlice[]) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getTextSlices', doc, slices);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getTextSlices", doc, slices);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<string[]>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getTextSlices', [doc, slices]);
+    const request: ExecuteRequest = createRequest(requestId, "getTextSlices", [doc, slices]);
     this.proxy(task, request);
 
     return task;
@@ -974,11 +947,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getPageGlyphs(doc: PdfDocumentObject, page: PdfPageObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageGlyphs', doc, page);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getPageGlyphs", doc, page);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfGlyphObject[]>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getPageGlyphs', [doc, page]);
+    const request: ExecuteRequest = createRequest(requestId, "getPageGlyphs", [doc, page]);
     this.proxy(task, request);
 
     return task;
@@ -990,11 +963,112 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getPageGeometry(doc: PdfDocumentObject, page: PdfPageObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageGeometry', doc, page);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getPageGeometry", doc, page);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfPageGeometry>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getPageGeometry', [doc, page]);
+    const request: ExecuteRequest = createRequest(requestId, "getPageGeometry", [doc, page]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.getPageObjects}
+   *
+   * @public
+   */
+  getPageObjects(doc: PdfDocumentObject, page: PdfPageObject) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getPageObjects", doc, page);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<PdfPageObjectInfo[]>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, "getPageObjects", [doc, page]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.setPageObjectsActive}
+   *
+   * @public
+   */
+  setPageObjectsActive(doc: PdfDocumentObject, page: PdfPageObject, ids: number[][], active: boolean) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "setPageObjectsActive", doc, page, ids, active);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, "setPageObjectsActive", [
+      doc,
+      page,
+      ids,
+      active,
+    ]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.setPathSubpathsInactive}
+   *
+   * @public
+   */
+  setPathSubpathsInactive(doc: PdfDocumentObject, page: PdfPageObject, items: PdfPathSubpathErase[]) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "setPathSubpathsInactive", doc, page, items);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, "setPathSubpathsInactive", [doc, page, items]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.transformPageObjects}
+   *
+   * @public
+   */
+  transformPageObjects(doc: PdfDocumentObject, page: PdfPageObject, items: PdfPageObjectTranslation[]) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "transformPageObjects", doc, page, items);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, "transformPageObjects", [doc, page, items]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.transformPathSubpaths}
+   *
+   * @public
+   */
+  transformPathSubpaths(doc: PdfDocumentObject, page: PdfPageObject, items: PdfPathSubpathTransform[]) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "transformPathSubpaths", doc, page, items);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, "transformPathSubpaths", [doc, page, items]);
+    this.proxy(task, request);
+
+    return task;
+  }
+
+  /**
+   * {@inheritDoc @embedpdf/models!PdfEngine.generatePageContent}
+   *
+   * @public
+   */
+  generatePageContent(doc: PdfDocumentObject, pageIndexes: number[]) {
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "generatePageContent", doc, pageIndexes);
+    const requestId = this.generateRequestId(doc.id);
+    const task = new WorkerTask<boolean>(this.worker, requestId);
+
+    const request: ExecuteRequest = createRequest(requestId, "generatePageContent", [doc, pageIndexes]);
     this.proxy(task, request);
 
     return task;
@@ -1006,11 +1080,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   getPageTextRuns(doc: PdfDocumentObject, page: PdfPageObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'getPageTextRuns', doc, page);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "getPageTextRuns", doc, page);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<PdfPageTextRuns>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'getPageTextRuns', [doc, page]);
+    const request: ExecuteRequest = createRequest(requestId, "getPageTextRuns", [doc, page]);
     this.proxy(task, request);
 
     return task;
@@ -1022,12 +1096,12 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   merge(files: PdfFile[]) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'merge', files);
-    const fileIds = files.map((file) => file.id).join('.');
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "merge", files);
+    const fileIds = files.map((file) => file.id).join(".");
     const requestId = this.generateRequestId(fileIds);
     const task = new WorkerTask<PdfFile>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'merge', [files]);
+    const request: ExecuteRequest = createRequest(requestId, "merge", [files]);
     this.proxy(task, request);
 
     return task;
@@ -1039,11 +1113,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   mergePages(mergeConfigs: Array<{ docId: string; pageIndices: number[] }>) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'mergePages', mergeConfigs);
-    const requestId = this.generateRequestId(mergeConfigs.map((config) => config.docId).join('.'));
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "mergePages", mergeConfigs);
+    const requestId = this.generateRequestId(mergeConfigs.map((config) => config.docId).join("."));
     const task = new WorkerTask<PdfFile>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'mergePages', [mergeConfigs]);
+    const request: ExecuteRequest = createRequest(requestId, "mergePages", [mergeConfigs]);
     this.proxy(task, request);
 
     return task;
@@ -1055,14 +1129,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   preparePrintDocument(doc: PdfDocumentObject, options?: PdfPrintOptions) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'preparePrintDocument', doc, options);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "preparePrintDocument", doc, options);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<ArrayBuffer>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'preparePrintDocument', [
-      doc,
-      options,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "preparePrintDocument", [doc, options]);
     this.proxy(task, request);
 
     return task;
@@ -1074,11 +1145,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   closeDocument(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'closeDocument', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "closeDocument", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'closeDocument', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "closeDocument", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -1090,10 +1161,10 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   closeAllDocuments() {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'closeAllDocuments');
-    const requestId = this.generateRequestId('closeAllDocuments');
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "closeAllDocuments");
+    const requestId = this.generateRequestId("closeAllDocuments");
     const task = new WorkerTask<boolean>(this.worker, requestId);
-    const request: ExecuteRequest = createRequest(requestId, 'closeAllDocuments', []);
+    const request: ExecuteRequest = createRequest(requestId, "closeAllDocuments", []);
     this.proxy(task, request);
 
     return task;
@@ -1110,11 +1181,11 @@ export class WebWorkerEngine implements PdfEngine {
     ownerPassword: string,
     allowedFlags: number,
   ) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'setDocumentEncryption', doc, allowedFlags);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "setDocumentEncryption", doc, allowedFlags);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'setDocumentEncryption', [
+    const request: ExecuteRequest = createRequest(requestId, "setDocumentEncryption", [
       doc,
       userPassword,
       ownerPassword,
@@ -1131,11 +1202,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   removeEncryption(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'removeEncryption', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "removeEncryption", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'removeEncryption', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "removeEncryption", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -1147,14 +1218,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   unlockOwnerPermissions(doc: PdfDocumentObject, ownerPassword: string) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'unlockOwnerPermissions', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "unlockOwnerPermissions", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'unlockOwnerPermissions', [
-      doc,
-      ownerPassword,
-    ]);
+    const request: ExecuteRequest = createRequest(requestId, "unlockOwnerPermissions", [doc, ownerPassword]);
     this.proxy(task, request);
 
     return task;
@@ -1166,11 +1234,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   isEncrypted(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'isEncrypted', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "isEncrypted", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'isEncrypted', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "isEncrypted", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -1182,11 +1250,11 @@ export class WebWorkerEngine implements PdfEngine {
    * @public
    */
   isOwnerUnlocked(doc: PdfDocumentObject) {
-    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, 'isOwnerUnlocked', doc);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "isOwnerUnlocked", doc);
     const requestId = this.generateRequestId(doc.id);
     const task = new WorkerTask<boolean>(this.worker, requestId);
 
-    const request: ExecuteRequest = createRequest(requestId, 'isOwnerUnlocked', [doc]);
+    const request: ExecuteRequest = createRequest(requestId, "isOwnerUnlocked", [doc]);
     this.proxy(task, request);
 
     return task;
@@ -1202,33 +1270,26 @@ export class WebWorkerEngine implements PdfEngine {
    * @internal
    */
   proxy<R>(task: WorkerTask<R>, request: ExecuteRequest, transferables: any[] = []) {
-    this.logger.debug(
-      LOG_SOURCE,
-      LOG_CATEGORY,
-      'send request to worker',
-      task,
-      request,
-      transferables,
-    );
-    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `${request.data.name}`, 'Begin', request.id);
+    this.logger.debug(LOG_SOURCE, LOG_CATEGORY, "send request to worker", task, request, transferables);
+    this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `${request.data.name}`, "Begin", request.id);
     this.readyTask.wait(
       () => {
         this.worker.postMessage(request, transferables);
         task.wait(
           () => {
-            this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `${request.data.name}`, 'End', request.id);
+            this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `${request.data.name}`, "End", request.id);
           },
           () => {
-            this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `${request.data.name}`, 'End', request.id);
+            this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `${request.data.name}`, "End", request.id);
           },
         );
         this.tasks.set(request.id, task);
       },
       () => {
-        this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `${request.data.name}`, 'End', request.id);
+        this.logger.perf(LOG_SOURCE, LOG_CATEGORY, `${request.data.name}`, "End", request.id);
         task.reject({
           code: PdfErrorCode.Initialization,
-          message: 'worker initialization failed',
+          message: "worker initialization failed",
         });
       },
     );

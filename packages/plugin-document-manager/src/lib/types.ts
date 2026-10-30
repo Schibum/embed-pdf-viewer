@@ -58,6 +58,12 @@ export interface LoadDocumentBufferOptions {
   autoActivate?: boolean; // If true, this document becomes active when opened. Default: true
   /** Per-document permission overrides */
   permissions?: PermissionConfig;
+  /**
+   * Hand `buffer` to the engine instead of copying it. The buffer is detached
+   * after the call, so a failed load (e.g. a missing password) can't be retried
+   * and has to be opened again with fresh bytes.
+   */
+  transferBuffer?: boolean;
 }
 
 export interface RetryOptions {
